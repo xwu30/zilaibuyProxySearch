@@ -1,0 +1,34 @@
+server:
+  port: 8080
+
+spring:
+  jackson:
+    deserialization:
+      fail-on-unknown-properties: false
+  cache:
+    type: caffeine
+  datasource:
+    url: jdbc:mysql://habitdb.c75bhani0czi.us-east-1.rds.amazonaws.com:3306/habitflashcat?&useUnicode=true&characterEncoding=utf8&cachePrepStmts=true&useServerPrepStmts=true&rewriteBatchedStatements=true
+    username: admin
+    password: Test#ForHabit
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        format_sql: true
+
+rakuten:
+  base-url: https://openapi.rakuten.co.jp
+  path: /ichibams/api/IchibaItem/Search/20170706
+  referer: https://zilaibuy.com/
+  application-id: ${RAKUTEN_APPLICATION_ID}
+  access-key: ${RAKUTEN_ACCESS_KEY}
+  affiliate-id: ${RAKUTEN_AFFILIATE_ID:}
+  default-hits: 5
+  default-image-flag: 1
+  timeout-ms: 8000
+
+app:
+  cors:
+    allowed-origins: "http://localhost:3000,http://localhost:4200,https://www.zilaibuy.com"
