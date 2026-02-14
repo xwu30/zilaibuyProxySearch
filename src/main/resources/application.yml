@@ -8,9 +8,9 @@ spring:
   cache:
     type: caffeine
   datasource:
-    url: jdbc:mysql://habitdb.c75bhani0czi.us-east-1.rds.amazonaws.com:3306/habitflashcat?&useUnicode=true&characterEncoding=utf8&cachePrepStmts=true&useServerPrepStmts=true&rewriteBatchedStatements=true
-    username: admin
-    password: Test#ForHabit
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
   jpa:
     hibernate:
       ddl-auto: update
@@ -28,6 +28,10 @@ rakuten:
   default-hits: 5
   default-image-flag: 1
   timeout-ms: 8000
+
+google:
+  translate:
+    api-key: ${GOOGLE_TRANSLATE_API_KEY}
 
 app:
   cors:

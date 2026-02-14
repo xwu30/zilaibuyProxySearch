@@ -31,13 +31,16 @@ public class RakutenMapper {
         );
     }
 
-    public RakutenItemEntity toEntity(RakutenIchibaSearchResponse.Item item, String keyword) {
+    public RakutenItemEntity toEntity(RakutenIchibaSearchResponse.Item item, String keyword,
+                                      String itemNameZh, String catchCopyZh) {
         RakutenItemEntity entity = new RakutenItemEntity();
         entity.setKeyword(keyword);
         entity.setSyncedAt(LocalDateTime.now());
         entity.setItemCode(item.itemCode());
         entity.setItemName(item.itemName());
         entity.setCatchCopy(item.catchcopy());
+        entity.setItemNameZh(itemNameZh);
+        entity.setCatchCopyZh(catchCopyZh);
         entity.setItemPrice(item.itemPrice());
         entity.setAffiliateUrl(item.affiliateUrl());
         entity.setItemUrl(item.itemUrl());
@@ -55,6 +58,31 @@ public class RakutenMapper {
         entity.setLastFetchedAt(LocalDateTime.now());
         entity.setIsActive(true);
         return entity;
+    }
+
+    public void updateEntity(RakutenItemEntity entity, RakutenIchibaSearchResponse.Item item, String keyword,
+                             String itemNameZh, String catchCopyZh) {
+        entity.setKeyword(keyword);
+        entity.setItemName(item.itemName());
+        entity.setCatchCopy(item.catchcopy());
+        entity.setItemNameZh(itemNameZh);
+        entity.setCatchCopyZh(catchCopyZh);
+        entity.setItemPrice(item.itemPrice());
+        entity.setAffiliateUrl(item.affiliateUrl());
+        entity.setItemUrl(item.itemUrl());
+        entity.setShopName(item.shopName());
+        entity.setShopCode(item.shopCode());
+        entity.setGenreId(item.genreId());
+        entity.setImageSmall(firstRecordImage(item.smallImageUrls()));
+        entity.setImageMedium(firstRecordImage(item.mediumImageUrls()));
+        entity.setReviewAverage(item.reviewAverage() != null
+                ? BigDecimal.valueOf(item.reviewAverage()) : null);
+        entity.setReviewCount(item.reviewCount());
+        entity.setAvailability(item.availability());
+        entity.setPostageFlag(item.postageFlag());
+        entity.setCreditCardFlag(item.creditCardFlag());
+        entity.setLastFetchedAt(LocalDateTime.now());
+        entity.setIsActive(true);
     }
 
     private String firstImage(List<RakutenItem.ImageUrl> images) {

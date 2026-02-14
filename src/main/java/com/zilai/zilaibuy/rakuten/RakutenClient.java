@@ -37,7 +37,7 @@ public class RakutenClient {
                 .queryParam("affiliateId", getAffiliateId())
                 // 你现在是同时带了 accessKey（你已在请求里这么做），保留：
                 .queryParam("accessKey", getAccessKey())
-                .build(true)
+                .build()
                 .toUriString();
 
         log.info("[RakutenClient] GET {}", url);

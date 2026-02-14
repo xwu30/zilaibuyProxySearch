@@ -22,6 +22,7 @@ public class RakutenSyncService {
     private final RakutenClient rakutenClient;
     private final RakutenItemRepository itemRepo;
     private final RakutenMapper mapper;
+    private final GoogleTranslateService translateService;
 
     public int syncKeyword(String keyword, int pages, int hitsPerPage) {
         if (pages <= 0) pages = 1;
@@ -37,10 +38,37 @@ public class RakutenSyncService {
                 continue;
             }
 
-            List<RakutenItemEntity> entities = new ArrayList<>();
+            // Collect valid items for batch translation
+            List<RakutenIchibaSearchResponse.ItemWrapper> validItems = new ArrayList<>();
             for (RakutenIchibaSearchResponse.ItemWrapper w : items) {
-                if (w == null || w.item() == null) continue;
-                entities.add(mapper.toEntity(w.item(), keyword));
+                if (w != null && w.item() != null) validItems.add(w);
+            }
+
+            // Batch translate itemName and catchCopy (ja -> zh-CN)
+            List<String> itemNames = new ArrayList<>();
+            List<String> catchCopies = new ArrayList<>();
+            for (RakutenIchibaSearchResponse.ItemWrapper w : validItems) {
+                itemNames.add(w.item().itemName());
+                catchCopies.add(w.item().catchcopy());
+            }
+
+            List<String> translatedNames = translateService.translateBatch(itemNames, "ja", "zh-CN");
+            List<String> translatedCopies = translateService.translateBatch(catchCopies, "ja", "zh-CN");
+
+            // Map to entities with translations
+            List<RakutenItemEntity> entities = new ArrayList<>();
+            for (int i = 0; i < validItems.size(); i++) {
+                RakutenIchibaSearchResponse.Item item = validItems.get(i).item();
+                String nameZh = translatedNames.get(i);
+                String copyZh = translatedCopies.get(i);
+
+                RakutenItemEntity existing = itemRepo.findByItemCode(item.itemCode()).orElse(null);
+                if (existing != null) {
+                    mapper.updateEntity(existing, item, keyword, nameZh, copyZh);
+                    entities.add(existing);
+                } else {
+                    entities.add(mapper.toEntity(item, keyword, nameZh, copyZh));
+                }
             }
 
             itemRepo.saveAll(entities);

@@ -31,6 +31,12 @@ public class RakutenItemEntity {
     @Column(name = "catch_copy", length = 512)
     private String catchCopy;
 
+    @Column(name = "item_name_zh", length = 512)
+    private String itemNameZh;
+
+    @Column(name = "catch_copy_zh", length = 512)
+    private String catchCopyZh;
+
     @Column(name = "item_price", nullable = false)
     private Integer itemPrice;
 
