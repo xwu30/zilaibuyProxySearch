@@ -12,6 +12,6 @@ public interface RakutenItemRepository extends JpaRepository<RakutenItemEntity, 
     Optional<RakutenItemEntity> findByItemCode(String itemCode);
 
     // 查询带有关键字的商品，按更新时间排序
-    @Query("SELECT r FROM RakutenItemEntity r WHERE r.isActive = true AND (:kw IS NULL OR r.itemName LIKE CONCAT('%', :kw, '%')) ORDER BY r.lastFetchedAt DESC")
+    @Query("SELECT r FROM RakutenItemEntity r WHERE r.isActive = true AND (:kw IS NULL OR LOWER(r.keyword) LIKE CONCAT('%', LOWER(:kw), '%') OR r.itemName LIKE CONCAT('%', :kw, '%') OR r.itemNameZh LIKE CONCAT('%', :kw, '%')) ORDER BY r.lastFetchedAt DESC")
     Page<RakutenItemEntity> search(String kw, Pageable pageable);
 }

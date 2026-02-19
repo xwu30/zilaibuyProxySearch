@@ -43,7 +43,7 @@ public class ItemController {
     @PostMapping("/sync")
     public String syncKeyword(@RequestParam String keyword) {
         try {
-            int count = syncService.syncKeyword(keyword, 10, 30);  // 可根据需要调整 pages 和 hitsPerPage
+            int count = syncService.syncKeyword(keyword, 1, 30);  // 可根据需要调整 pages 和 hitsPerPage
             return "Synced " + count + " items for keyword: " + keyword;
         } catch (Exception e) {
             return "Error syncing keyword " + keyword + ": " + e.getMessage();
