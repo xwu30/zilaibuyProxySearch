@@ -13,13 +13,15 @@ public class RakutenSyncScheduler {
 
     private final RakutenSyncService syncService;
 
-    // 每天凌晨3点同步 Rakuten 数据
-    @Scheduled(cron = "0 0 3 * * *", zone = "America/Toronto")
+    // 每天下午3点同步 Rakuten 数据
+    @Scheduled(cron = "0 0 15 * * *", zone = "America/Toronto")
     public void nightlySync() {
-        log.info("[RakutenSyncScheduler] Starting nightly sync...");
+        log.info("[RakutenSyncScheduler] Starting daily sync...");
 
-        // 这里设置你希望同步的关键词
-        String[] keywords = {"iphone", "nintendo", "ps5", "airpods"};
+        String[] keywords = {
+            "Fashion", "iphone", "DEAL", "nintendo", "ps5", "airpods",
+            "Best Sellers", "Electronics", "Baby", "Snacks", "Skincare", "Anime"
+        };
         int pages = 2;
         int hitsPerPage = 30;
 
