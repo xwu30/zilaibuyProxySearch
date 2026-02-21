@@ -1,6 +1,6 @@
 server:
-  port: 8080
-
+  port: ${PORT:5000}
+  address: 0.0.0.0
 spring:
   jackson:
     deserialization:
@@ -35,4 +35,4 @@ google:
 
 app:
   cors:
-    allowed-origins: "http://localhost:3000,http://localhost:4200,https://www.zilaibuy.com"
+    allowed-origins: "http://localhost:3000,http://localhost:4200,https://zilaibuy.com,https://www.zilaibuy.com"

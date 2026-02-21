@@ -14,7 +14,7 @@ public class RakutenSyncScheduler {
     private final RakutenSyncService syncService;
 
     // 每天下午3点同步 Rakuten 数据
-    @Scheduled(cron = "0 0 15 * * *", zone = "America/Toronto")
+    @Scheduled(cron = "0 0 22 * * *", zone = "America/Toronto")
     public void nightlySync() {
         log.info("[RakutenSyncScheduler] Starting daily sync...");
 
