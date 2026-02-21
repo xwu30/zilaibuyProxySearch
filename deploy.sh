@@ -8,7 +8,7 @@ JAR="target/zilaibuy-backend-0.0.1.jar"
 VERSION_LABEL="v$(date +%Y%m%d%H%M%S)"
 
 echo "==> Building JAR..."
-./mvnw clean package -DskipTests
+mvn clean package -DskipTests
 
 echo "==> Getting EB S3 bucket..."
 S3_BUCKET=$(aws elasticbeanstalk create-storage-location \
