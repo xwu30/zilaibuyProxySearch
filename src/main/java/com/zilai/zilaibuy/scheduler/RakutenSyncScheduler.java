@@ -29,6 +29,11 @@ public class RakutenSyncScheduler {
             try {
                 int count = syncService.syncKeyword(keyword, pages, hitsPerPage);
                 log.info("[RakutenSyncScheduler] Synced {} items for keyword {}", count, keyword);
+                Thread.sleep(3000);
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
+                log.warn("[RakutenSyncScheduler] Sync interrupted");
+                break;
             } catch (Exception e) {
                 log.error("[RakutenSyncScheduler] Error syncing keyword {}", keyword, e);
             }
