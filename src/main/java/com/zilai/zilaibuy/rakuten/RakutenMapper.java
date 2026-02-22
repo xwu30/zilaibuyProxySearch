@@ -60,9 +60,8 @@ public class RakutenMapper {
         return entity;
     }
 
-    public void updateEntity(RakutenItemEntity entity, RakutenIchibaSearchResponse.Item item, String keyword,
+    public void updateEntity(RakutenItemEntity entity, RakutenIchibaSearchResponse.Item item,
                              String itemNameZh, String catchCopyZh) {
-        entity.setKeyword(keyword);
         entity.setItemName(item.itemName());
         entity.setCatchCopy(item.catchcopy());
         entity.setItemNameZh(itemNameZh);

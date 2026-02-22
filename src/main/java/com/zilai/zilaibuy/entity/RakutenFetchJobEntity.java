@@ -25,6 +25,9 @@ public class RakutenFetchJobEntity {
     @Column(name = "items_saved")
     private Integer itemsSaved;
 
+    @Column(name = "items_updated")
+    private Integer itemsUpdated;
+
     @Column(name = "status", nullable = false, length = 16)
     private String status; // SUCCESS or FAILED
 
