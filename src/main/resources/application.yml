@@ -50,6 +50,7 @@ app:
   cors:
     allowed-origins: "http://localhost:3000,http://localhost:4200,https://zilaibuy.com,https://www.zilaibuy.com"
   base-url: ${APP_BASE_URL:http://localhost:8080}
+  frontend-url: ${APP_FRONTEND_URL:http://localhost:53029}
 
 jwt:
   secret: ${JWT_SECRET}

@@ -6,6 +6,9 @@ import com.zilai.zilaibuy.service.AuthService;
 import com.zilai.zilaibuy.service.OtpService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -20,6 +23,9 @@ public class AuthController {
 
     private final OtpService otpService;
     private final AuthService authService;
+
+    @Value("${app.frontend-url}")
+    private String frontendUrl;
 
     @PostMapping("/otp/send")
     public ResponseEntity<Map<String, Object>> sendOtp(@Valid @RequestBody OtpSendRequest req) {
@@ -53,8 +59,13 @@ public class AuthController {
     }
 
     @GetMapping("/confirm-email")
-    public ResponseEntity<AuthResponse> confirmEmail(@RequestParam String token) {
-        return ResponseEntity.ok(authService.confirmEmail(token));
+    public ResponseEntity<Void> confirmEmail(@RequestParam String token) {
+        AuthResponse auth = authService.confirmEmail(token);
+        String redirect = frontendUrl + "/?confirmed=1&accessToken=" + auth.accessToken()
+                + "&refreshToken=" + auth.refreshToken();
+        return ResponseEntity.status(HttpStatus.FOUND)
+                .header(HttpHeaders.LOCATION, redirect)
+                .build();
     }
 
     @PostMapping("/login/otp")
