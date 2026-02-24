@@ -11,12 +11,25 @@ spring:
     url: ${SPRING_DATASOURCE_URL}
     username: ${SPRING_DATASOURCE_USERNAME}
     password: ${SPRING_DATASOURCE_PASSWORD}
+    hikari:
+      keepalive-time: 60000
+      connection-test-query: SELECT 1
+      idle-timeout: 300000
+      max-lifetime: 600000
   jpa:
     hibernate:
       ddl-auto: update
     properties:
       hibernate:
         format_sql: true
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail.smtp.auth: true
+      mail.smtp.starttls.enable: true
 
 rakuten:
   base-url: https://openapi.rakuten.co.jp
@@ -36,3 +49,19 @@ google:
 app:
   cors:
     allowed-origins: "http://localhost:3000,http://localhost:4200,https://zilaibuy.com,https://www.zilaibuy.com"
+  base-url: ${APP_BASE_URL:http://localhost:8080}
+
+jwt:
+  secret: ${JWT_SECRET}
+  expiry-hours: ${JWT_EXPIRY_HOURS:1}
+  refresh-expiry-days: ${REFRESH_TOKEN_EXPIRY_DAYS:7}
+
+twilio:
+  account-sid: ${TWILIO_ACCOUNT_SID:}
+  auth-token: ${TWILIO_AUTH_TOKEN:}
+  from-phone: ${TWILIO_FROM_PHONE:}
+
+management:
+  health:
+    mail:
+      enabled: false

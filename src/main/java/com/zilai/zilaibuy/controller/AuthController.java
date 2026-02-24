@@ -1,0 +1,81 @@
+package com.zilai.zilaibuy.controller;
+
+import com.zilai.zilaibuy.dto.auth.*;
+import com.zilai.zilaibuy.security.AuthenticatedUser;
+import com.zilai.zilaibuy.service.AuthService;
+import com.zilai.zilaibuy.service.OtpService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.HashMap;
+import java.util.Map;
+
+@RestController
+@RequestMapping("/api/auth")
+@RequiredArgsConstructor
+public class AuthController {
+
+    private final OtpService otpService;
+    private final AuthService authService;
+
+    @PostMapping("/otp/send")
+    public ResponseEntity<Map<String, Object>> sendOtp(@Valid @RequestBody OtpSendRequest req) {
+        String devCode = otpService.sendOtp(req.phone(), req.purpose());
+        if (devCode != null) {
+            // SMS not delivered (Twilio unavailable) — return code in response for local dev
+            return ResponseEntity.ok(Map.of(
+                    "message", "验证码已生成（开发模式，短信未发送）",
+                    "expiresIn", 300,
+                    "devCode", devCode
+            ));
+        }
+        return ResponseEntity.ok(Map.of("message", "验证码已发送", "expiresIn", 300));
+    }
+
+    @PostMapping("/register")
+    public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest req) {
+        return ResponseEntity.ok(authService.register(req.phone(), req.code(), req.password()));
+    }
+
+    @PostMapping("/register/email")
+    public ResponseEntity<Map<String, Object>> registerWithEmail(@Valid @RequestBody EmailRegisterRequest req) {
+        String devToken = authService.registerWithEmail(req.email(), req.password());
+        Map<String, Object> resp = new HashMap<>();
+        resp.put("message", "确认邮件已发送，请检查您的邮箱");
+        String mailUser = System.getenv("MAIL_USERNAME");
+        if (devToken != null && (mailUser == null || mailUser.isBlank())) {
+            resp.put("devToken", devToken);
+        }
+        return ResponseEntity.ok(resp);
+    }
+
+    @GetMapping("/confirm-email")
+    public ResponseEntity<AuthResponse> confirmEmail(@RequestParam String token) {
+        return ResponseEntity.ok(authService.confirmEmail(token));
+    }
+
+    @PostMapping("/login/otp")
+    public ResponseEntity<AuthResponse> loginWithOtp(@Valid @RequestBody OtpLoginRequest req) {
+        return ResponseEntity.ok(authService.loginWithOtp(req.phone(), req.code()));
+    }
+
+    @PostMapping("/login/password")
+    public ResponseEntity<AuthResponse> loginWithPassword(@Valid @RequestBody PasswordLoginRequest req) {
+        return ResponseEntity.ok(authService.loginWithPassword(req.account(), req.password()));
+    }
+
+    @PostMapping("/refresh")
+    public ResponseEntity<RefreshResponse> refresh(@Valid @RequestBody RefreshRequest req) {
+        return ResponseEntity.ok(authService.refresh(req.refreshToken()));
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<Map<String, String>> logout(
+            @AuthenticationPrincipal AuthenticatedUser currentUser) {
+        authService.logout(currentUser.id());
+        return ResponseEntity.ok(Map.of("message", "已登出"));
+    }
+}
