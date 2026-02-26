@@ -1,0 +1,34 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(/usr/bin/git -C /Users/xwu30/eclipse-workspace/zilaibuyProxySearch log --oneline -5)",
+      "Bash(chmod:*)",
+      "Bash(bash:*)",
+      "Bash(sleep 1200:*)",
+      "WebFetch(domain:elasticbeanstalk-us-east-1-579324938856.s3.amazonaws.com)",
+      "Bash(aws elasticbeanstalk:*)",
+      "Bash(ssh:*)",
+      "Bash(/usr/bin/git:*)",
+      "Bash(cd:*)",
+      "Bash(mvn spring-boot:run:*)",
+      "Bash(set -a && source .env && set +a && mvn spring-boot:run 2>&1)",
+      "Bash(curl:*)",
+      "Bash(set -a && source .env && set +a && mvn spring-boot:run -Dspring-boot.run.arguments=\"--server.port=8080\" 2>&1)",
+      "Bash(pkill:*)",
+      "Bash(aws amplify:*)",
+      "Bash(tail:*)",
+      "Bash(cat:*)",
+      "Bash(mvn compile:*)",
+      "Bash(head:*)",
+      "Bash(which mysql:*)",
+      "Bash(python3:*)",
+      "Bash(git add:*)",
+      "Bash(git push:*)",
+      "Bash(aws cloudfront:*)",
+      "Bash(aws s3:*)",
+      "Bash(mvn clean:*)",
+      "Bash(cd /Users/xwu30/Projects/zilaibuyWeb && npm run build 2>&1)",
+      "Bash(npm run:*)"
+    ]
+  }
+}

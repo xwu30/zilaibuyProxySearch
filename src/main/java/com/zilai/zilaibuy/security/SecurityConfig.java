@@ -41,11 +41,13 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/items/search").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/address/**").permitAll()
                 .requestMatchers("/actuator/health", "/api/actuator/health").permitAll()
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.POST, "/api/items/sync").hasRole("ADMIN")
                 .requestMatchers("/api/warehouse/**").hasAnyRole("WAREHOUSE", "ADMIN")
                 .requestMatchers("/api/support/**").hasAnyRole("SUPPORT", "ADMIN")
+                .requestMatchers("/api/user/**").authenticated()
                 .requestMatchers("/api/orders/**").authenticated()
                 .requestMatchers("/api/translate/**").authenticated()
                 .anyRequest().authenticated()

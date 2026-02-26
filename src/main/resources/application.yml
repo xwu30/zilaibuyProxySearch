@@ -45,6 +45,8 @@ rakuten:
 google:
   translate:
     api-key: ${GOOGLE_TRANSLATE_API_KEY}
+  places:
+    api-key: ${GOOGLE_PLACES_API_KEY:${GOOGLE_TRANSLATE_API_KEY:}}
 
 app:
   cors:

@@ -43,6 +43,6 @@ public class OtpEntity {
     private LocalDateTime createdAt;
 
     public enum Purpose {
-        REGISTER, LOGIN
+        REGISTER, LOGIN, BIND_PHONE
     }
 }
