@@ -59,20 +59,28 @@ public class AuthService {
 
     @Transactional
     public String registerWithEmail(String email, String password) {
-        if (userRepository.findByEmail(email).isPresent()) {
-            throw new AppException(HttpStatus.CONFLICT, "邮箱已注册");
+        UserEntity user = userRepository.findByEmail(email).orElse(null);
+
+        if (user != null) {
+            if (user.isEmailVerified()) {
+                throw new AppException(HttpStatus.CONFLICT, "邮箱已注册");
+            }
+            // Email exists but not confirmed — update password and resend confirmation
+            if (StringUtils.hasText(password)) {
+                user.setPasswordHash(passwordEncoder.encode(password));
+                userRepository.save(user);
+            }
+            emailConfirmationRepository.deleteByUser(user);
+        } else {
+            user = new UserEntity();
+            user.setEmail(email);
+            if (StringUtils.hasText(password)) {
+                user.setPasswordHash(passwordEncoder.encode(password));
+            }
+            user.setPhone("email:" + email);
+            userRepository.save(user);
         }
 
-        UserEntity user = new UserEntity();
-        user.setEmail(email);
-        if (StringUtils.hasText(password)) {
-            user.setPasswordHash(passwordEncoder.encode(password));
-        }
-        // Use email as phone placeholder until phone is set
-        user.setPhone("email:" + email);
-        userRepository.save(user);
-
-        // Create confirmation token
         String token = UUID.randomUUID().toString().replace("-", "");
         EmailConfirmationEntity confirmation = new EmailConfirmationEntity();
         confirmation.setUser(user);
@@ -81,7 +89,7 @@ public class AuthService {
         emailConfirmationRepository.save(confirmation);
 
         emailService.sendConfirmationEmail(email, token);
-        return token; // returned for dev mode
+        return token;
     }
 
     @Transactional
@@ -172,7 +180,14 @@ public class AuthService {
         rt.setExpiresAt(LocalDateTime.now().plusDays(refreshExpiryDays));
         refreshTokenRepository.save(rt);
 
-        UserDto userDto = new UserDto(user.getId(), user.getPhone(), user.getRole().name());
+        String displayName = user.getShippingFullName();
+        if (displayName == null || displayName.isBlank()) {
+            displayName = user.getDisplayName();
+        }
+        if (displayName == null || displayName.isBlank()) {
+            displayName = "紫来淘客" + String.format("%06d", user.getId());
+        }
+        UserDto userDto = new UserDto(user.getId(), user.getPhone(), user.getEmail(), displayName, user.getRole().name());
         return new AuthResponse(accessToken, rawRefresh, jwtUtil.getExpirySeconds(), userDto);
     }
 
