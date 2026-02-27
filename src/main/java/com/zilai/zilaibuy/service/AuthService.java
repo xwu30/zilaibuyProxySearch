@@ -3,10 +3,12 @@ package com.zilai.zilaibuy.service;
 import com.zilai.zilaibuy.dto.auth.*;
 import com.zilai.zilaibuy.entity.EmailConfirmationEntity;
 import com.zilai.zilaibuy.entity.OtpEntity;
+import com.zilai.zilaibuy.entity.PendingEmailRegistrationEntity;
 import com.zilai.zilaibuy.entity.RefreshTokenEntity;
 import com.zilai.zilaibuy.entity.UserEntity;
 import com.zilai.zilaibuy.exception.AppException;
 import com.zilai.zilaibuy.repository.EmailConfirmationRepository;
+import com.zilai.zilaibuy.repository.PendingEmailRegistrationRepository;
 import com.zilai.zilaibuy.repository.RefreshTokenRepository;
 import com.zilai.zilaibuy.repository.UserRepository;
 import com.zilai.zilaibuy.security.JwtUtil;
@@ -22,6 +24,8 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.LocalDateTime;
 import java.util.Base64;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -35,6 +39,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final EmailConfirmationRepository emailConfirmationRepository;
     private final EmailService emailService;
+    private final PendingEmailRegistrationRepository pendingEmailRegistrationRepository;
 
     @Value("${jwt.refresh-expiry-days:7}")
     private int refreshExpiryDays;
@@ -91,6 +96,85 @@ public class AuthService {
         emailService.sendConfirmationEmail(email, token);
         return token;
     }
+
+    // ── New 3-step email registration ─────────────────────────────────────────
+
+    @Transactional
+    public Map<String, Object> sendEmailRegistrationOtp(String email) {
+        userRepository.findByEmail(email).ifPresent(u -> {
+            if (u.isEmailVerified()) {
+                throw new AppException(HttpStatus.CONFLICT, "该邮箱已注册");
+            }
+        });
+
+        String devCode = otpService.sendEmailOtp(email, OtpEntity.Purpose.EMAIL_REGISTER);
+        Map<String, Object> resp = new HashMap<>();
+        resp.put("message", "验证码已发送到您的邮箱");
+        resp.put("expiresIn", 300);
+        if (devCode != null) {
+            resp.put("devCode", devCode);
+        }
+        return resp;
+    }
+
+    @Transactional
+    public Map<String, Object> verifyEmailRegistrationOtp(String email, String code) {
+        otpService.verifyOtp(email, code, OtpEntity.Purpose.EMAIL_REGISTER);
+
+        pendingEmailRegistrationRepository.deleteByEmail(email);
+
+        PendingEmailRegistrationEntity pending = new PendingEmailRegistrationEntity();
+        pending.setToken(UUID.randomUUID().toString().replace("-", ""));
+        pending.setEmail(email);
+        pending.setExpiresAt(LocalDateTime.now().plusMinutes(15));
+        pendingEmailRegistrationRepository.save(pending);
+
+        return Map.of("registrationToken", pending.getToken());
+    }
+
+    @Transactional
+    public AuthResponse completeEmailRegistration(String registrationToken, String username, String password) {
+        PendingEmailRegistrationEntity pending = pendingEmailRegistrationRepository.findByToken(registrationToken)
+                .orElseThrow(() -> new AppException(HttpStatus.BAD_REQUEST, "注册会话无效或已过期"));
+
+        if (pending.getExpiresAt().isBefore(LocalDateTime.now())) {
+            pendingEmailRegistrationRepository.delete(pending);
+            throw new AppException(HttpStatus.BAD_REQUEST, "注册会话已过期，请重新验证邮箱");
+        }
+
+        if (userRepository.existsByUsername(username)) {
+            throw new AppException(HttpStatus.CONFLICT, "用户名已被使用");
+        }
+
+        String email = pending.getEmail();
+        userRepository.findByEmail(email).ifPresent(u -> {
+            if (u.isEmailVerified()) {
+                throw new AppException(HttpStatus.CONFLICT, "该邮箱已注册");
+            }
+        });
+
+        UserEntity user = userRepository.findByEmail(email).orElseGet(() -> {
+            UserEntity u = new UserEntity();
+            u.setEmail(email);
+            u.setPhone("email:" + email);
+            return u;
+        });
+
+        user.setUsername(username);
+        user.setPasswordHash(passwordEncoder.encode(password));
+        user.setEmailVerified(true);
+        userRepository.save(user);
+
+        pendingEmailRegistrationRepository.delete(pending);
+
+        return buildAuthResponse(user);
+    }
+
+    public boolean isUsernameAvailable(String username) {
+        return !userRepository.existsByUsername(username);
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
 
     @Transactional
     public AuthResponse confirmEmail(String token) {

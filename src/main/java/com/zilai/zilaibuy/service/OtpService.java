@@ -17,6 +17,7 @@ public class OtpService {
 
     private final OtpRepository otpRepository;
     private final SmsService smsService;
+    private final EmailService emailService;
     private final SecureRandom random = new SecureRandom();
 
     /**
@@ -51,6 +52,36 @@ public class OtpService {
 
         boolean smsSent = smsService.sendOtp(phone, code);
         return smsSent ? null : code;
+    }
+
+    /**
+     * Sends OTP via email. Returns the code when email was NOT delivered (dev mode), null otherwise.
+     */
+    @Transactional
+    public String sendEmailOtp(String email, OtpEntity.Purpose purpose) {
+        long last60s = otpRepository.countByPhoneAndCreatedAtAfter(email,
+                LocalDateTime.now().minusSeconds(60));
+        if (last60s > 0) {
+            throw new AppException(HttpStatus.TOO_MANY_REQUESTS, "请等待60秒后再次发送");
+        }
+
+        long lastHour = otpRepository.countByPhoneAndCreatedAtAfter(email,
+                LocalDateTime.now().minusHours(1));
+        if (lastHour >= 5) {
+            throw new AppException(HttpStatus.TOO_MANY_REQUESTS, "1小时内发送次数已达上限");
+        }
+
+        String code = String.format("%06d", random.nextInt(1_000_000));
+
+        OtpEntity otp = new OtpEntity();
+        otp.setPhone(email);
+        otp.setCode(code);
+        otp.setPurpose(purpose);
+        otp.setExpiresAt(LocalDateTime.now().plusMinutes(5));
+        otpRepository.save(otp);
+
+        boolean sent = emailService.sendOtpEmail(email, code);
+        return sent ? null : code;
     }
 
     @Transactional

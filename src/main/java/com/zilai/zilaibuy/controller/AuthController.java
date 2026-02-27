@@ -4,6 +4,7 @@ import com.zilai.zilaibuy.dto.auth.*;
 import com.zilai.zilaibuy.security.AuthenticatedUser;
 import com.zilai.zilaibuy.service.AuthService;
 import com.zilai.zilaibuy.service.OtpService;
+
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -67,6 +68,32 @@ public class AuthController {
                 .header(HttpHeaders.LOCATION, redirect)
                 .build();
     }
+
+    // ── 三步邮箱注册 ──────────────────────────────────────────────────────────
+
+    @PostMapping("/email/otp/send")
+    public ResponseEntity<Map<String, Object>> sendEmailOtp(@Valid @RequestBody EmailOtpSendRequest req) {
+        return ResponseEntity.ok(authService.sendEmailRegistrationOtp(req.email()));
+    }
+
+    @PostMapping("/email/otp/verify")
+    public ResponseEntity<Map<String, Object>> verifyEmailOtp(@Valid @RequestBody EmailOtpVerifyRequest req) {
+        return ResponseEntity.ok(authService.verifyEmailRegistrationOtp(req.email(), req.code()));
+    }
+
+    @PostMapping("/email/register/complete")
+    public ResponseEntity<AuthResponse> completeEmailRegister(@Valid @RequestBody EmailRegisterCompleteRequest req) {
+        return ResponseEntity.ok(authService.completeEmailRegistration(
+                req.registrationToken(), req.username(), req.password()));
+    }
+
+    @GetMapping("/username/check")
+    public ResponseEntity<Map<String, Object>> checkUsername(@RequestParam String username) {
+        boolean available = authService.isUsernameAvailable(username);
+        return ResponseEntity.ok(Map.of("available", available));
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
 
     @PostMapping("/login/otp")
     public ResponseEntity<AuthResponse> loginWithOtp(@Valid @RequestBody OtpLoginRequest req) {
