@@ -107,6 +107,7 @@ public class UserController {
         if (displayName == null || displayName.isBlank()) displayName = "紫来淘客" + String.format("%06d", u.getId());
         return new ProfileDto(
                 u.getId(),
+                u.getUsername(),
                 displayName,
                 u.getEmail(),
                 u.getPhone(),

@@ -2,6 +2,7 @@ package com.zilai.zilaibuy.dto.user;
 
 public record ProfileDto(
         Long id,
+        String username,
         String displayName,
         String email,
         String phone,
