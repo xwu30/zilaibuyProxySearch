@@ -102,9 +102,12 @@ public class UserController {
     }
 
     private ProfileDto toDto(UserEntity u) {
+        String displayName = u.getShippingFullName();
+        if (displayName == null || displayName.isBlank()) displayName = u.getDisplayName();
+        if (displayName == null || displayName.isBlank()) displayName = "紫来淘客" + String.format("%06d", u.getId());
         return new ProfileDto(
                 u.getId(),
-                u.getDisplayName(),
+                displayName,
                 u.getEmail(),
                 u.getPhone(),
                 u.getShippingFullName(),
