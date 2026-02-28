@@ -7,7 +7,9 @@ import com.zilai.zilaibuy.entity.PendingEmailRegistrationEntity;
 import com.zilai.zilaibuy.entity.RefreshTokenEntity;
 import com.zilai.zilaibuy.entity.UserEntity;
 import com.zilai.zilaibuy.exception.AppException;
+import com.zilai.zilaibuy.entity.PasswordResetTokenEntity;
 import com.zilai.zilaibuy.repository.EmailConfirmationRepository;
+import com.zilai.zilaibuy.repository.PasswordResetTokenRepository;
 import com.zilai.zilaibuy.repository.PendingEmailRegistrationRepository;
 import com.zilai.zilaibuy.repository.RefreshTokenRepository;
 import com.zilai.zilaibuy.repository.UserRepository;
@@ -34,6 +36,7 @@ public class AuthService {
 
     private final UserRepository userRepository;
     private final RefreshTokenRepository refreshTokenRepository;
+    private final PasswordResetTokenRepository passwordResetTokenRepository;
     private final OtpService otpService;
     private final JwtUtil jwtUtil;
     private final PasswordEncoder passwordEncoder;
@@ -214,15 +217,16 @@ public class AuthService {
         UserEntity user = account.contains("@")
                 ? userRepository.findByEmail(account)
                         .orElseThrow(() -> new AppException(HttpStatus.UNAUTHORIZED, "邮箱或密码错误"))
-                : userRepository.findByPhone(account)
-                        .orElseThrow(() -> new AppException(HttpStatus.UNAUTHORIZED, "手机号或密码错误"));
+                : userRepository.findByUsername(account)
+                        .or(() -> userRepository.findByPhone(account))
+                        .orElseThrow(() -> new AppException(HttpStatus.UNAUTHORIZED, "用户名或密码错误"));
 
         checkLocked(user);
 
         if (user.getPasswordHash() == null ||
                 !passwordEncoder.matches(password, user.getPasswordHash())) {
             handleLoginFailure(user);
-            throw new AppException(HttpStatus.UNAUTHORIZED, "手机号或密码错误");
+            throw new AppException(HttpStatus.UNAUTHORIZED, "账号或密码错误");
         }
 
         // Reset fail count on success
@@ -252,6 +256,70 @@ public class AuthService {
     @Transactional
     public void logout(Long userId) {
         refreshTokenRepository.deleteByUserId(userId);
+    }
+
+    @Transactional
+    public void requestPasswordReset(String account) {
+        UserEntity user = account.contains("@")
+                ? userRepository.findByEmail(account).orElse(null)
+                : userRepository.findByUsername(account)
+                        .or(() -> userRepository.findByPhone(account))
+                        .orElse(null);
+
+        // 无论账号是否存在都返回成功，防止账号枚举
+        if (user == null || user.getEmail() == null) {
+            return;
+        }
+
+        // 清除旧的重置 token
+        passwordResetTokenRepository.deleteByUser(user);
+
+        String rawToken = UUID.randomUUID().toString().replace("-", "");
+        PasswordResetTokenEntity resetToken = new PasswordResetTokenEntity();
+        resetToken.setUser(user);
+        resetToken.setTokenHash(sha256(rawToken));
+        resetToken.setExpiresAt(LocalDateTime.now().plusHours(1));
+        passwordResetTokenRepository.save(resetToken);
+
+        emailService.sendPasswordResetEmail(user.getEmail(), rawToken);
+    }
+
+    @Transactional
+    public void resetPassword(String token, String newPassword, String confirmPassword) {
+        if (!newPassword.equals(confirmPassword)) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "两次输入的密码不一致");
+        }
+
+        String hash = sha256(token);
+        PasswordResetTokenEntity resetToken = passwordResetTokenRepository.findByTokenHash(hash)
+                .orElseThrow(() -> new AppException(HttpStatus.BAD_REQUEST, "重置链接无效或已过期"));
+
+        if (resetToken.isUsed()) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "重置链接已使用");
+        }
+        if (resetToken.getExpiresAt().isBefore(LocalDateTime.now())) {
+            passwordResetTokenRepository.delete(resetToken);
+            throw new AppException(HttpStatus.BAD_REQUEST, "重置链接已过期，请重新申请");
+        }
+
+        UserEntity user = resetToken.getUser();
+
+        // 不能与旧密码相同
+        if (user.getPasswordHash() != null && passwordEncoder.matches(newPassword, user.getPasswordHash())) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "新密码不能与旧密码相同");
+        }
+
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
+        user.setLoginFailCount(0);
+        user.setLocked(false);
+        user.setLockUntil(null);
+        userRepository.save(user);
+
+        resetToken.setUsed(true);
+        passwordResetTokenRepository.save(resetToken);
+
+        // 重置密码后撤销所有会话
+        refreshTokenRepository.deleteByUserId(user.getId());
     }
 
     private AuthResponse buildAuthResponse(UserEntity user) {

@@ -36,7 +36,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MethodArgumentNotValidException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ApiError handleInvalid(MethodArgumentNotValidException e, HttpServletRequest req) {
-        return new ApiError(Instant.now(), 400, "Bad Request", e.getMessage(), req.getRequestURI());
+        String message = e.getBindingResult().getFieldErrors().stream()
+                .map(fe -> fe.getDefaultMessage())
+                .findFirst()
+                .orElse("请求参数不合法");
+        return new ApiError(Instant.now(), 400, "Bad Request", message, req.getRequestURI());
     }
 
     @ExceptionHandler(IllegalStateException.class)

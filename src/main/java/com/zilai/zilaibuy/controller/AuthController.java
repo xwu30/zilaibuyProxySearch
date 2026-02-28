@@ -116,4 +116,16 @@ public class AuthController {
         authService.logout(currentUser.id());
         return ResponseEntity.ok(Map.of("message", "已登出"));
     }
+
+    @PostMapping("/password/forgot")
+    public ResponseEntity<Map<String, String>> forgotPassword(@Valid @RequestBody PasswordResetRequestDto req) {
+        authService.requestPasswordReset(req.account());
+        return ResponseEntity.ok(Map.of("message", "如果该账号存在，重置链接已发送到绑定邮箱"));
+    }
+
+    @PostMapping("/password/reset")
+    public ResponseEntity<Map<String, String>> resetPassword(@Valid @RequestBody PasswordResetDto req) {
+        authService.resetPassword(req.token(), req.newPassword(), req.confirmPassword());
+        return ResponseEntity.ok(Map.of("message", "密码已重置，请重新登录"));
+    }
 }
