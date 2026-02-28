@@ -266,9 +266,8 @@ public class AuthService {
                         .or(() -> userRepository.findByPhone(account))
                         .orElse(null);
 
-        // 无论账号是否存在都返回成功，防止账号枚举
         if (user == null || user.getEmail() == null) {
-            return;
+            throw new AppException(HttpStatus.BAD_REQUEST, "该邮箱未注册，请先注册账号");
         }
 
         // 清除旧的重置 token
