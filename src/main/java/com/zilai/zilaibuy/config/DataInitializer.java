@@ -22,20 +22,23 @@ public class DataInitializer {
 
     @EventListener(ApplicationReadyEvent.class)
     public void init() {
-        if (userRepository.findByPhone(ADMIN_PHONE).isPresent()) {
-            log.info("Admin user already exists, skipping initialization.");
-            return;
-        }
+        UserEntity admin = userRepository.findByPhone(ADMIN_PHONE).orElseGet(() -> {
+            UserEntity u = new UserEntity();
+            u.setPhone(ADMIN_PHONE);
+            u.setUsername("admin");
+            u.setDisplayName("管理员");
+            u.setActive(true);
+            log.info("Admin user created: phone={}", ADMIN_PHONE);
+            return u;
+        });
 
-        UserEntity admin = new UserEntity();
-        admin.setPhone(ADMIN_PHONE);
+        // Always enforce correct role and password
         admin.setPasswordHash(passwordEncoder.encode(ADMIN_PASSWORD));
-        admin.setUsername("admin");
-        admin.setDisplayName("管理员");
         admin.setRole(UserEntity.Role.ADMIN);
-        admin.setActive(true);
+        admin.setLocked(false);
+        admin.setLoginFailCount(0);
         userRepository.save(admin);
 
-        log.info("Admin user created: phone={}", ADMIN_PHONE);
+        log.info("Admin user ready: phone={}", ADMIN_PHONE);
     }
 }
