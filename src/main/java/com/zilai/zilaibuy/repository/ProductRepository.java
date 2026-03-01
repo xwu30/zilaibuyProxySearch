@@ -7,5 +7,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface ProductRepository extends JpaRepository<ProductEntity, Long> {
     Page<ProductEntity> findAll(Pageable pageable);
-    Page<ProductEntity> findByIsPublishedTrue(Pageable pageable);
+    Page<ProductEntity> findByPublishedTrue(Pageable pageable);
 }

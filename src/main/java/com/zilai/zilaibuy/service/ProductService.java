@@ -50,7 +50,7 @@ public class ProductService {
 
     @Transactional(readOnly = true)
     public Page<ProductDto> listPublishedProducts(Pageable pageable) {
-        return productRepository.findByIsPublishedTrue(pageable).map(ProductDto::from);
+        return productRepository.findByPublishedTrue(pageable).map(ProductDto::from);
     }
 
     @Transactional
