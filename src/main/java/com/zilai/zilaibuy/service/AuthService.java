@@ -47,6 +47,14 @@ public class AuthService {
     @Value("${jwt.refresh-expiry-days:7}")
     private int refreshExpiryDays;
 
+    /** Send LOGIN OTP — throws NOT_FOUND if phone is not registered */
+    public String sendLoginOtp(String phone) {
+        if (!userRepository.existsByPhone(phone)) {
+            throw new AppException(HttpStatus.NOT_FOUND, "该手机号尚未注册");
+        }
+        return otpService.sendOtp(phone, OtpEntity.Purpose.LOGIN);
+    }
+
     @Transactional
     public AuthResponse register(String phone, String code, String password) {
         otpService.verifyOtp(phone, code, OtpEntity.Purpose.REGISTER);

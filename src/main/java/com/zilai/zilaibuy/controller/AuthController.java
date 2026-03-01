@@ -1,6 +1,7 @@
 package com.zilai.zilaibuy.controller;
 
 import com.zilai.zilaibuy.dto.auth.*;
+import com.zilai.zilaibuy.entity.OtpEntity;
 import com.zilai.zilaibuy.security.AuthenticatedUser;
 import com.zilai.zilaibuy.service.AuthService;
 import com.zilai.zilaibuy.service.OtpService;
@@ -30,9 +31,10 @@ public class AuthController {
 
     @PostMapping("/otp/send")
     public ResponseEntity<Map<String, Object>> sendOtp(@Valid @RequestBody OtpSendRequest req) {
-        String devCode = otpService.sendOtp(req.phone(), req.purpose());
+        String devCode = req.purpose() == OtpEntity.Purpose.LOGIN
+                ? authService.sendLoginOtp(req.phone())
+                : otpService.sendOtp(req.phone(), req.purpose());
         if (devCode != null) {
-            // SMS not delivered (Twilio unavailable) — return code in response for local dev
             return ResponseEntity.ok(Map.of(
                     "message", "验证码已生成（开发模式，短信未发送）",
                     "expiresIn", 300,
