@@ -1,10 +1,10 @@
 package com.zilai.zilaibuy.controller;
 
-import com.zilai.zilaibuy.dto.admin.AdminUserDto;
-import com.zilai.zilaibuy.dto.admin.LockUserRequest;
-import com.zilai.zilaibuy.dto.admin.UpdateRoleRequest;
+import com.zilai.zilaibuy.dto.admin.*;
+import com.zilai.zilaibuy.entity.OrderEntity;
 import com.zilai.zilaibuy.entity.UserEntity;
 import com.zilai.zilaibuy.exception.AppException;
+import com.zilai.zilaibuy.repository.OrderRepository;
 import com.zilai.zilaibuy.repository.UserRepository;
 import com.zilai.zilaibuy.security.AuthenticatedUser;
 import com.zilai.zilaibuy.service.AuditLogService;
@@ -30,6 +30,7 @@ import java.time.LocalDateTime;
 public class AdminController {
 
     private final UserRepository userRepository;
+    private final OrderRepository orderRepository;
     private final AuditLogService auditLogService;
 
     @GetMapping("/users")
@@ -76,6 +77,33 @@ public class AdminController {
                 "USER", String.valueOf(id), null, httpReq.getRemoteAddr());
 
         return ResponseEntity.ok(AdminUserDto.from(user));
+    }
+
+    @GetMapping("/orders")
+    public ResponseEntity<Page<AdminOrderDto>> listOrders(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) Long userId,
+            @RequestParam(required = false) String status) {
+        PageRequest pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        OrderEntity.OrderStatus orderStatus = null;
+        if (status != null) {
+            try { orderStatus = OrderEntity.OrderStatus.valueOf(status); } catch (IllegalArgumentException ignored) {}
+        }
+        return ResponseEntity.ok(orderRepository.findByFilters(userId, orderStatus, pageable).map(AdminOrderDto::from));
+    }
+
+    @GetMapping("/stats")
+    public ResponseEntity<AdminStatsDto> getStats() {
+        return ResponseEntity.ok(new AdminStatsDto(
+                userRepository.count(),
+                orderRepository.count(),
+                orderRepository.sumTotalRevenue(),
+                orderRepository.countByStatus(OrderEntity.OrderStatus.PENDING_PAYMENT),
+                orderRepository.countByStatus(OrderEntity.OrderStatus.PURCHASING),
+                orderRepository.countByStatus(OrderEntity.OrderStatus.IN_WAREHOUSE),
+                orderRepository.countByStatus(OrderEntity.OrderStatus.SHIPPED)
+        ));
     }
 
     @GetMapping("/audit-logs")

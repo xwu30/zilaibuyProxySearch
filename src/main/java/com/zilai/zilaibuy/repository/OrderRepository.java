@@ -34,4 +34,9 @@ public interface OrderRepository extends JpaRepository<OrderEntity, Long> {
 
     @Query("SELECT COUNT(o) FROM OrderEntity o WHERE o.orderNo LIKE :prefix%")
     long countByOrderNoPrefix(@Param("prefix") String prefix);
+
+    @Query("SELECT COALESCE(SUM(o.totalCny), 0) FROM OrderEntity o")
+    java.math.BigDecimal sumTotalRevenue();
+
+    long countByStatus(OrderEntity.OrderStatus status);
 }
