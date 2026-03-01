@@ -2,6 +2,7 @@ package com.zilai.zilaibuy.controller;
 
 import com.zilai.zilaibuy.dto.user.ProfileDto;
 import com.zilai.zilaibuy.dto.user.SendPhoneOtpRequest;
+import com.zilai.zilaibuy.dto.user.SetupCredentialsRequest;
 import com.zilai.zilaibuy.dto.user.UpdateProfileRequest;
 import com.zilai.zilaibuy.dto.user.VerifyPhoneRequest;
 import com.zilai.zilaibuy.entity.OtpEntity;
@@ -11,7 +12,9 @@ import com.zilai.zilaibuy.security.AuthenticatedUser;
 import com.zilai.zilaibuy.service.OtpService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
@@ -26,6 +29,7 @@ public class UserController {
 
     private final UserRepository userRepository;
     private final OtpService otpService;
+    private final PasswordEncoder passwordEncoder;
 
     @GetMapping("/profile")
     public ProfileDto getProfile(@AuthenticationPrincipal AuthenticatedUser principal) {
@@ -99,6 +103,35 @@ public class UserController {
         user.setPhone(req.phone());
         userRepository.save(user);
         return toDto(user);
+    }
+
+    @PostMapping("/setup-credentials")
+    public ResponseEntity<Map<String, String>> setupCredentials(
+            @AuthenticationPrincipal AuthenticatedUser principal,
+            @RequestBody SetupCredentialsRequest req
+    ) {
+        UserEntity user = userRepository.findById(principal.id())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+
+        if (StringUtils.hasText(req.username())) {
+            if (user.getUsername() != null) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "用户名已设置，不可修改");
+            }
+            if (userRepository.existsByUsername(req.username())) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "用户名已被使用");
+            }
+            user.setUsername(req.username());
+        }
+
+        if (StringUtils.hasText(req.password())) {
+            if (req.password().length() < 6) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "密码至少需要6位");
+            }
+            user.setPasswordHash(passwordEncoder.encode(req.password()));
+        }
+
+        userRepository.save(user);
+        return ResponseEntity.ok(Map.of("message", "账号信息已设置"));
     }
 
     private ProfileDto toDto(UserEntity u) {
