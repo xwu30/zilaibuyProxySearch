@@ -14,11 +14,21 @@ public record AdminUserDto(
         boolean isActive,
         boolean isLocked,
         LocalDateTime lockUntil,
-        LocalDateTime createdAt
+        LocalDateTime createdAt,
+        String shippingFullName,
+        String shippingPhone,
+        String shippingStreet,
+        String shippingCity,
+        String shippingProvince,
+        String shippingPostalCode
 ) {
     public static AdminUserDto from(UserEntity e) {
-        return new AdminUserDto(e.getId(), e.getPhone(), e.getUsername(), e.getEmail(),
+        return new AdminUserDto(
+                e.getId(), e.getPhone(), e.getUsername(), e.getEmail(),
                 e.getDisplayName(), e.getRole().name(),
-                e.isActive(), e.isLocked(), e.getLockUntil(), e.getCreatedAt());
+                e.isActive(), e.isLocked(), e.getLockUntil(), e.getCreatedAt(),
+                e.getShippingFullName(), e.getShippingPhone(), e.getShippingStreet(),
+                e.getShippingCity(), e.getShippingProvince(), e.getShippingPostalCode()
+        );
     }
 }

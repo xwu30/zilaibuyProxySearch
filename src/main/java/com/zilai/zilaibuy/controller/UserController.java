@@ -124,8 +124,8 @@ public class UserController {
         }
 
         if (StringUtils.hasText(req.password())) {
-            if (req.password().length() < 6) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "密码至少需要6位");
+            if (req.password().length() < 8) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "密码至少需要8位");
             }
             user.setPasswordHash(passwordEncoder.encode(req.password()));
         }

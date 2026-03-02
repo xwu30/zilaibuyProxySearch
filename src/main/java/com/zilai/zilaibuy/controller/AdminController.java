@@ -19,6 +19,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
@@ -39,6 +40,50 @@ public class AdminController {
             @RequestParam(defaultValue = "20") int size) {
         PageRequest pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
         return ResponseEntity.ok(userRepository.findAll(pageable).map(AdminUserDto::from));
+    }
+
+    @PutMapping("/users/{id}")
+    public ResponseEntity<AdminUserDto> updateUser(
+            @PathVariable Long id,
+            @RequestBody AdminUpdateUserRequest req,
+            @AuthenticationPrincipal AuthenticatedUser currentUser,
+            HttpServletRequest httpReq) {
+        UserEntity user = userRepository.findById(id)
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "用户不存在"));
+
+        if (req.username() != null) {
+            if (StringUtils.hasText(req.username()) && !req.username().equals(user.getUsername())) {
+                if (userRepository.existsByUsername(req.username())) {
+                    throw new AppException(HttpStatus.CONFLICT, "用户名已被使用");
+                }
+            }
+            user.setUsername(StringUtils.hasText(req.username()) ? req.username() : null);
+        }
+        if (req.email() != null) {
+            if (StringUtils.hasText(req.email()) && !req.email().equals(user.getEmail())) {
+                if (userRepository.findByEmail(req.email()).filter(u -> !u.getId().equals(id)).isPresent()) {
+                    throw new AppException(HttpStatus.CONFLICT, "邮箱已被其他账户使用");
+                }
+            }
+            user.setEmail(StringUtils.hasText(req.email()) ? req.email() : null);
+        }
+        if (req.phone() != null && StringUtils.hasText(req.phone()) && !req.phone().equals(user.getPhone())) {
+            if (userRepository.existsByPhone(req.phone())) {
+                throw new AppException(HttpStatus.CONFLICT, "手机号已被其他账户使用");
+            }
+            user.setPhone(req.phone());
+        }
+        if (req.displayName() != null)      user.setDisplayName(StringUtils.hasText(req.displayName()) ? req.displayName() : null);
+        if (req.shippingFullName() != null)  user.setShippingFullName(req.shippingFullName());
+        if (req.shippingPhone() != null)     user.setShippingPhone(req.shippingPhone());
+        if (req.shippingStreet() != null)    user.setShippingStreet(req.shippingStreet());
+        if (req.shippingCity() != null)      user.setShippingCity(req.shippingCity());
+        if (req.shippingProvince() != null)  user.setShippingProvince(req.shippingProvince());
+        if (req.shippingPostalCode() != null) user.setShippingPostalCode(req.shippingPostalCode());
+
+        userRepository.save(user);
+        auditLogService.log(currentUser.id(), "USER_UPDATED", "USER", String.valueOf(id), null, httpReq.getRemoteAddr());
+        return ResponseEntity.ok(AdminUserDto.from(user));
     }
 
     @PutMapping("/users/{id}/role")
