@@ -44,6 +44,8 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/products").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/address/**").permitAll()
                 .requestMatchers("/actuator/health", "/api/actuator/health").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/payments/webhook").permitAll()
+                .requestMatchers("/api/payments/**").authenticated()
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.POST, "/api/items/sync").hasRole("ADMIN")
                 .requestMatchers("/api/warehouse/**").hasAnyRole("WAREHOUSE", "ADMIN")

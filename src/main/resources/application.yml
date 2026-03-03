@@ -64,6 +64,11 @@ twilio:
   auth-token: ${TWILIO_AUTH_TOKEN:}
   from-phone: ${TWILIO_FROM_PHONE:}
 
+stripe:
+  secret-key: ${STRIPE_SECRET_KEY:}
+  webhook-secret: ${STRIPE_WEBHOOK_SECRET:}
+  publishable-key: ${STRIPE_PUBLISHABLE_KEY:}
+
 management:
   health:
     mail:

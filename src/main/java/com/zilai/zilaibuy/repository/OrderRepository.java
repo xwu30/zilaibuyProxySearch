@@ -39,4 +39,6 @@ public interface OrderRepository extends JpaRepository<OrderEntity, Long> {
     java.math.BigDecimal sumTotalRevenue();
 
     long countByStatus(OrderEntity.OrderStatus status);
+
+    Optional<OrderEntity> findByStripePaymentIntentId(String stripePaymentIntentId);
 }
