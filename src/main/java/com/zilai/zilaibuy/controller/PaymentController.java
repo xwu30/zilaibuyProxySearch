@@ -1,7 +1,7 @@
 package com.zilai.zilaibuy.controller;
 
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.stripe.Stripe;
 import com.stripe.exception.SignatureVerificationException;
 import com.stripe.model.Event;
@@ -150,8 +150,18 @@ public class PaymentController {
         log.info("Stripe webhook received: {}", event.getType());
 
         // Parse the PaymentIntent ID directly from raw JSON to avoid SDK API-version deserialization issues
-        JsonObject rawJson = JsonParser.parseString(new String(payload)).getAsJsonObject();
-        String piId = rawJson.getAsJsonObject("data").getAsJsonObject("object").get("id").getAsString();
+        String piId;
+        try {
+            JsonNode rawJson = new ObjectMapper().readTree(payload);
+            piId = rawJson.path("data").path("object").path("id").asText(null);
+        } catch (Exception e) {
+            log.error("Failed to parse webhook payload JSON", e);
+            return ResponseEntity.badRequest().build();
+        }
+        if (piId == null || piId.isBlank()) {
+            log.warn("Could not extract PaymentIntent ID from webhook event");
+            return ResponseEntity.ok().build();
+        }
 
         if ("payment_intent.succeeded".equals(event.getType())) {
             log.info("Payment succeeded for PaymentIntent: {}", piId);
