@@ -57,7 +57,9 @@
       "Bash(pip3 install:*)",
       "Bash(node:*)",
       "Bash(javac:*)",
-      "Bash(/usr/bin/env bash:*)"
+      "Bash(/usr/bin/env bash:*)",
+      "Bash(lsof:*)",
+      "Bash(kill 95528:*)"
     ]
   }
 }

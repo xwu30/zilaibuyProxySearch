@@ -214,6 +214,9 @@ public class AuthService {
         UserEntity user = userRepository.findByPhone(phone)
                 .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "用户不存在"));
 
+        if (!user.isActive()) {
+            throw new AppException(HttpStatus.FORBIDDEN, "账户已被禁用，请联系客服");
+        }
         checkLocked(user);
         otpService.verifyOtp(phone, code, OtpEntity.Purpose.LOGIN);
 
@@ -229,6 +232,9 @@ public class AuthService {
                         .or(() -> userRepository.findByPhone(account))
                         .orElseThrow(() -> new AppException(HttpStatus.UNAUTHORIZED, "用户名或密码错误"));
 
+        if (!user.isActive()) {
+            throw new AppException(HttpStatus.FORBIDDEN, "账户已被禁用，请联系客服");
+        }
         checkLocked(user);
 
         if (user.getPasswordHash() == null ||
