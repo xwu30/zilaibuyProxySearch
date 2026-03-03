@@ -37,6 +37,8 @@ public class PaymentController {
 
     record CreateIntentRequest(Long orderId) {}
     record CreateIntentResponse(String clientSecret) {}
+    record ConfirmPaymentRequest(Long orderId) {}
+    record ConfirmPaymentResponse(String status) {}
 
     @PostMapping("/create-intent")
     public ResponseEntity<CreateIntentResponse> createIntent(
@@ -80,6 +82,40 @@ public class PaymentController {
         } catch (Exception e) {
             log.error("Failed to create PaymentIntent for order {}", order.getId(), e);
             throw new RuntimeException("支付初始化失败，请重试");
+        }
+    }
+
+    @PostMapping("/confirm")
+    public ResponseEntity<ConfirmPaymentResponse> confirmPayment(
+            @RequestBody ConfirmPaymentRequest req,
+            @AuthenticationPrincipal AuthenticatedUser currentUser) {
+
+        OrderEntity order = orderRepository.findById(req.orderId())
+                .orElseThrow(() -> new IllegalArgumentException("订单不存在"));
+
+        if (!order.getUser().getId().equals(currentUser.id())) {
+            return ResponseEntity.status(403).build();
+        }
+        if (order.getStripePaymentIntentId() == null) {
+            return ResponseEntity.badRequest().build();
+        }
+        // Already confirmed
+        if (order.getStatus() != OrderEntity.OrderStatus.PENDING_PAYMENT) {
+            return ResponseEntity.ok(new ConfirmPaymentResponse(order.getStatus().name()));
+        }
+
+        Stripe.apiKey = stripeSecretKey;
+        try {
+            PaymentIntent intent = PaymentIntent.retrieve(order.getStripePaymentIntentId());
+            if ("succeeded".equals(intent.getStatus())) {
+                order.setStatus(OrderEntity.OrderStatus.PURCHASING);
+                orderRepository.save(order);
+                log.info("Order {} confirmed as PURCHASING via client-side confirmation", order.getOrderNo());
+            }
+            return ResponseEntity.ok(new ConfirmPaymentResponse(order.getStatus().name()));
+        } catch (Exception e) {
+            log.error("Failed to confirm payment for order {}", order.getId(), e);
+            throw new RuntimeException("确认支付状态失败，请刷新页面查看订单");
         }
     }
 
