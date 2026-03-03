@@ -65,6 +65,8 @@ public class PaymentController {
                     .setCurrency("cny")
                     .putMetadata("orderId", String.valueOf(order.getId()))
                     .putMetadata("orderNo", order.getOrderNo())
+                    .putMetadata("userId", String.valueOf(currentUser.id()))
+                    .putMetadata("userPhone", currentUser.phone())
                     .build();
 
             PaymentIntent intent = PaymentIntent.create(params);
@@ -92,6 +94,11 @@ public class PaymentController {
         } catch (IOException e) {
             log.error("Failed to read webhook payload", e);
             return ResponseEntity.badRequest().build();
+        }
+
+        if (webhookSecret == null || webhookSecret.isBlank()) {
+            log.error("STRIPE_WEBHOOK_SECRET not configured — webhooks will not be processed. Set this env var to enable payment status updates.");
+            return ResponseEntity.ok().build();
         }
 
         Event event;
