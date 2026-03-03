@@ -1,5 +1,7 @@
 package com.zilai.zilaibuy.controller;
 
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.stripe.Stripe;
 import com.stripe.exception.SignatureVerificationException;
 import com.stripe.model.Event;
@@ -147,22 +149,19 @@ public class PaymentController {
 
         log.info("Stripe webhook received: {}", event.getType());
 
+        // Parse the PaymentIntent ID directly from raw JSON to avoid SDK API-version deserialization issues
+        JsonObject rawJson = JsonParser.parseString(new String(payload)).getAsJsonObject();
+        String piId = rawJson.getAsJsonObject("data").getAsJsonObject("object").get("id").getAsString();
+
         if ("payment_intent.succeeded".equals(event.getType())) {
-            PaymentIntent intent = (PaymentIntent) event.getDataObjectDeserializer()
-                    .getObject().orElse(null);
-            if (intent != null) {
-                orderRepository.findByStripePaymentIntentId(intent.getId()).ifPresent(order -> {
-                    order.setStatus(OrderEntity.OrderStatus.PURCHASING);
-                    orderRepository.save(order);
-                    log.info("Order {} status updated to PURCHASING", order.getOrderNo());
-                });
-            }
+            log.info("Payment succeeded for PaymentIntent: {}", piId);
+            orderRepository.findByStripePaymentIntentId(piId).ifPresent(order -> {
+                order.setStatus(OrderEntity.OrderStatus.PURCHASING);
+                orderRepository.save(order);
+                log.info("Order {} status updated to PURCHASING", order.getOrderNo());
+            });
         } else if ("payment_intent.payment_failed".equals(event.getType())) {
-            PaymentIntent intent = (PaymentIntent) event.getDataObjectDeserializer()
-                    .getObject().orElse(null);
-            if (intent != null) {
-                log.warn("Payment failed for PaymentIntent: {}", intent.getId());
-            }
+            log.warn("Payment failed for PaymentIntent: {}", piId);
         }
 
         return ResponseEntity.ok().build();
