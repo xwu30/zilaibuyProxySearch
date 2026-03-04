@@ -2,6 +2,7 @@ package com.zilai.zilaibuy.controller;
 
 import com.zilai.zilaibuy.dto.order.*;
 import com.zilai.zilaibuy.entity.OrderEntity;
+import com.zilai.zilaibuy.dto.order.UpdateOrderItemRequest;
 import com.zilai.zilaibuy.security.AuthenticatedUser;
 import com.zilai.zilaibuy.service.OrderService;
 import jakarta.validation.Valid;
@@ -50,5 +51,22 @@ public class OrderController {
             @PathVariable Long id,
             @Valid @RequestBody UpdateOrderStatusRequest req) {
         return ResponseEntity.ok(orderService.updateStatus(id, req));
+    }
+
+    @PutMapping("/{orderId}/items/{itemId}")
+    public ResponseEntity<OrderDto> updateItem(
+            @PathVariable Long orderId,
+            @PathVariable Long itemId,
+            @RequestBody UpdateOrderItemRequest req,
+            @AuthenticationPrincipal AuthenticatedUser currentUser) {
+        return ResponseEntity.ok(orderService.updateItem(orderId, itemId, req, currentUser));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteOrder(
+            @PathVariable Long id,
+            @AuthenticationPrincipal AuthenticatedUser currentUser) {
+        orderService.deleteOrder(id, currentUser);
+        return ResponseEntity.noContent().build();
     }
 }

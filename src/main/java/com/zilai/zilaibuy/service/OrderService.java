@@ -5,6 +5,7 @@ import com.zilai.zilaibuy.entity.OrderEntity;
 import com.zilai.zilaibuy.entity.OrderItemEntity;
 import com.zilai.zilaibuy.entity.UserEntity;
 import com.zilai.zilaibuy.exception.AppException;
+import com.zilai.zilaibuy.repository.OrderItemRepository;
 import com.zilai.zilaibuy.repository.OrderRepository;
 import com.zilai.zilaibuy.repository.UserRepository;
 import com.zilai.zilaibuy.security.AuthenticatedUser;
@@ -24,6 +25,7 @@ import java.time.format.DateTimeFormatter;
 public class OrderService {
 
     private final OrderRepository orderRepository;
+    private final OrderItemRepository orderItemRepository;
     private final UserRepository userRepository;
 
     @Transactional
@@ -87,6 +89,47 @@ public class OrderService {
         }
         orderRepository.save(order);
         return OrderDto.from(order);
+    }
+
+    @Transactional
+    public OrderDto updateItem(Long orderId, Long itemId, UpdateOrderItemRequest req, AuthenticatedUser currentUser) {
+        OrderEntity order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "订单不存在"));
+        if (!order.getUser().getId().equals(currentUser.id())) {
+            throw new AppException(HttpStatus.FORBIDDEN, "无权修改此订单");
+        }
+        if (order.getStatus() != OrderEntity.OrderStatus.PENDING_PAYMENT) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "只能修改待付款的订单");
+        }
+        OrderItemEntity item = orderItemRepository.findById(itemId)
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "商品不存在"));
+        if (!item.getOrder().getId().equals(orderId)) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "商品不属于该订单");
+        }
+        item.setQuantity(req.quantity());
+        item.setPriceCny(req.priceCny());
+        orderItemRepository.save(item);
+
+        // Recalculate order total
+        java.math.BigDecimal newTotal = order.getItems().stream()
+                .map(i -> i.getPriceCny().multiply(java.math.BigDecimal.valueOf(i.getQuantity())))
+                .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
+        order.setTotalCny(newTotal);
+        orderRepository.save(order);
+        return OrderDto.from(order);
+    }
+
+    @Transactional
+    public void deleteOrder(Long orderId, AuthenticatedUser currentUser) {
+        OrderEntity order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "订单不存在"));
+        if (!order.getUser().getId().equals(currentUser.id())) {
+            throw new AppException(HttpStatus.FORBIDDEN, "无权删除此订单");
+        }
+        if (order.getStatus() != OrderEntity.OrderStatus.PENDING_PAYMENT) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "只能删除待付款的订单");
+        }
+        orderRepository.delete(order);
     }
 
     private String generateOrderNo() {
