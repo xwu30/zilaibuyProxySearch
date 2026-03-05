@@ -21,10 +21,14 @@ public interface OrderRepository extends JpaRepository<OrderEntity, Long> {
     Page<OrderEntity> findByStatus(OrderEntity.OrderStatus status, Pageable pageable);
 
     @Query("SELECT o FROM OrderEntity o WHERE (:userId IS NULL OR o.user.id = :userId) " +
-           "AND (:status IS NULL OR o.status = :status)")
+           "AND (:status IS NULL OR o.status = :status) " +
+           "AND (:dateFrom IS NULL OR o.createdAt >= :dateFrom) " +
+           "AND (:dateTo IS NULL OR o.createdAt < :dateTo)")
     Page<OrderEntity> findByFilters(
             @Param("userId") Long userId,
             @Param("status") OrderEntity.OrderStatus status,
+            @Param("dateFrom") java.time.LocalDateTime dateFrom,
+            @Param("dateTo") java.time.LocalDateTime dateTo,
             Pageable pageable);
 
     @Query("SELECT COUNT(o) FROM OrderEntity o WHERE o.user.id = :userId")

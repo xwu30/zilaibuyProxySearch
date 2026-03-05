@@ -63,10 +63,14 @@ public class OrderService {
 
     @Transactional(readOnly = true)
     public Page<OrderDto> listOrders(AuthenticatedUser currentUser, Long filterUserId,
-                                     OrderEntity.OrderStatus status, Pageable pageable) {
+                                     OrderEntity.OrderStatus status,
+                                     java.time.LocalDate dateFrom, java.time.LocalDate dateTo,
+                                     Pageable pageable) {
         boolean isPrivileged = isPrivileged(currentUser.role());
         Long effectiveUserId = isPrivileged ? filterUserId : currentUser.id();
-        return orderRepository.findByFilters(effectiveUserId, status, pageable)
+        java.time.LocalDateTime from = dateFrom != null ? dateFrom.atStartOfDay() : null;
+        java.time.LocalDateTime to = dateTo != null ? dateTo.plusDays(1).atStartOfDay() : null;
+        return orderRepository.findByFilters(effectiveUserId, status, from, to, pageable)
                 .map(OrderDto::from);
     }
 
