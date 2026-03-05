@@ -30,28 +30,24 @@ public class WarehouseController {
 
     record CheckinRequest(String orderNo) {}
 
+    private OrderService.CheckinResult checkinAny(String no) {
+        OrderService.CheckinResult r = orderService.checkinByOrderNo(no);
+        if (r.success() || !r.message().equals("未找到匹配订单")) return r;
+        OrderService.CheckinResult pr = parcelService.checkinByTrackingNo(no);
+        if (pr != null) return pr;
+        OrderService.CheckinResult ir = orderService.checkinItemByTrackingNo(no);
+        return ir != null ? ir : r;
+    }
+
     @PostMapping("/checkin")
     public ResponseEntity<OrderService.CheckinResult> checkin(@RequestBody CheckinRequest req) {
-        OrderService.CheckinResult orderResult = orderService.checkinByOrderNo(req.orderNo());
-        if (orderResult.success() || !orderResult.message().equals("未找到匹配订单")) {
-            return ResponseEntity.ok(orderResult);
-        }
-        // Fall back to forwarding parcel
-        OrderService.CheckinResult parcelResult = parcelService.checkinByTrackingNo(req.orderNo());
-        return ResponseEntity.ok(parcelResult != null ? parcelResult : orderResult);
+        return ResponseEntity.ok(checkinAny(req.orderNo()));
     }
 
     @PostMapping("/checkin/batch")
     public ResponseEntity<java.util.List<OrderService.CheckinResult>> checkinBatch(
             @RequestBody java.util.List<String> orderNos) {
-        return ResponseEntity.ok(orderNos.stream()
-                .map(no -> {
-                    OrderService.CheckinResult r = orderService.checkinByOrderNo(no);
-                    if (r.success() || !r.message().equals("未找到匹配订单")) return r;
-                    OrderService.CheckinResult pr = parcelService.checkinByTrackingNo(no);
-                    return pr != null ? pr : r;
-                })
-                .toList());
+        return ResponseEntity.ok(orderNos.stream().map(this::checkinAny).toList());
     }
 
     @GetMapping("/parcels")

@@ -110,18 +110,38 @@ public class OrderService {
 
     @Transactional
     public OrderItemDto updateItemTracking(Long orderId, Long itemId, UpdateItemTrackingRequest req) {
-        OrderEntity order = orderRepository.findById(orderId)
+        orderRepository.findById(orderId)
                 .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "订单不存在"));
         OrderItemEntity item = orderItemRepository.findById(itemId)
                 .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "商品不存在"));
         if (!item.getOrder().getId().equals(orderId)) {
             throw new AppException(HttpStatus.BAD_REQUEST, "商品不属于该订单");
         }
+        if ("IN_WAREHOUSE".equals(item.getItemStatus())) {
+            throw new AppException(HttpStatus.FORBIDDEN, "已入库的商品不可修改");
+        }
         if (req.itemStatus() != null) item.setItemStatus(req.itemStatus());
         if (req.itemTrackingNo() != null) item.setItemTrackingNo(req.itemTrackingNo());
         if (req.itemCarrier() != null) item.setItemCarrier(req.itemCarrier());
         orderItemRepository.save(item);
         return OrderItemDto.from(item);
+    }
+
+    @Transactional
+    public CheckinResult checkinItemByTrackingNo(String trackingNo) {
+        String no = trackingNo != null ? trackingNo.trim() : "";
+        return orderItemRepository.findByItemTrackingNo(no)
+                .map(item -> {
+                    if ("IN_WAREHOUSE".equals(item.getItemStatus())) {
+                        return new CheckinResult(false, "该商品已入库", no, "IN_WAREHOUSE",
+                                item.getOrder().getUser().getPhone());
+                    }
+                    item.setItemStatus("IN_WAREHOUSE");
+                    orderItemRepository.save(item);
+                    return new CheckinResult(true, "商品入库成功: " + item.getProductTitle(),
+                            no, "IN_WAREHOUSE", item.getOrder().getUser().getPhone());
+                })
+                .orElse(null);
     }
 
     @Transactional
