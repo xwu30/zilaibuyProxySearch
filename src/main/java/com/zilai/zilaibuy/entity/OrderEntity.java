@@ -59,6 +59,6 @@ public class OrderEntity {
     private String transitTrackingNo;
 
     public enum OrderStatus {
-        PENDING_PAYMENT, PURCHASING, IN_TRANSIT, IN_WAREHOUSE, SHIPPED, DELIVERED, CANCELLED
+        PENDING_PAYMENT, PURCHASING, IN_TRANSIT, IN_WAREHOUSE, PACKING, SHIPPED, DELIVERED, CANCELLED
     }
 }

@@ -141,6 +141,18 @@ public class OrderService {
                     }
                     item.setItemStatus("IN_WAREHOUSE");
                     orderItemRepository.save(item);
+
+                    // Auto-advance order to PACKING if all items are now IN_WAREHOUSE
+                    OrderEntity order = item.getOrder();
+                    boolean allIn = order.getItems().stream()
+                            .allMatch(i -> "IN_WAREHOUSE".equals(i.getItemStatus()));
+                    if (allIn && order.getStatus() != OrderEntity.OrderStatus.PACKING
+                            && order.getStatus() != OrderEntity.OrderStatus.SHIPPED
+                            && order.getStatus() != OrderEntity.OrderStatus.DELIVERED) {
+                        order.setStatus(OrderEntity.OrderStatus.PACKING);
+                        orderRepository.save(order);
+                    }
+
                     return new CheckinResult(true, "商品入库成功: " + item.getProductTitle(),
                             no, "IN_WAREHOUSE", item.getOrder().getUser().getPhone());
                 })
