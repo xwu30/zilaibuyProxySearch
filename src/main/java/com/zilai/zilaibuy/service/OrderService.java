@@ -102,9 +102,15 @@ public class OrderService {
             order.setNotes(req.notes());
         }
         if (req.transitTrackingNo() != null) {
+            if (order.getTransitTrackingNo() != null && !order.getTransitTrackingNo().isBlank()) {
+                throw new AppException(HttpStatus.FORBIDDEN, "出库单号已填写，不可修改");
+            }
             order.setTransitTrackingNo(req.transitTrackingNo());
         }
         if (req.transitCarrier() != null) {
+            if (order.getTransitCarrier() != null && !order.getTransitCarrier().isBlank()) {
+                throw new AppException(HttpStatus.FORBIDDEN, "出库物流商已填写，不可修改");
+            }
             order.setTransitCarrier(req.transitCarrier());
         }
         orderRepository.save(order);
