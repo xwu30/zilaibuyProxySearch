@@ -120,6 +120,9 @@ public class OrderService {
         if ("IN_WAREHOUSE".equals(item.getItemStatus())) {
             throw new AppException(HttpStatus.FORBIDDEN, "已入库的商品不可修改");
         }
+        if (item.getItemTrackingNo() != null && !item.getItemTrackingNo().isBlank()) {
+            throw new AppException(HttpStatus.FORBIDDEN, "已绑定物流单号的商品不可修改");
+        }
         if (req.itemStatus() != null) item.setItemStatus(req.itemStatus());
         if (req.itemTrackingNo() != null) item.setItemTrackingNo(req.itemTrackingNo());
         if (req.itemCarrier() != null) item.setItemCarrier(req.itemCarrier());
