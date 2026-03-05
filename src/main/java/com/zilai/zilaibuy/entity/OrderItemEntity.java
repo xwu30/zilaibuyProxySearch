@@ -49,4 +49,13 @@ public class OrderItemEntity {
 
     @Column(name = "image_url", length = 1024)
     private String imageUrl;
+
+    @Column(name = "item_tracking_no", length = 100)
+    private String itemTrackingNo;
+
+    @Column(name = "item_carrier", length = 100)
+    private String itemCarrier;
+
+    @Column(name = "item_status", length = 20)
+    private String itemStatus = "PURCHASING";
 }

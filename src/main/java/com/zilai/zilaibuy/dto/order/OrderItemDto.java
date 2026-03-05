@@ -15,11 +15,15 @@ public record OrderItemDto(
         BigDecimal domesticShipping,
         BigDecimal exchangeRate,
         String platform,
-        String imageUrl
+        String imageUrl,
+        String itemStatus,
+        String itemTrackingNo,
+        String itemCarrier
 ) {
     public static OrderItemDto from(OrderItemEntity e) {
         return new OrderItemDto(e.getId(), e.getProductTitle(), e.getOriginalUrl(),
                 e.getPriceJpy(), e.getPriceCny(), e.getQuantity(), e.getRemarks(),
-                e.getDomesticShipping(), e.getExchangeRate(), e.getPlatform(), e.getImageUrl());
+                e.getDomesticShipping(), e.getExchangeRate(), e.getPlatform(), e.getImageUrl(),
+                e.getItemStatus(), e.getItemTrackingNo(), e.getItemCarrier());
     }
 }

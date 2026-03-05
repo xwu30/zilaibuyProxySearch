@@ -1,6 +1,7 @@
 package com.zilai.zilaibuy.controller;
 
 import com.zilai.zilaibuy.dto.order.*;
+import org.springframework.security.access.prepost.PreAuthorize;
 import com.zilai.zilaibuy.entity.OrderEntity;
 import com.zilai.zilaibuy.dto.order.UpdateOrderItemRequest;
 import com.zilai.zilaibuy.security.AuthenticatedUser;
@@ -59,6 +60,15 @@ public class OrderController {
             @PathVariable Long id,
             @Valid @RequestBody UpdateOrderStatusRequest req) {
         return ResponseEntity.ok(orderService.updateStatus(id, req));
+    }
+
+    @PreAuthorize("hasAnyRole('WAREHOUSE','ADMIN')")
+    @PatchMapping("/{orderId}/items/{itemId}/tracking")
+    public ResponseEntity<OrderItemDto> updateItemTracking(
+            @PathVariable Long orderId,
+            @PathVariable Long itemId,
+            @RequestBody UpdateItemTrackingRequest req) {
+        return ResponseEntity.ok(orderService.updateItemTracking(orderId, itemId, req));
     }
 
     @PutMapping("/{orderId}/items/{itemId}")

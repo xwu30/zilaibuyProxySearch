@@ -1,6 +1,7 @@
 package com.zilai.zilaibuy.service;
 
 import com.zilai.zilaibuy.dto.order.*;
+import com.zilai.zilaibuy.dto.order.UpdateItemTrackingRequest;
 import com.zilai.zilaibuy.entity.OrderEntity;
 import com.zilai.zilaibuy.entity.OrderItemEntity;
 import com.zilai.zilaibuy.entity.UserEntity;
@@ -105,6 +106,22 @@ public class OrderService {
         }
         orderRepository.save(order);
         return OrderDto.from(order);
+    }
+
+    @Transactional
+    public OrderItemDto updateItemTracking(Long orderId, Long itemId, UpdateItemTrackingRequest req) {
+        OrderEntity order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "订单不存在"));
+        OrderItemEntity item = orderItemRepository.findById(itemId)
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "商品不存在"));
+        if (!item.getOrder().getId().equals(orderId)) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "商品不属于该订单");
+        }
+        if (req.itemStatus() != null) item.setItemStatus(req.itemStatus());
+        if (req.itemTrackingNo() != null) item.setItemTrackingNo(req.itemTrackingNo());
+        if (req.itemCarrier() != null) item.setItemCarrier(req.itemCarrier());
+        orderItemRepository.save(item);
+        return OrderItemDto.from(item);
     }
 
     @Transactional
