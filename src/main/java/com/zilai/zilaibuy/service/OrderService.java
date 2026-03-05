@@ -142,21 +142,41 @@ public class OrderService {
                     item.setItemStatus("IN_WAREHOUSE");
                     orderItemRepository.save(item);
 
-                    // Auto-advance order to PACKING if all items are now IN_WAREHOUSE
-                    OrderEntity order = item.getOrder();
-                    boolean allIn = order.getItems().stream()
-                            .allMatch(i -> "IN_WAREHOUSE".equals(i.getItemStatus()));
-                    if (allIn && order.getStatus() != OrderEntity.OrderStatus.PACKING
-                            && order.getStatus() != OrderEntity.OrderStatus.SHIPPED
-                            && order.getStatus() != OrderEntity.OrderStatus.DELIVERED) {
-                        order.setStatus(OrderEntity.OrderStatus.PACKING);
-                        orderRepository.save(order);
+                    // Use count queries (reliable, avoids lazy-loading pitfalls)
+                    Long orderId = item.getOrder().getId();
+                    long total = orderItemRepository.countByOrderId(orderId);
+                    long inWarehouse = orderItemRepository.countByOrderIdAndItemStatus(orderId, "IN_WAREHOUSE");
+                    if (total > 0 && total == inWarehouse) {
+                        advanceOrderToPackingById(orderId);
                     }
 
                     return new CheckinResult(true, "商品入库成功: " + item.getProductTitle(),
                             no, "IN_WAREHOUSE", item.getOrder().getUser().getPhone());
                 })
                 .orElse(null);
+    }
+
+    @Transactional
+    public OrderDto advanceToPackingIfReady(Long orderId) {
+        long total = orderItemRepository.countByOrderId(orderId);
+        long inWarehouse = orderItemRepository.countByOrderIdAndItemStatus(orderId, "IN_WAREHOUSE");
+        if (total == 0 || total != inWarehouse) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "还有商品未入库 (" + inWarehouse + "/" + total + ")");
+        }
+        return advanceOrderToPackingById(orderId);
+    }
+
+    private OrderDto advanceOrderToPackingById(Long orderId) {
+        OrderEntity order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "订单不存在"));
+        if (order.getStatus() == OrderEntity.OrderStatus.PACKING
+                || order.getStatus() == OrderEntity.OrderStatus.SHIPPED
+                || order.getStatus() == OrderEntity.OrderStatus.DELIVERED) {
+            return OrderDto.from(order);
+        }
+        order.setStatus(OrderEntity.OrderStatus.PACKING);
+        orderRepository.save(order);
+        return OrderDto.from(order);
     }
 
     @Transactional

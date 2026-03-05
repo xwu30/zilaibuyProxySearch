@@ -63,6 +63,12 @@ public class OrderController {
     }
 
     @PreAuthorize("hasAnyRole('WAREHOUSE','ADMIN')")
+    @PostMapping("/{orderId}/advance-packing")
+    public ResponseEntity<OrderDto> advanceToPacking(@PathVariable Long orderId) {
+        return ResponseEntity.ok(orderService.advanceToPackingIfReady(orderId));
+    }
+
+    @PreAuthorize("hasAnyRole('WAREHOUSE','ADMIN')")
     @PatchMapping("/{orderId}/items/{itemId}/tracking")
     public ResponseEntity<OrderItemDto> updateItemTracking(
             @PathVariable Long orderId,
