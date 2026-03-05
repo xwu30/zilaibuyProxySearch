@@ -58,6 +58,9 @@ public class OrderEntity {
     @Column(name = "transit_tracking_no", length = 100)
     private String transitTrackingNo;
 
+    @Column(name = "transit_carrier", length = 50)
+    private String transitCarrier;
+
     public enum OrderStatus {
         PENDING_PAYMENT, PURCHASING, IN_TRANSIT, IN_WAREHOUSE, PACKING, SHIPPED, DELIVERED, CANCELLED
     }

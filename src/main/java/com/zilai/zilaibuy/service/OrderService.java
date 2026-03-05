@@ -104,6 +104,9 @@ public class OrderService {
         if (req.transitTrackingNo() != null) {
             order.setTransitTrackingNo(req.transitTrackingNo());
         }
+        if (req.transitCarrier() != null) {
+            order.setTransitCarrier(req.transitCarrier());
+        }
         orderRepository.save(order);
         return OrderDto.from(order);
     }
