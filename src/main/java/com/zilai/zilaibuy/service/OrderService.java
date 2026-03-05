@@ -17,6 +17,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 
@@ -80,12 +81,27 @@ public class OrderService {
     }
 
     @Transactional
+    public OrderDto updateNotes(Long orderId, String notes, AuthenticatedUser currentUser) {
+        OrderEntity order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "订单不存在"));
+        if (!isPrivileged(currentUser.role()) && !order.getUser().getId().equals(currentUser.id())) {
+            throw new AppException(HttpStatus.FORBIDDEN, "无权修改此订单");
+        }
+        order.setNotes(notes);
+        orderRepository.save(order);
+        return OrderDto.from(order);
+    }
+
+    @Transactional
     public OrderDto updateStatus(Long orderId, UpdateOrderStatusRequest req) {
         OrderEntity order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "订单不存在"));
         order.setStatus(req.status());
         if (req.notes() != null) {
             order.setNotes(req.notes());
+        }
+        if (req.transitTrackingNo() != null) {
+            order.setTransitTrackingNo(req.transitTrackingNo());
         }
         orderRepository.save(order);
         return OrderDto.from(order);
@@ -111,6 +127,143 @@ public class OrderService {
         orderItemRepository.save(item);
 
         // Recalculate order total
+        java.math.BigDecimal newTotal = order.getItems().stream()
+                .map(i -> i.getPriceCny().multiply(java.math.BigDecimal.valueOf(i.getQuantity())))
+                .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
+        order.setTotalCny(newTotal);
+        orderRepository.save(order);
+        return OrderDto.from(order);
+    }
+
+    public record CheckinResult(boolean success, String message, String orderNo, String orderStatus, String userPhone) {}
+
+    @Transactional
+    public CheckinResult checkinByOrderNo(String orderNo) {
+        String no = orderNo != null ? orderNo.trim() : "";
+        return orderRepository.findByOrderNo(no)
+                .map(order -> {
+                    if (order.getStatus() != OrderEntity.OrderStatus.PURCHASING) {
+                        return new CheckinResult(false,
+                                "状态不符（当前: " + order.getStatus().name() + "）",
+                                no, order.getStatus().name(), order.getUser().getPhone());
+                    }
+                    order.setStatus(OrderEntity.OrderStatus.IN_WAREHOUSE);
+                    orderRepository.save(order);
+                    return new CheckinResult(true, "入库成功",
+                            order.getOrderNo(), "IN_WAREHOUSE", order.getUser().getPhone());
+                })
+                .orElse(new CheckinResult(false, "未找到匹配订单", no, null, null));
+    }
+
+    @Transactional
+    public OrderDto mergePendingOrders(Long userId) {
+        List<OrderEntity> pending = orderRepository.findByUserIdAndStatusOrderByCreatedAtAsc(userId, OrderEntity.OrderStatus.PENDING_PAYMENT);
+        if (pending.size() <= 1) {
+            return pending.isEmpty() ? null : OrderDto.from(pending.get(0));
+        }
+
+        OrderEntity target = pending.get(0);
+        for (int i = 1; i < pending.size(); i++) {
+            OrderEntity source = pending.get(i);
+            for (OrderItemEntity sourceItem : new java.util.ArrayList<>(source.getItems())) {
+                OrderItemEntity existing = target.getItems().stream()
+                        .filter(t -> sourceItem.getOriginalUrl() != null && sourceItem.getOriginalUrl().equals(t.getOriginalUrl()))
+                        .findFirst().orElse(null);
+                if (existing != null) {
+                    existing.setQuantity(existing.getQuantity() + sourceItem.getQuantity());
+                } else {
+                    OrderItemEntity newItem = new OrderItemEntity();
+                    newItem.setOrder(target);
+                    newItem.setProductTitle(sourceItem.getProductTitle());
+                    newItem.setOriginalUrl(sourceItem.getOriginalUrl());
+                    newItem.setPriceJpy(sourceItem.getPriceJpy());
+                    newItem.setPriceCny(sourceItem.getPriceCny());
+                    newItem.setQuantity(sourceItem.getQuantity());
+                    newItem.setRemarks(sourceItem.getRemarks());
+                    newItem.setDomesticShipping(sourceItem.getDomesticShipping());
+                    newItem.setExchangeRate(sourceItem.getExchangeRate());
+                    newItem.setPlatform(sourceItem.getPlatform());
+                    newItem.setImageUrl(sourceItem.getImageUrl());
+                    target.getItems().add(newItem);
+                }
+            }
+            orderRepository.delete(source);
+        }
+
+        java.math.BigDecimal newTotal = target.getItems().stream()
+                .map(i -> i.getPriceCny().multiply(java.math.BigDecimal.valueOf(i.getQuantity())))
+                .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
+        target.setTotalCny(newTotal);
+        orderRepository.save(target);
+        return OrderDto.from(target);
+    }
+
+    @Transactional
+    public OrderDto addToPendingOrder(CreateOrderRequest req, Long userId) {
+        UserEntity user = userRepository.findById(userId)
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "用户不存在"));
+
+        OrderEntity order = orderRepository
+                .findFirstByUserIdAndStatusOrderByCreatedAtDesc(userId, OrderEntity.OrderStatus.PENDING_PAYMENT)
+                .orElse(null);
+
+        if (order == null) {
+            order = new OrderEntity();
+            order.setUser(user);
+            order.setOrderNo(generateOrderNo());
+            order.setTotalCny(java.math.BigDecimal.ZERO);
+            order.setNotes(req.notes());
+        }
+
+        for (OrderItemRequest itemReq : req.items()) {
+            OrderItemEntity existing = order.getItems().stream()
+                    .filter(i -> itemReq.originalUrl() != null && itemReq.originalUrl().equals(i.getOriginalUrl()))
+                    .findFirst().orElse(null);
+            if (existing != null) {
+                existing.setQuantity(existing.getQuantity() + itemReq.quantity());
+            } else {
+                OrderItemEntity item = new OrderItemEntity();
+                item.setOrder(order);
+                item.setProductTitle(itemReq.productTitle());
+                item.setOriginalUrl(itemReq.originalUrl());
+                item.setPriceJpy(itemReq.priceJpy());
+                item.setPriceCny(itemReq.priceCny());
+                item.setQuantity(itemReq.quantity());
+                item.setRemarks(itemReq.remarks());
+                item.setDomesticShipping(itemReq.domesticShipping() != null ? itemReq.domesticShipping() : java.math.BigDecimal.ZERO);
+                item.setExchangeRate(itemReq.exchangeRate());
+                item.setPlatform(itemReq.platform());
+                item.setImageUrl(itemReq.imageUrl());
+                order.getItems().add(item);
+            }
+        }
+
+        java.math.BigDecimal newTotal = order.getItems().stream()
+                .map(i -> i.getPriceCny().multiply(java.math.BigDecimal.valueOf(i.getQuantity())))
+                .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
+        order.setTotalCny(newTotal);
+        orderRepository.save(order);
+        return OrderDto.from(order);
+    }
+
+    @Transactional
+    public OrderDto deleteOrderItem(Long orderId, Long itemId, AuthenticatedUser currentUser) {
+        OrderEntity order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "订单不存在"));
+        if (!order.getUser().getId().equals(currentUser.id())) {
+            throw new AppException(HttpStatus.FORBIDDEN, "无权修改此订单");
+        }
+        if (order.getStatus() != OrderEntity.OrderStatus.PENDING_PAYMENT) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "只能修改待付款的订单");
+        }
+        OrderItemEntity item = orderItemRepository.findById(itemId)
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "商品不存在"));
+        if (!item.getOrder().getId().equals(orderId)) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "商品不属于该订单");
+        }
+        order.getItems().remove(item);
+        orderItemRepository.delete(item);
+
         java.math.BigDecimal newTotal = order.getItems().stream()
                 .map(i -> i.getPriceCny().multiply(java.math.BigDecimal.valueOf(i.getQuantity())))
                 .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);

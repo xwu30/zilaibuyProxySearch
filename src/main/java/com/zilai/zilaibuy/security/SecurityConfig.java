@@ -52,6 +52,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/support/**").hasAnyRole("SUPPORT", "ADMIN")
                 .requestMatchers("/api/user/**").authenticated()
                 .requestMatchers("/api/orders/**").authenticated()
+                .requestMatchers("/api/parcels/**").authenticated()
                 .requestMatchers("/api/translate/**").authenticated()
                 .anyRequest().authenticated()
             )
@@ -72,7 +73,7 @@ public class SecurityConfig {
         origins.add("http://localhost:*");
         origins.add("http://127.0.0.1:*");
         config.setAllowedOriginPatterns(origins);
-        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);
 

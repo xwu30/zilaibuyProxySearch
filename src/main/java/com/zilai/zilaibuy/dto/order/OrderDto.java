@@ -12,6 +12,7 @@ public record OrderDto(
         String status,
         BigDecimal totalCny,
         String notes,
+        String transitTrackingNo,
         Long userId,
         List<OrderItemDto> items,
         LocalDateTime createdAt,
@@ -22,7 +23,7 @@ public record OrderDto(
                 ? e.getItems().stream().map(OrderItemDto::from).toList()
                 : List.of();
         return new OrderDto(e.getId(), e.getOrderNo(), e.getStatus().name(),
-                e.getTotalCny(), e.getNotes(), e.getUser().getId(),
+                e.getTotalCny(), e.getNotes(), e.getTransitTrackingNo(), e.getUser().getId(),
                 items, e.getCreatedAt(), e.getUpdatedAt());
     }
 }

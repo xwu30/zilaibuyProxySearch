@@ -46,6 +46,14 @@ public class OrderController {
         return ResponseEntity.ok(orderService.getOrder(id, currentUser));
     }
 
+    @PatchMapping("/{id}/notes")
+    public ResponseEntity<OrderDto> updateNotes(
+            @PathVariable Long id,
+            @RequestBody java.util.Map<String, String> body,
+            @AuthenticationPrincipal AuthenticatedUser currentUser) {
+        return ResponseEntity.ok(orderService.updateNotes(id, body.get("notes"), currentUser));
+    }
+
     @PutMapping("/{id}/status")
     public ResponseEntity<OrderDto> updateStatus(
             @PathVariable Long id,
@@ -60,6 +68,28 @@ public class OrderController {
             @RequestBody UpdateOrderItemRequest req,
             @AuthenticationPrincipal AuthenticatedUser currentUser) {
         return ResponseEntity.ok(orderService.updateItem(orderId, itemId, req, currentUser));
+    }
+
+    @PostMapping("/merge-pending")
+    public ResponseEntity<OrderDto> mergePendingOrders(
+            @AuthenticationPrincipal AuthenticatedUser currentUser) {
+        OrderDto result = orderService.mergePendingOrders(currentUser.id());
+        return result != null ? ResponseEntity.ok(result) : ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/pending/add")
+    public ResponseEntity<OrderDto> addToPendingOrder(
+            @Valid @RequestBody CreateOrderRequest req,
+            @AuthenticationPrincipal AuthenticatedUser currentUser) {
+        return ResponseEntity.ok(orderService.addToPendingOrder(req, currentUser.id()));
+    }
+
+    @DeleteMapping("/{orderId}/items/{itemId}")
+    public ResponseEntity<OrderDto> deleteOrderItem(
+            @PathVariable Long orderId,
+            @PathVariable Long itemId,
+            @AuthenticationPrincipal AuthenticatedUser currentUser) {
+        return ResponseEntity.ok(orderService.deleteOrderItem(orderId, itemId, currentUser));
     }
 
     @DeleteMapping("/{id}")

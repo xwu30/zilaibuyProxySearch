@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 
@@ -41,4 +42,10 @@ public interface OrderRepository extends JpaRepository<OrderEntity, Long> {
     long countByStatus(OrderEntity.OrderStatus status);
 
     Optional<OrderEntity> findByStripePaymentIntentId(String stripePaymentIntentId);
+
+    Optional<OrderEntity> findFirstByUserIdAndStatusOrderByCreatedAtDesc(Long userId, OrderEntity.OrderStatus status);
+
+    Optional<OrderEntity> findByOrderNo(String orderNo);
+
+    List<OrderEntity> findByUserIdAndStatusOrderByCreatedAtAsc(Long userId, OrderEntity.OrderStatus status);
 }

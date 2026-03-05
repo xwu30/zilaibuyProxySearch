@@ -55,7 +55,10 @@ public class OrderEntity {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
+    @Column(name = "transit_tracking_no", length = 100)
+    private String transitTrackingNo;
+
     public enum OrderStatus {
-        PENDING_PAYMENT, PURCHASING, IN_WAREHOUSE, SHIPPED, DELIVERED, CANCELLED
+        PENDING_PAYMENT, PURCHASING, IN_TRANSIT, IN_WAREHOUSE, SHIPPED, DELIVERED, CANCELLED
     }
 }
