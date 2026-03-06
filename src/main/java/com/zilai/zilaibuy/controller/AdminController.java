@@ -124,6 +124,7 @@ public class AdminController {
         return ResponseEntity.ok(AdminUserDto.from(user));
     }
 
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPPORT')")
     @GetMapping("/orders")
     public ResponseEntity<Page<AdminOrderDto>> listOrders(
             @RequestParam(defaultValue = "0") int page,
