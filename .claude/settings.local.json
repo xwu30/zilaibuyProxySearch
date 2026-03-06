@@ -59,7 +59,10 @@
       "Bash(javac:*)",
       "Bash(/usr/bin/env bash:*)",
       "Bash(lsof:*)",
-      "Bash(kill 95528:*)"
+      "Bash(kill 95528:*)",
+      "Bash(grep:*)",
+      "Bash(npx esbuild:*)",
+      "Bash(brew list:*)"
     ]
   }
 }

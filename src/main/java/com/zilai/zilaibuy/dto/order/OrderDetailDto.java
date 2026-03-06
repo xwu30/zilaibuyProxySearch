@@ -1,9 +1,12 @@
 package com.zilai.zilaibuy.dto.order;
 
+import com.zilai.zilaibuy.dto.parcel.ParcelDto;
+import com.zilai.zilaibuy.entity.ForwardingParcelEntity;
 import com.zilai.zilaibuy.entity.OrderEntity;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
 
 public record OrderDetailDto(
@@ -17,13 +20,19 @@ public record OrderDetailDto(
         LocalDateTime createdAt,
         LocalDateTime updatedAt,
         String transitTrackingNo,
-        String transitCarrier
+        String transitCarrier,
+        List<ParcelDto> linkedParcels
 ) {
     public static OrderDetailDto from(OrderEntity e) {
+        return from(e, Collections.emptyList());
+    }
+
+    public static OrderDetailDto from(OrderEntity e, List<ForwardingParcelEntity> parcels) {
         List<OrderItemDto> items = e.getItems().stream().map(OrderItemDto::from).toList();
+        List<ParcelDto> linkedParcels = parcels.stream().map(ParcelDto::from).toList();
         return new OrderDetailDto(e.getId(), e.getOrderNo(), e.getStatus().name(),
                 e.getTotalCny(), e.getNotes(), e.getUser().getId(),
                 items, e.getCreatedAt(), e.getUpdatedAt(),
-                e.getTransitTrackingNo(), e.getTransitCarrier());
+                e.getTransitTrackingNo(), e.getTransitCarrier(), linkedParcels);
     }
 }

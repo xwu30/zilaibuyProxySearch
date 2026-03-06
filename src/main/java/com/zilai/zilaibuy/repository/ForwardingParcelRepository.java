@@ -15,4 +15,8 @@ public interface ForwardingParcelRepository extends JpaRepository<ForwardingParc
     Page<ForwardingParcelEntity> findByStatus(ForwardingParcelEntity.ParcelStatus status, Pageable pageable);
 
     Optional<ForwardingParcelEntity> findByInboundTrackingNo(String inboundTrackingNo);
+
+    List<ForwardingParcelEntity> findByUserIdAndStatus(Long userId, ForwardingParcelEntity.ParcelStatus status);
+
+    List<ForwardingParcelEntity> findByLinkedOrderId(Long orderId);
 }

@@ -2,10 +2,13 @@ package com.zilai.zilaibuy.service;
 
 import com.zilai.zilaibuy.dto.order.*;
 import com.zilai.zilaibuy.dto.order.UpdateItemTrackingRequest;
+import com.zilai.zilaibuy.dto.parcel.ParcelDto;
+import com.zilai.zilaibuy.entity.ForwardingParcelEntity;
 import com.zilai.zilaibuy.entity.OrderEntity;
 import com.zilai.zilaibuy.entity.OrderItemEntity;
 import com.zilai.zilaibuy.entity.UserEntity;
 import com.zilai.zilaibuy.exception.AppException;
+import com.zilai.zilaibuy.repository.ForwardingParcelRepository;
 import com.zilai.zilaibuy.repository.OrderItemRepository;
 import com.zilai.zilaibuy.repository.OrderRepository;
 import com.zilai.zilaibuy.repository.UserRepository;
@@ -29,6 +32,7 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final OrderItemRepository orderItemRepository;
     private final UserRepository userRepository;
+    private final ForwardingParcelRepository parcelRepository;
 
     @Transactional
     public OrderDto createOrder(CreateOrderRequest req, Long userId) {
@@ -82,7 +86,8 @@ public class OrderService {
         if (!isPrivileged(currentUser.role()) && !order.getUser().getId().equals(currentUser.id())) {
             throw new AccessDeniedException("无权查看此订单");
         }
-        return OrderDetailDto.from(order);
+        List<ForwardingParcelEntity> linked = parcelRepository.findByLinkedOrderId(orderId);
+        return OrderDetailDto.from(order, linked);
     }
 
     @Transactional
@@ -118,6 +123,20 @@ public class OrderService {
             order.setTransitCarrier(req.transitCarrier());
         }
         orderRepository.save(order);
+
+        // When order ships, also ship any linked forwarding parcels with the same tracking
+        if (order.getStatus() == OrderEntity.OrderStatus.SHIPPED && order.getTransitTrackingNo() != null) {
+            List<ForwardingParcelEntity> linked = parcelRepository.findByLinkedOrderId(order.getId());
+            for (ForwardingParcelEntity parcel : linked) {
+                if (parcel.getStatus() == ForwardingParcelEntity.ParcelStatus.PACKING
+                        || parcel.getStatus() == ForwardingParcelEntity.ParcelStatus.IN_WAREHOUSE) {
+                    parcel.setStatus(ForwardingParcelEntity.ParcelStatus.SHIPPED);
+                    parcel.setOutboundTrackingNo(order.getTransitTrackingNo());
+                }
+            }
+            parcelRepository.saveAll(linked);
+        }
+
         return OrderDto.from(order);
     }
 
@@ -162,7 +181,7 @@ public class OrderService {
     }
 
     @Transactional
-    public OrderDto advanceToPackingIfReady(Long orderId, AuthenticatedUser currentUser) {
+    public OrderDto advanceToPackingIfReady(Long orderId, List<Long> parcelIds, AuthenticatedUser currentUser) {
         OrderEntity order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "订单不存在"));
         if (!isPrivileged(currentUser.role()) && !order.getUser().getId().equals(currentUser.id())) {
@@ -173,7 +192,34 @@ public class OrderService {
         if (total == 0 || total != inWarehouse) {
             throw new AppException(HttpStatus.BAD_REQUEST, "还有商品未入库 (" + inWarehouse + "/" + total + ")");
         }
+        // Link selected forwarding parcels to this order
+        if (parcelIds != null && !parcelIds.isEmpty()) {
+            for (Long parcelId : parcelIds) {
+                parcelRepository.findById(parcelId).ifPresent(parcel -> {
+                    if (!parcel.getUser().getId().equals(order.getUser().getId())) {
+                        throw new AppException(HttpStatus.FORBIDDEN, "包裹不属于该用户");
+                    }
+                    if (parcel.getStatus() != ForwardingParcelEntity.ParcelStatus.IN_WAREHOUSE) {
+                        throw new AppException(HttpStatus.BAD_REQUEST, "包裹 #" + parcelId + " 尚未入库");
+                    }
+                    parcel.setLinkedOrder(order);
+                    parcel.setStatus(ForwardingParcelEntity.ParcelStatus.PACKING);
+                    parcelRepository.save(parcel);
+                });
+            }
+        }
         return advanceOrderToPackingById(orderId);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ParcelDto> getLinkableParcels(Long orderId, AuthenticatedUser currentUser) {
+        OrderEntity order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "订单不存在"));
+        if (!order.getUser().getId().equals(currentUser.id())) {
+            throw new AppException(HttpStatus.FORBIDDEN, "无权操作此订单");
+        }
+        return parcelRepository.findByUserIdAndStatus(currentUser.id(), ForwardingParcelEntity.ParcelStatus.IN_WAREHOUSE)
+                .stream().map(ParcelDto::from).toList();
     }
 
     private OrderDto advanceOrderToPackingById(Long orderId) {

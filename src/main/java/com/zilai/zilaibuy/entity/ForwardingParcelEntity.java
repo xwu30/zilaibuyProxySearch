@@ -1,5 +1,6 @@
 package com.zilai.zilaibuy.entity;
 
+import com.zilai.zilaibuy.entity.OrderEntity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -52,6 +53,11 @@ public class ForwardingParcelEntity {
     @Column(name = "outbound_tracking_no", length = 100)
     private String outboundTrackingNo;
 
+    /** When non-null, this parcel is packed together with the linked proxy order */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "linked_order_id")
+    private OrderEntity linkedOrder;
+
     @Column(length = 500)
     private String notes;
 
@@ -64,6 +70,6 @@ public class ForwardingParcelEntity {
     private LocalDateTime updatedAt;
 
     public enum ParcelStatus {
-        ANNOUNCED, IN_WAREHOUSE, SHIPPED, DELIVERED
+        ANNOUNCED, IN_WAREHOUSE, PACKING, SHIPPED, DELIVERED
     }
 }

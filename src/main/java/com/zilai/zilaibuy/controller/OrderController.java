@@ -1,6 +1,7 @@
 package com.zilai.zilaibuy.controller;
 
 import com.zilai.zilaibuy.dto.order.*;
+import com.zilai.zilaibuy.dto.parcel.ParcelDto;
 import org.springframework.security.access.prepost.PreAuthorize;
 import com.zilai.zilaibuy.entity.OrderEntity;
 import com.zilai.zilaibuy.dto.order.UpdateOrderItemRequest;
@@ -9,6 +10,7 @@ import com.zilai.zilaibuy.service.OrderService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import java.util.List;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
@@ -67,8 +69,17 @@ public class OrderController {
     @PostMapping("/{orderId}/advance-packing")
     public ResponseEntity<OrderDto> advanceToPacking(
             @PathVariable Long orderId,
+            @RequestBody(required = false) AdvancePackingRequest req,
             @AuthenticationPrincipal AuthenticatedUser currentUser) {
-        return ResponseEntity.ok(orderService.advanceToPackingIfReady(orderId, currentUser));
+        List<Long> parcelIds = req != null ? req.parcelIds() : null;
+        return ResponseEntity.ok(orderService.advanceToPackingIfReady(orderId, parcelIds, currentUser));
+    }
+
+    @GetMapping("/{orderId}/linkable-parcels")
+    public ResponseEntity<List<ParcelDto>> getLinkableParcels(
+            @PathVariable Long orderId,
+            @AuthenticationPrincipal AuthenticatedUser currentUser) {
+        return ResponseEntity.ok(orderService.getLinkableParcels(orderId, currentUser));
     }
 
     @PreAuthorize("hasAnyRole('WAREHOUSE','ADMIN')")
