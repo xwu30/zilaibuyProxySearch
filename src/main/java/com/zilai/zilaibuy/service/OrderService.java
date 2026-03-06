@@ -155,14 +155,6 @@ public class OrderService {
                     item.setItemStatus("IN_WAREHOUSE");
                     orderItemRepository.save(item);
 
-                    // Use count queries (reliable, avoids lazy-loading pitfalls)
-                    Long orderId = item.getOrder().getId();
-                    long total = orderItemRepository.countByOrderId(orderId);
-                    long inWarehouse = orderItemRepository.countByOrderIdAndItemStatus(orderId, "IN_WAREHOUSE");
-                    if (total > 0 && total == inWarehouse) {
-                        advanceOrderToPackingById(orderId);
-                    }
-
                     return new CheckinResult(true, "商品入库成功: " + item.getProductTitle(),
                             no, "IN_WAREHOUSE", item.getOrder().getUser().getPhone());
                 })
@@ -170,7 +162,12 @@ public class OrderService {
     }
 
     @Transactional
-    public OrderDto advanceToPackingIfReady(Long orderId) {
+    public OrderDto advanceToPackingIfReady(Long orderId, AuthenticatedUser currentUser) {
+        OrderEntity order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "订单不存在"));
+        if (!isPrivileged(currentUser.role()) && !order.getUser().getId().equals(currentUser.id())) {
+            throw new AppException(HttpStatus.FORBIDDEN, "无权操作此订单");
+        }
         long total = orderItemRepository.countByOrderId(orderId);
         long inWarehouse = orderItemRepository.countByOrderIdAndItemStatus(orderId, "IN_WAREHOUSE");
         if (total == 0 || total != inWarehouse) {

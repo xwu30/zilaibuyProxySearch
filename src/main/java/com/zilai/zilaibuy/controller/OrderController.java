@@ -64,10 +64,11 @@ public class OrderController {
         return ResponseEntity.ok(orderService.updateStatus(id, req));
     }
 
-    @PreAuthorize("hasAnyRole('WAREHOUSE','ADMIN')")
     @PostMapping("/{orderId}/advance-packing")
-    public ResponseEntity<OrderDto> advanceToPacking(@PathVariable Long orderId) {
-        return ResponseEntity.ok(orderService.advanceToPackingIfReady(orderId));
+    public ResponseEntity<OrderDto> advanceToPacking(
+            @PathVariable Long orderId,
+            @AuthenticationPrincipal AuthenticatedUser currentUser) {
+        return ResponseEntity.ok(orderService.advanceToPackingIfReady(orderId, currentUser));
     }
 
     @PreAuthorize("hasAnyRole('WAREHOUSE','ADMIN')")
