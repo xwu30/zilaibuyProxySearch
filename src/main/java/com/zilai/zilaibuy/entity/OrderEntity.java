@@ -47,6 +47,9 @@ public class OrderEntity {
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<OrderItemEntity> items = new ArrayList<>();
 
+    @OneToMany(mappedBy = "linkedOrder", fetch = FetchType.LAZY)
+    private List<ForwardingParcelEntity> linkedParcels = new ArrayList<>();
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
