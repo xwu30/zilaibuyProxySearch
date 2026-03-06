@@ -218,7 +218,8 @@ public class OrderService {
         if (!order.getUser().getId().equals(currentUser.id())) {
             throw new AppException(HttpStatus.FORBIDDEN, "无权操作此订单");
         }
-        return parcelRepository.findByUserIdAndStatus(currentUser.id(), ForwardingParcelEntity.ParcelStatus.IN_WAREHOUSE)
+        return parcelRepository.findByUserIdAndStatusIn(currentUser.id(),
+                        List.of(ForwardingParcelEntity.ParcelStatus.IN_WAREHOUSE, ForwardingParcelEntity.ParcelStatus.ANNOUNCED))
                 .stream().map(ParcelDto::from).toList();
     }
 
