@@ -15,12 +15,15 @@ public record OrderDetailDto(
         Long userId,
         List<OrderItemDto> items,
         LocalDateTime createdAt,
-        LocalDateTime updatedAt
+        LocalDateTime updatedAt,
+        String transitTrackingNo,
+        String transitCarrier
 ) {
     public static OrderDetailDto from(OrderEntity e) {
         List<OrderItemDto> items = e.getItems().stream().map(OrderItemDto::from).toList();
         return new OrderDetailDto(e.getId(), e.getOrderNo(), e.getStatus().name(),
                 e.getTotalCny(), e.getNotes(), e.getUser().getId(),
-                items, e.getCreatedAt(), e.getUpdatedAt());
+                items, e.getCreatedAt(), e.getUpdatedAt(),
+                e.getTransitTrackingNo(), e.getTransitCarrier());
     }
 }
