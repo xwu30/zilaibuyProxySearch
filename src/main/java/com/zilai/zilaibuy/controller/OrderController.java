@@ -122,6 +122,13 @@ public class OrderController {
         return ResponseEntity.ok(orderService.deleteOrderItem(orderId, itemId, currentUser));
     }
 
+    @PostMapping("/packing-request")
+    public ResponseEntity<List<OrderDto>> createPackingRequest(
+            @RequestBody PackingRequestBody req,
+            @AuthenticationPrincipal AuthenticatedUser currentUser) {
+        return ResponseEntity.ok(orderService.createPackingRequest(req.orderItemIds(), req.parcelIds(), currentUser));
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteOrder(
             @PathVariable Long id,

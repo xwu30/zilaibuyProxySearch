@@ -21,7 +21,10 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 
@@ -412,6 +415,52 @@ public class OrderService {
             throw new AppException(HttpStatus.BAD_REQUEST, "只能删除待付款的订单");
         }
         orderRepository.delete(order);
+    }
+
+    @Transactional
+    public List<OrderDto> createPackingRequest(List<Long> orderItemIds, List<Long> parcelIds, AuthenticatedUser currentUser) {
+        // Collect unique order IDs from selected items
+        Set<Long> orderIdSet = new HashSet<>();
+        if (orderItemIds != null) {
+            for (Long itemId : orderItemIds) {
+                orderItemRepository.findById(itemId).ifPresent(item -> orderIdSet.add(item.getOrder().getId()));
+            }
+        }
+        if (orderIdSet.isEmpty()) throw new AppException(HttpStatus.BAD_REQUEST, "未选择代购商品");
+
+        List<OrderEntity> orders = orderRepository.findAllById(orderIdSet);
+        for (OrderEntity order : orders) {
+            if (!order.getUser().getId().equals(currentUser.id())) {
+                throw new AppException(HttpStatus.FORBIDDEN, "无权操作此订单");
+            }
+        }
+
+        // Advance each order to PACKING
+        for (OrderEntity order : orders) {
+            if (order.getStatus() == OrderEntity.OrderStatus.PURCHASING
+                    || order.getStatus() == OrderEntity.OrderStatus.IN_WAREHOUSE) {
+                order.setStatus(OrderEntity.OrderStatus.PACKING);
+            }
+        }
+        orderRepository.saveAll(orders);
+
+        // Link selected parcels to the first (earliest) order
+        if (parcelIds != null && !parcelIds.isEmpty()) {
+            OrderEntity primaryOrder = orders.stream()
+                    .min((a, b) -> a.getCreatedAt().compareTo(b.getCreatedAt()))
+                    .orElse(orders.get(0));
+            List<ForwardingParcelEntity> parcels = parcelRepository.findAllById(parcelIds);
+            for (ForwardingParcelEntity parcel : parcels) {
+                if (!parcel.getUser().getId().equals(currentUser.id())) continue;
+                if (parcel.getStatus() == ForwardingParcelEntity.ParcelStatus.IN_WAREHOUSE) {
+                    parcel.setLinkedOrder(primaryOrder);
+                    parcel.setStatus(ForwardingParcelEntity.ParcelStatus.PACKING);
+                }
+            }
+            parcelRepository.saveAll(parcels);
+        }
+
+        return orders.stream().map(OrderDto::from).toList();
     }
 
     private String generateOrderNo() {
