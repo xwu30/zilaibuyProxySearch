@@ -28,6 +28,7 @@ import java.time.LocalDateTime;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Random;
 import java.util.UUID;
 
 @Service
@@ -65,6 +66,7 @@ public class AuthService {
 
         UserEntity user = new UserEntity();
         user.setPhone(phone);
+        user.setCloudId(generateCloudId());
         if (password != null && !password.isBlank()) {
             user.setPasswordHash(passwordEncoder.encode(password));
         }
@@ -90,6 +92,7 @@ public class AuthService {
         } else {
             user = new UserEntity();
             user.setEmail(email);
+            user.setCloudId(generateCloudId());
             if (StringUtils.hasText(password)) {
                 user.setPasswordHash(passwordEncoder.encode(password));
             }
@@ -168,6 +171,7 @@ public class AuthService {
             UserEntity u = new UserEntity();
             u.setEmail(email);
             u.setPhone("email:" + email);
+            u.setCloudId(generateCloudId());
             return u;
         });
 
@@ -352,7 +356,7 @@ public class AuthService {
         if (displayName == null || displayName.isBlank()) {
             displayName = "紫来淘客" + String.format("%06d", user.getId());
         }
-        UserDto userDto = new UserDto(user.getId(), user.getPhone(), user.getEmail(), displayName, user.getRole().name());
+        UserDto userDto = new UserDto(user.getId(), user.getPhone(), user.getEmail(), displayName, user.getRole().name(), user.getCloudId());
         return new AuthResponse(accessToken, rawRefresh, jwtUtil.getExpirySeconds(), userDto);
     }
 
@@ -377,6 +381,15 @@ public class AuthService {
             user.setLockUntil(LocalDateTime.now().plusHours(1));
         }
         userRepository.save(user);
+    }
+
+    private String generateCloudId() {
+        Random rng = new Random();
+        String id;
+        do {
+            id = "ZL" + String.format("%06d", rng.nextInt(1_000_000));
+        } while (userRepository.existsByCloudId(id));
+        return id;
     }
 
     private String sha256(String input) {

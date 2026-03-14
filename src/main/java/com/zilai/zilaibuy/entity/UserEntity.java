@@ -49,6 +49,9 @@ public class UserEntity {
     @Column(name = "last_fail_at")
     private LocalDateTime lastFailAt;
 
+    @Column(name = "cloud_id", unique = true, length = 20)
+    private String cloudId;
+
     @Column(unique = true, length = 50)
     private String username;
 
