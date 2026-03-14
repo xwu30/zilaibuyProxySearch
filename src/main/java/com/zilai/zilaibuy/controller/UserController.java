@@ -149,7 +149,8 @@ public class UserController {
                 u.getShippingStreet(),
                 u.getShippingCity(),
                 u.getShippingProvince(),
-                u.getShippingPostalCode()
+                u.getShippingPostalCode(),
+                u.getCloudId()
         );
     }
 }

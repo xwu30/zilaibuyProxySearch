@@ -77,7 +77,9 @@
       "Bash(unzip -o AWSCLIV2.pkg -d awscli_unpack)",
       "Bash(which python3:*)",
       "Bash(export PATH=\"$PATH:/Users/xwu30/Library/Python/3.8/bin\" && aws --version 2>&1)",
-      "Bash(mkdir -p ~/.aws && cat > ~/.aws/credentials << 'EOF'\n[default]\naws_access_key_id = AKIAYNYTVBJUO4ZFJHWF\naws_secret_access_key = 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\nEOF\ncat > ~/.aws/config << 'EOF'\n[default]\nregion = us-east-1\noutput = json\nEOF\necho \"done\")"
+      "Bash(mkdir -p ~/.aws && cat > ~/.aws/credentials << 'EOF'\n[default]\naws_access_key_id = AKIAYNYTVBJUO4ZFJHWF\naws_secret_access_key = 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\nEOF\ncat > ~/.aws/config << 'EOF'\n[default]\nregion = us-east-1\noutput = json\nEOF\necho \"done\")",
+      "Bash(\\\\\nJAVA_HOME=\"/Applications/IntelliJ IDEA.app/Contents/jbr/Contents/Home\" \\\\\n\"/Applications/IntelliJ IDEA.app/Contents/plugins/maven/lib/maven3/bin/mvn\" clean package -DskipTests -q && \\\\\necho \"Build OK\")",
+      "Bash(JAVA_HOME=\"/Applications/IntelliJ IDEA.app/Contents/jbr/Contents/Home\" \\\\\n\"/Applications/IntelliJ IDEA.app/Contents/plugins/maven/lib/maven3/bin/mvn\" clean package -DskipTests -q -f /Users/xwu30/Projects/zilaibuyProxySearch/pom.xml && echo \"Build OK\")"
     ]
   }
 }
