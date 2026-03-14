@@ -172,13 +172,13 @@ public class OrderService {
                 .map(item -> {
                     if ("IN_WAREHOUSE".equals(item.getItemStatus())) {
                         return new CheckinResult(false, "该商品已入库", no, "IN_WAREHOUSE",
-                                item.getOrder().getUser().getPhone());
+                                item.getOrder().getUser().getPhone(), null);
                     }
                     item.setItemStatus("IN_WAREHOUSE");
                     orderItemRepository.save(item);
 
                     return new CheckinResult(true, "商品入库成功: " + item.getProductTitle(),
-                            no, "IN_WAREHOUSE", item.getOrder().getUser().getPhone());
+                            no, "IN_WAREHOUSE", item.getOrder().getUser().getPhone(), null);
                 })
                 .orElse(null);
     }
@@ -267,7 +267,7 @@ public class OrderService {
         return OrderDto.from(order);
     }
 
-    public record CheckinResult(boolean success, String message, String orderNo, String orderStatus, String userPhone) {}
+    public record CheckinResult(boolean success, String message, String orderNo, String orderStatus, String userPhone, String inboundCode) {}
 
     @Transactional
     public CheckinResult checkinByOrderNo(String orderNo) {
@@ -277,14 +277,14 @@ public class OrderService {
                     if (order.getStatus() != OrderEntity.OrderStatus.PURCHASING) {
                         return new CheckinResult(false,
                                 "状态不符（当前: " + order.getStatus().name() + "）",
-                                no, order.getStatus().name(), order.getUser().getPhone());
+                                no, order.getStatus().name(), order.getUser().getPhone(), null);
                     }
                     order.setStatus(OrderEntity.OrderStatus.IN_WAREHOUSE);
                     orderRepository.save(order);
                     return new CheckinResult(true, "入库成功",
-                            order.getOrderNo(), "IN_WAREHOUSE", order.getUser().getPhone());
+                            order.getOrderNo(), "IN_WAREHOUSE", order.getUser().getPhone(), null);
                 })
-                .orElse(new CheckinResult(false, "未找到匹配订单", no, null, null));
+                .orElse(new CheckinResult(false, "未找到匹配订单", no, null, null, null));
     }
 
     @Transactional

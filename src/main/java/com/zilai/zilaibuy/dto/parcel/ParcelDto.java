@@ -18,6 +18,8 @@ public record ParcelDto(
         String outboundTrackingNo,
         String notes,
         Long linkedOrderId,
+        String warehouseLocation,
+        String inboundCode,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
 ) {
@@ -35,6 +37,8 @@ public record ParcelDto(
                 e.getOutboundTrackingNo(),
                 e.getNotes(),
                 e.getLinkedOrder() != null ? e.getLinkedOrder().getId() : null,
+                e.getWarehouseLocation(),
+                e.getInboundCode(),
                 e.getCreatedAt(),
                 e.getUpdatedAt()
         );

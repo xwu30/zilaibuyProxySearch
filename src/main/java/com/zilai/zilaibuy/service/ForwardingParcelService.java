@@ -14,6 +14,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -89,21 +90,34 @@ public class ForwardingParcelService {
 
     /** Called by warehouse checkin. Returns null if no matching parcel found. */
     @Transactional
-    public OrderService.CheckinResult checkinByTrackingNo(String trackingNo) {
+    public OrderService.CheckinResult checkinByTrackingNo(String trackingNo, String location) {
         String no = trackingNo != null ? trackingNo.trim() : "";
         return parcelRepository.findByInboundTrackingNo(no)
                 .map(parcel -> {
                     if (parcel.getStatus() != ForwardingParcelEntity.ParcelStatus.ANNOUNCED) {
                         return new OrderService.CheckinResult(false,
                                 "状态不符（当前: " + parcel.getStatus().name() + "）",
-                                no, parcel.getStatus().name(), parcel.getUser().getPhone());
+                                no, parcel.getStatus().name(), parcel.getUser().getPhone(), null);
                     }
+                    String loc = (location != null && !location.isBlank()) ? location.trim().toUpperCase() : "---";
+                    String code = generateInboundCode(parcel.getUser().getId(), loc);
                     parcel.setStatus(ForwardingParcelEntity.ParcelStatus.IN_WAREHOUSE);
+                    parcel.setWarehouseLocation(loc);
+                    parcel.setInboundCode(code);
                     parcelRepository.save(parcel);
                     return new OrderService.CheckinResult(true, "转运包裹入库成功",
-                            no, "IN_WAREHOUSE", parcel.getUser().getPhone());
+                            no, "IN_WAREHOUSE", parcel.getUser().getPhone(), code);
                 })
                 .orElse(null);
+    }
+
+    private String generateInboundCode(Long userId, String location) {
+        LocalDateTime now = LocalDateTime.now();
+        String yymm = String.format("%02d%02d", now.getYear() % 100, now.getMonthValue());
+        String userPart = String.format("%05d", userId);
+        long seq = parcelRepository.countByUserId(userId) + 1;
+        String seqPart = String.format("%03d", seq);
+        return "ZL-" + yymm + "-" + userPart + "-" + location + "-" + seqPart;
     }
 
     @Transactional

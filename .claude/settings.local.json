@@ -62,7 +62,8 @@
       "Bash(kill 95528:*)",
       "Bash(grep:*)",
       "Bash(npx esbuild:*)",
-      "Bash(brew list:*)"
+      "Bash(brew list:*)",
+      "Bash(mvn --version 2>&1 | head -3 && ls mvnw 2>/dev/null)"
     ]
   }
 }

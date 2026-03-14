@@ -28,12 +28,12 @@ public class WarehouseController {
     private final OrderService orderService;
     private final ForwardingParcelService parcelService;
 
-    record CheckinRequest(String orderNo) {}
+    record CheckinRequest(String orderNo, String location) {}
 
-    private OrderService.CheckinResult checkinAny(String no) {
+    private OrderService.CheckinResult checkinAny(String no, String location) {
         OrderService.CheckinResult r = orderService.checkinByOrderNo(no);
         if (r.success() || !r.message().equals("未找到匹配订单")) return r;
-        OrderService.CheckinResult pr = parcelService.checkinByTrackingNo(no);
+        OrderService.CheckinResult pr = parcelService.checkinByTrackingNo(no, location);
         if (pr != null) return pr;
         OrderService.CheckinResult ir = orderService.checkinItemByTrackingNo(no);
         return ir != null ? ir : r;
@@ -41,13 +41,13 @@ public class WarehouseController {
 
     @PostMapping("/checkin")
     public ResponseEntity<OrderService.CheckinResult> checkin(@RequestBody CheckinRequest req) {
-        return ResponseEntity.ok(checkinAny(req.orderNo()));
+        return ResponseEntity.ok(checkinAny(req.orderNo(), req.location()));
     }
 
     @PostMapping("/checkin/batch")
     public ResponseEntity<java.util.List<OrderService.CheckinResult>> checkinBatch(
-            @RequestBody java.util.List<String> orderNos) {
-        return ResponseEntity.ok(orderNos.stream().map(this::checkinAny).toList());
+            @RequestBody java.util.List<CheckinRequest> reqs) {
+        return ResponseEntity.ok(reqs.stream().map(r -> checkinAny(r.orderNo(), r.location())).toList());
     }
 
     @GetMapping("/parcels")

@@ -53,6 +53,14 @@ public class ForwardingParcelEntity {
     @Column(name = "outbound_tracking_no", length = 100)
     private String outboundTrackingNo;
 
+    /** 库位号，如 A01 */
+    @Column(name = "warehouse_location", length = 20)
+    private String warehouseLocation;
+
+    /** 入库编号，格式 ZL-YYMM-{userId:5位}-{location}-{seq:3位}，唯一 */
+    @Column(name = "inbound_code", length = 50, unique = true)
+    private String inboundCode;
+
     /** When non-null, this parcel is packed together with the linked proxy order */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "linked_order_id")

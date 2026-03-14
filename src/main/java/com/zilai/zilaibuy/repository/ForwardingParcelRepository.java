@@ -21,4 +21,6 @@ public interface ForwardingParcelRepository extends JpaRepository<ForwardingParc
     List<ForwardingParcelEntity> findByUserIdAndStatusIn(Long userId, List<ForwardingParcelEntity.ParcelStatus> statuses);
 
     List<ForwardingParcelEntity> findByLinkedOrderId(Long orderId);
+
+    long countByUserId(Long userId);
 }
