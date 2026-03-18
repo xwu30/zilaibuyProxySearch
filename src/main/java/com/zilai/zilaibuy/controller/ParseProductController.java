@@ -38,7 +38,7 @@ public class ParseProductController {
 
             // Override Gemini's hallucinated imageUrl with the real one
             if (realImageUrl != null && node instanceof ObjectNode obj) {
-                obj.put("imageUrl", realImageUrl);
+                obj.put("imageUrl", cleanAmazonImageUrl(realImageUrl));
             }
 
             return ResponseEntity.ok()
@@ -48,6 +48,17 @@ public class ParseProductController {
             return ResponseEntity.internalServerError()
                     .body(Map.of("error", e.getMessage()));
         }
+    }
+
+    /** Strip Amazon image size modifiers, e.g. ._SY466_ ._SL1500_ ._AC_SX425_ */
+    private String cleanAmazonImageUrl(String url) {
+        if (url == null) return null;
+        if (url.contains("amazon.com") || url.contains("media-amazon.com")) {
+            // e.g. 51p8U8eYlwL._SY466_.jpg -> 51p8U8eYlwL.jpg
+            // e.g. 51wB6Q+s7zL._SY498_B01,204,203,200_.jpg -> 51wB6Q+s7zL.jpg
+            return url.replaceAll("\\._[A-Za-z0-9,_]+(?=\\.[a-z]+$)", "");
+        }
+        return url;
     }
 
     private String fetchOgImage(String pageUrl) {
