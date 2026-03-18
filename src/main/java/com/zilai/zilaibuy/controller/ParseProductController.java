@@ -33,16 +33,9 @@ public class ParseProductController {
         }
         try {
             String json = geminiService.parseProductUrl(url);
-            // Rewrite imageUrl to go through our proxy
-            JsonNode node = objectMapper.readTree(json);
-            String imageUrl = node.path("imageUrl").asText();
-            if (imageUrl != null && !imageUrl.isBlank() && node instanceof ObjectNode obj) {
-                String proxied = baseUrl + "/api/image-proxy?url=" + URLEncoder.encode(imageUrl, StandardCharsets.UTF_8);
-                obj.put("imageUrl", proxied);
-            }
             return ResponseEntity.ok()
                     .header("Content-Type", "application/json")
-                    .body(objectMapper.writeValueAsString(node));
+                    .body(json);
         } catch (Exception e) {
             return ResponseEntity.internalServerError()
                     .body(Map.of("error", e.getMessage()));
