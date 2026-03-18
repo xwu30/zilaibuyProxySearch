@@ -31,6 +31,10 @@ spring:
       mail.smtp.auth: true
       mail.smtp.starttls.enable: true
 
+gemini:
+  api:
+    key: ${GEMINI_API_KEY:}
+
 rakuten:
   base-url: https://openapi.rakuten.co.jp
   path: /ichibams/api/IchibaItem/Search/20170706
