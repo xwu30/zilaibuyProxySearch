@@ -56,7 +56,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/orders/**").authenticated()
                 .requestMatchers("/api/parcels/**").authenticated()
                 .requestMatchers("/api/translate/**").authenticated()
-                .requestMatchers("/api/parse-product/**").authenticated()
+                .requestMatchers(HttpMethod.POST, "/api/parse-product").permitAll()
                 .anyRequest().authenticated()
             )
             .exceptionHandling(ex -> ex
