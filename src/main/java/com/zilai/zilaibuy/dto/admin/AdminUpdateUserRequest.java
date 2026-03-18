@@ -5,6 +5,7 @@ public record AdminUpdateUserRequest(
         String email,
         String phone,
         String displayName,
+        String cloudId,
         String shippingFullName,
         String shippingPhone,
         String shippingStreet,

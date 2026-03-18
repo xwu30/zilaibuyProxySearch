@@ -74,6 +74,13 @@ public class AdminController {
             user.setPhone(req.phone());
         }
         if (req.displayName() != null)      user.setDisplayName(StringUtils.hasText(req.displayName()) ? req.displayName() : null);
+        if (req.cloudId() != null) {
+            String newCloudId = StringUtils.hasText(req.cloudId()) ? req.cloudId().trim() : null;
+            if (newCloudId != null && !newCloudId.equals(user.getCloudId()) && userRepository.existsByCloudId(newCloudId)) {
+                throw new AppException(HttpStatus.CONFLICT, "Cloud ID 已被其他账户使用");
+            }
+            user.setCloudId(newCloudId);
+        }
         if (req.shippingFullName() != null)  user.setShippingFullName(req.shippingFullName());
         if (req.shippingPhone() != null)     user.setShippingPhone(req.shippingPhone());
         if (req.shippingStreet() != null)    user.setShippingStreet(req.shippingStreet());
