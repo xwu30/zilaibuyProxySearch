@@ -97,27 +97,33 @@ public class ForwardingParcelService {
                     if (parcel.getStatus() != ForwardingParcelEntity.ParcelStatus.ANNOUNCED) {
                         return new OrderService.CheckinResult(false,
                                 "状态不符（当前: " + parcel.getStatus().name() + "）",
-                                no, parcel.getStatus().name(), parcel.getUser().getPhone(), null, null);
+                                no, parcel.getStatus().name(), displayName(parcel.getUser()), null, null);
                     }
                     String loc = (location != null && !location.isBlank()) ? location.trim().toUpperCase() : "---";
-                    String code = generateInboundCode(parcel.getUser().getId(), loc);
+                    String code = generateInboundCode(parcel.getUser(), loc);
                     parcel.setStatus(ForwardingParcelEntity.ParcelStatus.IN_WAREHOUSE);
                     parcel.setWarehouseLocation(loc);
                     parcel.setInboundCode(code);
                     parcelRepository.save(parcel);
                     return new OrderService.CheckinResult(true, "转运包裹入库成功",
-                            no, "IN_WAREHOUSE", parcel.getUser().getPhone(), code, parcel.getId());
+                            no, "IN_WAREHOUSE", displayName(parcel.getUser()), code, parcel.getId());
                 })
                 .orElse(null);
     }
 
-    private String generateInboundCode(Long userId, String location) {
-        LocalDateTime now = LocalDateTime.now();
-        String yymm = String.format("%02d%02d", now.getYear() % 100, now.getMonthValue());
-        String userPart = String.format("%05d", userId);
-        long seq = parcelRepository.countByUserId(userId) + 1;
+    private String generateInboundCode(com.zilai.zilaibuy.entity.UserEntity user, String location) {
+        String cloudId = (user.getCloudId() != null && !user.getCloudId().isBlank())
+                ? user.getCloudId()
+                : String.format("ZL%06d", user.getId());
+        long seq = parcelRepository.countByUserId(user.getId()) + 1;
         String seqPart = String.format("%03d", seq);
-        return "ZL-" + yymm + "-" + userPart + "-" + location + "-" + seqPart;
+        return cloudId + "-" + location + "-" + seqPart;
+    }
+
+    private String displayName(com.zilai.zilaibuy.entity.UserEntity user) {
+        if (user.getUsername() != null && !user.getUsername().isBlank()) return user.getUsername();
+        if (user.getDisplayName() != null && !user.getDisplayName().isBlank()) return user.getDisplayName();
+        return user.getPhone();
     }
 
     @Transactional
