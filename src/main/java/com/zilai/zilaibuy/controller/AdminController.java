@@ -93,6 +93,25 @@ public class AdminController {
         return ResponseEntity.ok(AdminUserDto.from(user));
     }
 
+    @PutMapping("/users/{id}/cloud-id")
+    public ResponseEntity<AdminUserDto> setCloudId(
+            @PathVariable Long id,
+            @RequestBody java.util.Map<String, String> body,
+            @AuthenticationPrincipal AuthenticatedUser currentUser,
+            HttpServletRequest httpReq) {
+        UserEntity user = userRepository.findById(id)
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "用户不存在"));
+        String newCloudId = body.getOrDefault("cloudId", "").trim();
+        if (newCloudId.isEmpty()) newCloudId = null;
+        if (newCloudId != null && !newCloudId.equals(user.getCloudId()) && userRepository.existsByCloudId(newCloudId)) {
+            throw new AppException(HttpStatus.CONFLICT, "Cloud ID 已被其他账户使用");
+        }
+        user.setCloudId(newCloudId);
+        userRepository.save(user);
+        auditLogService.log(currentUser.id(), "USER_CLOUD_ID_SET", "USER", String.valueOf(id), null, httpReq.getRemoteAddr());
+        return ResponseEntity.ok(AdminUserDto.from(user));
+    }
+
     @PutMapping("/users/{id}/role")
     public ResponseEntity<AdminUserDto> updateRole(
             @PathVariable Long id,
