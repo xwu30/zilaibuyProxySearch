@@ -71,6 +71,19 @@ public class ForwardingParcelService {
         parcel.setContent(req.content());
         parcel.setDeclaredValue(req.declaredValue());
         if (req.processingOption() != null) parcel.setProcessingOption(req.processingOption());
+        if (req.notes() != null) parcel.setNotes(req.notes());
+        parcelRepository.save(parcel);
+        return ParcelDto.from(parcel);
+    }
+
+    @Transactional
+    public ParcelDto updateNotes(Long parcelId, String notes, Long userId) {
+        ForwardingParcelEntity parcel = parcelRepository.findById(parcelId)
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "包裹不存在"));
+        if (!parcel.getUser().getId().equals(userId)) {
+            throw new AppException(HttpStatus.FORBIDDEN, "无权修改此包裹");
+        }
+        parcel.setNotes(notes);
         parcelRepository.save(parcel);
         return ParcelDto.from(parcel);
     }
