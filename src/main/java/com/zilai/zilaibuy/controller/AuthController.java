@@ -15,7 +15,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.HashMap;
 import java.util.Map;
 
 @RestController
@@ -31,15 +30,10 @@ public class AuthController {
 
     @PostMapping("/otp/send")
     public ResponseEntity<Map<String, Object>> sendOtp(@Valid @RequestBody OtpSendRequest req) {
-        String devCode = req.purpose() == OtpEntity.Purpose.LOGIN
-                ? authService.sendLoginOtp(req.phone())
-                : otpService.sendOtp(req.phone(), req.purpose());
-        if (devCode != null) {
-            return ResponseEntity.ok(Map.of(
-                    "message", "验证码已生成（开发模式，短信未发送）",
-                    "expiresIn", 300,
-                    "devCode", devCode
-            ));
+        if (req.purpose() == OtpEntity.Purpose.LOGIN) {
+            authService.sendLoginOtp(req.phone());
+        } else {
+            otpService.sendOtp(req.phone(), req.purpose());
         }
         return ResponseEntity.ok(Map.of("message", "验证码已发送", "expiresIn", 300));
     }
@@ -51,14 +45,8 @@ public class AuthController {
 
     @PostMapping("/register/email")
     public ResponseEntity<Map<String, Object>> registerWithEmail(@Valid @RequestBody EmailRegisterRequest req) {
-        String devToken = authService.registerWithEmail(req.email(), req.password());
-        Map<String, Object> resp = new HashMap<>();
-        resp.put("message", "确认邮件已发送，请检查您的邮箱");
-        String mailUser = System.getenv("MAIL_USERNAME");
-        if (devToken != null && (mailUser == null || mailUser.isBlank())) {
-            resp.put("devToken", devToken);
-        }
-        return ResponseEntity.ok(resp);
+        authService.registerWithEmail(req.email(), req.password());
+        return ResponseEntity.ok(Map.of("message", "确认邮件已发送，请检查您的邮箱"));
     }
 
     @GetMapping("/confirm-email")
@@ -91,6 +79,9 @@ public class AuthController {
 
     @GetMapping("/username/check")
     public ResponseEntity<Map<String, Object>> checkUsername(@RequestParam String username) {
+        if (username == null || username.length() < 3 || username.length() > 30) {
+            return ResponseEntity.ok(Map.of("available", false));
+        }
         boolean available = authService.isUsernameAvailable(username);
         return ResponseEntity.ok(Map.of("available", available));
     }

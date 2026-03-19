@@ -79,7 +79,17 @@
       "Bash(export PATH=\"$PATH:/Users/xwu30/Library/Python/3.8/bin\" && aws --version 2>&1)",
       "Bash(mkdir -p ~/.aws && cat > ~/.aws/credentials << 'EOF'\n[default]\naws_access_key_id = AKIAYNYTVBJUO4ZFJHWF\naws_secret_access_key = 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\nEOF\ncat > ~/.aws/config << 'EOF'\n[default]\nregion = us-east-1\noutput = json\nEOF\necho \"done\")",
       "Bash(\\\\\nJAVA_HOME=\"/Applications/IntelliJ IDEA.app/Contents/jbr/Contents/Home\" \\\\\n\"/Applications/IntelliJ IDEA.app/Contents/plugins/maven/lib/maven3/bin/mvn\" clean package -DskipTests -q && \\\\\necho \"Build OK\")",
-      "Bash(JAVA_HOME=\"/Applications/IntelliJ IDEA.app/Contents/jbr/Contents/Home\" \\\\\n\"/Applications/IntelliJ IDEA.app/Contents/plugins/maven/lib/maven3/bin/mvn\" clean package -DskipTests -q -f /Users/xwu30/Projects/zilaibuyProxySearch/pom.xml && echo \"Build OK\")"
+      "Bash(JAVA_HOME=\"/Applications/IntelliJ IDEA.app/Contents/jbr/Contents/Home\" \\\\\n\"/Applications/IntelliJ IDEA.app/Contents/plugins/maven/lib/maven3/bin/mvn\" clean package -DskipTests -q -f /Users/xwu30/Projects/zilaibuyProxySearch/pom.xml && echo \"Build OK\")",
+      "Bash(/Users/xwu30/Library/Python/3.8/bin/aws s3:*)",
+      "Bash(/Users/xwu30/Library/Python/3.8/bin/aws elasticbeanstalk:*)",
+      "Bash(AWS=/Users/xwu30/Library/Python/3.8/bin/aws\nVERSION=\"v-$\\(date +%Y%m%d%H%M%S\\)\"\nJAR=/Users/xwu30/Projects/zilaibuyProxySearch/target/zilaibuy-backend-0.0.1.jar\nBUCKET=elasticbeanstalk-us-east-1-579324938856\nKEY=\"zilaibuy-backend-${VERSION}.jar\"\n\n$AWS s3 cp $JAR s3://$BUCKET/$KEY 2>&1 | tail -1 && \\\\\n$AWS elasticbeanstalk create-application-version \\\\\n  --application-name zilaibuy-backend \\\\\n  --version-label $VERSION \\\\\n  --source-bundle S3Bucket=$BUCKET,S3Key=$KEY --query \"ApplicationVersion.VersionLabel\" --output text && \\\\\n$AWS elasticbeanstalk update-environment \\\\\n  --environment-name Zilaibuy-backend-env \\\\\n  --version-label $VERSION --query \"Status\" --output text)",
+      "Bash(AWS=/Users/xwu30/Library/Python/3.8/bin/aws\nVERSION=\"v-$\\(date +%Y%m%d%H%M%S\\)\"\nBUCKET=elasticbeanstalk-us-east-1-579324938856\nKEY=\"zilaibuy-backend-${VERSION}.jar\"\n\n$AWS s3 cp /Users/xwu30/Projects/zilaibuyProxySearch/target/zilaibuy-backend-0.0.1.jar s3://$BUCKET/$KEY 2>&1 | tail -1 && \\\\\n$AWS elasticbeanstalk create-application-version --application-name zilaibuy-backend --version-label $VERSION --source-bundle S3Bucket=$BUCKET,S3Key=$KEY --query \"ApplicationVersion.VersionLabel\" --output text && \\\\\n$AWS elasticbeanstalk update-environment --environment-name Zilaibuy-backend-env --version-label $VERSION --query \"Status\" --output text)",
+      "Bash(AWS=/Users/xwu30/Library/Python/3.8/bin/aws\nVERSION=\"v-$\\(date +%Y%m%d%H%M%S\\)\"\nBUCKET=elasticbeanstalk-us-east-1-579324938856\nKEY=\"zilaibuy-backend-${VERSION}.jar\"\n$AWS s3 cp /Users/xwu30/Projects/zilaibuyProxySearch/target/zilaibuy-backend-0.0.1.jar s3://$BUCKET/$KEY 2>&1 | tail -1 && \\\\\n$AWS elasticbeanstalk create-application-version --application-name zilaibuy-backend --version-label $VERSION --source-bundle S3Bucket=$BUCKET,S3Key=$KEY --query \"ApplicationVersion.VersionLabel\" --output text && \\\\\n$AWS elasticbeanstalk update-environment --environment-name Zilaibuy-backend-env --version-label $VERSION --query \"Status\" --output text)",
+      "Bash(which aws:*)",
+      "Bash(./mvnw package:*)",
+      "Bash(which mvn:*)",
+      "Bash(brew upgrade:*)",
+      "Bash(export JAVA_HOME=/usr/local/opt/openjdk@17 && export PATH=\"$JAVA_HOME/bin:/usr/local/opt/maven/bin:$PATH\" && mvn -version 2>&1 && mvn clean package -DskipTests -q 2>&1)"
     ]
   }
 }

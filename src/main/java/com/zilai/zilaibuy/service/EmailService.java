@@ -26,7 +26,8 @@ public class EmailService {
 
     public boolean sendOtpEmail(String toEmail, String code) {
         if (!StringUtils.hasText(fromEmail)) {
-            log.info("[DEV] Email OTP for {}: {}", toEmail, code);
+            log.info("[DEV] Email OTP generated for {}", toEmail);
+            log.debug("[DEV] Email OTP for {}: {}", toEmail, code);
             return false;
         }
         try {
@@ -47,7 +48,8 @@ public class EmailService {
     public void sendPasswordResetEmail(String toEmail, String token) {
         String link = frontendUrl + "/?resetToken=" + token;
         if (!StringUtils.hasText(fromEmail)) {
-            log.info("[DEV] Password reset link for {}: {}", toEmail, link);
+            log.info("[DEV] Password reset email generated for {}", toEmail);
+            log.debug("[DEV] Password reset link for {}: {}", toEmail, link);
             return;
         }
         try {
@@ -60,14 +62,15 @@ public class EmailService {
             mailSender.send(msg);
             log.info("Password reset email sent to {}", toEmail);
         } catch (Exception e) {
-            log.warn("Failed to send password reset email to {} ({})", toEmail, e.getMessage());
+            log.warn("Failed to send password reset email to {}: {}", toEmail, e.getMessage());
         }
     }
 
     public void sendConfirmationEmail(String toEmail, String token) {
         String link = baseUrl + "/api/auth/confirm-email?token=" + token;
         if (!StringUtils.hasText(fromEmail)) {
-            log.info("[DEV] Email confirmation link for {}: {}", toEmail, link);
+            log.info("[DEV] Confirmation email generated for {}", toEmail);
+            log.debug("[DEV] Email confirmation link for {}: {}", toEmail, link);
             return;
         }
         try {
@@ -79,7 +82,7 @@ public class EmailService {
             mailSender.send(msg);
             log.info("Confirmation email sent to {}", toEmail);
         } catch (Exception e) {
-            log.warn("Failed to send email to {} ({}), link: {}", toEmail, e.getMessage(), link);
+            log.warn("Failed to send confirmation email to {}: {}", toEmail, e.getMessage());
         }
     }
 }

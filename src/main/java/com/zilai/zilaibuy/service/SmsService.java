@@ -50,7 +50,8 @@ public class SmsService {
                 log.warn("Twilio send failed ({}), falling back to dev log", e.getMessage());
             }
         }
-        log.info("[DEV] OTP for {}: {}", toPhone, code);
+        log.info("[DEV] OTP generated for {} (check logs at DEBUG level)", toPhone);
+        log.debug("[DEV] OTP for {}: {}", toPhone, code);
         return false;
     }
 }

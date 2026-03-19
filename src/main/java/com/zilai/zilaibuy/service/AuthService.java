@@ -26,9 +26,8 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.LocalDateTime;
 import java.util.Base64;
-import java.util.HashMap;
 import java.util.Map;
-import java.util.Random;
+import java.security.SecureRandom;
 import java.util.UUID;
 
 @Service
@@ -48,10 +47,11 @@ public class AuthService {
     @Value("${jwt.refresh-expiry-days:7}")
     private int refreshExpiryDays;
 
-    /** Send LOGIN OTP — throws NOT_FOUND if phone is not registered */
+    /** Send LOGIN OTP — returns generic message regardless of whether phone is registered (prevents user enumeration) */
     public String sendLoginOtp(String phone) {
         if (!userRepository.existsByPhone(phone)) {
-            throw new AppException(HttpStatus.NOT_FOUND, "该手机号尚未注册");
+            // Don't reveal whether phone is registered; return null to indicate "sent" generically
+            return null;
         }
         return otpService.sendOtp(phone, OtpEntity.Purpose.LOGIN);
     }
@@ -62,6 +62,10 @@ public class AuthService {
 
         if (userRepository.existsByPhone(phone)) {
             throw new AppException(HttpStatus.CONFLICT, "手机号已注册");
+        }
+
+        if (password != null && !password.isBlank() && password.length() < 8) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "密码至少需要8位");
         }
 
         UserEntity user = new UserEntity();
@@ -121,14 +125,8 @@ public class AuthService {
             }
         });
 
-        String devCode = otpService.sendEmailOtp(email, OtpEntity.Purpose.EMAIL_REGISTER);
-        Map<String, Object> resp = new HashMap<>();
-        resp.put("message", "验证码已发送到您的邮箱");
-        resp.put("expiresIn", 300);
-        if (devCode != null) {
-            resp.put("devCode", devCode);
-        }
-        return resp;
+        otpService.sendEmailOtp(email, OtpEntity.Purpose.EMAIL_REGISTER);
+        return Map.of("message", "验证码已发送到您的邮箱", "expiresIn", 300);
     }
 
     @Transactional
@@ -267,8 +265,17 @@ public class AuthService {
         }
 
         UserEntity user = entity.getUser();
+        // Rotate refresh token on every use to limit stolen-token window
+        refreshTokenRepository.delete(entity);
+        String newRawRefresh = UUID.randomUUID().toString();
+        RefreshTokenEntity newRt = new RefreshTokenEntity();
+        newRt.setUser(user);
+        newRt.setTokenHash(sha256(newRawRefresh));
+        newRt.setExpiresAt(LocalDateTime.now().plusDays(refreshExpiryDays));
+        refreshTokenRepository.save(newRt);
+
         String newAccessToken = jwtUtil.generateAccessToken(user);
-        return new RefreshResponse(newAccessToken, jwtUtil.getExpirySeconds());
+        return new RefreshResponse(newAccessToken, newRawRefresh, jwtUtil.getExpirySeconds());
     }
 
     @Transactional
@@ -285,7 +292,8 @@ public class AuthService {
                         .orElse(null);
 
         if (user == null || user.getEmail() == null) {
-            throw new AppException(HttpStatus.BAD_REQUEST, "该邮箱未注册，请先注册账号");
+            // Silently return — don't reveal whether account exists (prevents user enumeration)
+            return;
         }
 
         // 清除旧的重置 token
@@ -375,19 +383,21 @@ public class AuthService {
     private void handleLoginFailure(UserEntity user) {
         user.setLoginFailCount(user.getLoginFailCount() + 1);
         user.setLastFailAt(LocalDateTime.now());
-        if (user.getLoginFailCount() >= 10 &&
-                user.getLastFailAt().isAfter(LocalDateTime.now().minusHours(1))) {
+        // Lock after 5 failures within 30 minutes; lock for 30 minutes
+        if (user.getLoginFailCount() >= 5 &&
+                user.getLastFailAt().isAfter(LocalDateTime.now().minusMinutes(30))) {
             user.setLocked(true);
-            user.setLockUntil(LocalDateTime.now().plusHours(1));
+            user.setLockUntil(LocalDateTime.now().plusMinutes(30));
         }
         userRepository.save(user);
     }
 
+    private static final SecureRandom SECURE_RNG = new SecureRandom();
+
     private String generateCloudId() {
-        Random rng = new Random();
         String id;
         do {
-            id = "ZL" + String.format("%06d", rng.nextInt(1_000_000));
+            id = "ZL" + String.format("%06d", SECURE_RNG.nextInt(1_000_000));
         } while (userRepository.existsByCloudId(id));
         return id;
     }

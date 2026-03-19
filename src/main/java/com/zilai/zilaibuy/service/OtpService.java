@@ -91,11 +91,14 @@ public class OtpService {
 
         if (!otp.getCode().equals(code)) {
             otp.setFailAttempts(otp.getFailAttempts() + 1);
-            if (otp.getFailAttempts() >= 5) {
+            // Invalidate after 3 failed attempts to prevent brute force
+            if (otp.getFailAttempts() >= 3) {
                 otp.setUsed(true);
+                otpRepository.save(otp);
+                throw new AppException(HttpStatus.BAD_REQUEST, "验证码错误次数过多，请重新发送");
             }
             otpRepository.save(otp);
-            throw new AppException(HttpStatus.BAD_REQUEST, "验证码错误");
+            throw new AppException(HttpStatus.BAD_REQUEST, "验证码错误，还剩 " + (3 - otp.getFailAttempts()) + " 次机会");
         }
 
         otp.setUsed(true);
