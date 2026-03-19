@@ -4,8 +4,7 @@ import com.zilai.zilaibuy.dto.admin.*;
 import com.zilai.zilaibuy.entity.OrderEntity;
 import com.zilai.zilaibuy.entity.UserEntity;
 import com.zilai.zilaibuy.exception.AppException;
-import com.zilai.zilaibuy.repository.OrderRepository;
-import com.zilai.zilaibuy.repository.UserRepository;
+import com.zilai.zilaibuy.repository.*;
 import com.zilai.zilaibuy.security.AuthenticatedUser;
 import com.zilai.zilaibuy.service.AuditLogService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -19,6 +18,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
@@ -33,6 +33,10 @@ public class AdminController {
     private final UserRepository userRepository;
     private final OrderRepository orderRepository;
     private final AuditLogService auditLogService;
+    private final RefreshTokenRepository refreshTokenRepository;
+    private final PasswordResetTokenRepository passwordResetTokenRepository;
+    private final EmailConfirmationRepository emailConfirmationRepository;
+    private final PendingEmailRegistrationRepository pendingEmailRegistrationRepository;
 
     @GetMapping("/users")
     public ResponseEntity<Page<AdminUserDto>> listUsers(
@@ -148,6 +152,38 @@ public class AdminController {
                 "USER", String.valueOf(id), null, httpReq.getRemoteAddr());
 
         return ResponseEntity.ok(AdminUserDto.from(user));
+    }
+
+    @DeleteMapping("/users/{id}")
+    @Transactional
+    public ResponseEntity<Void> deleteUser(
+            @PathVariable Long id,
+            @AuthenticationPrincipal AuthenticatedUser currentUser,
+            HttpServletRequest httpReq) {
+        if (id.equals(currentUser.id())) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "不能删除自己的账户");
+        }
+        UserEntity user = userRepository.findById(id)
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "用户不存在"));
+        if (user.getRole() == UserEntity.Role.ADMIN) {
+            throw new AppException(HttpStatus.FORBIDDEN, "不能删除管理员账户");
+        }
+        if (orderRepository.countByUserId(id) > 0) {
+            throw new AppException(HttpStatus.CONFLICT, "用户有订单记录，无法删除。如需封禁请使用锁定功能");
+        }
+
+        // Cascade delete auth data
+        refreshTokenRepository.deleteByUserId(id);
+        passwordResetTokenRepository.deleteByUser(user);
+        emailConfirmationRepository.deleteByUser(user);
+        if (user.getEmail() != null) {
+            pendingEmailRegistrationRepository.deleteByEmail(user.getEmail());
+        }
+        userRepository.delete(user);
+
+        auditLogService.log(currentUser.id(), "USER_DELETED", "USER", String.valueOf(id),
+                "{\"phone\":\"" + user.getPhone() + "\"}", httpReq.getRemoteAddr());
+        return ResponseEntity.noContent().build();
     }
 
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPPORT')")
