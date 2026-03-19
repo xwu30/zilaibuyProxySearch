@@ -97,7 +97,7 @@ public class ForwardingParcelService {
                     if (parcel.getStatus() != ForwardingParcelEntity.ParcelStatus.ANNOUNCED) {
                         return new OrderService.CheckinResult(false,
                                 "状态不符（当前: " + parcel.getStatus().name() + "）",
-                                no, parcel.getStatus().name(), parcel.getUser().getPhone(), null);
+                                no, parcel.getStatus().name(), parcel.getUser().getPhone(), null, null);
                     }
                     String loc = (location != null && !location.isBlank()) ? location.trim().toUpperCase() : "---";
                     String code = generateInboundCode(parcel.getUser().getId(), loc);
@@ -106,7 +106,7 @@ public class ForwardingParcelService {
                     parcel.setInboundCode(code);
                     parcelRepository.save(parcel);
                     return new OrderService.CheckinResult(true, "转运包裹入库成功",
-                            no, "IN_WAREHOUSE", parcel.getUser().getPhone(), code);
+                            no, "IN_WAREHOUSE", parcel.getUser().getPhone(), code, parcel.getId());
                 })
                 .orElse(null);
     }
@@ -118,6 +118,15 @@ public class ForwardingParcelService {
         long seq = parcelRepository.countByUserId(userId) + 1;
         String seqPart = String.format("%03d", seq);
         return "ZL-" + yymm + "-" + userPart + "-" + location + "-" + seqPart;
+    }
+
+    @Transactional
+    public ParcelDto updateWeight(Long parcelId, Integer weightGrams) {
+        ForwardingParcelEntity parcel = parcelRepository.findById(parcelId)
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "包裹不存在"));
+        parcel.setWeight(weightGrams);
+        parcelRepository.save(parcel);
+        return ParcelDto.from(parcel);
     }
 
     @Transactional

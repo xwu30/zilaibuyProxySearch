@@ -63,6 +63,15 @@ public class WarehouseController {
         return ResponseEntity.ok(parcelService.listAllParcels(pageable));
     }
 
+    record UpdateWeightRequest(Integer weightGrams) {}
+
+    @PatchMapping("/parcels/{id}/weight")
+    public ResponseEntity<ParcelDto> updateWeight(
+            @PathVariable Long id,
+            @RequestBody UpdateWeightRequest req) {
+        return ResponseEntity.ok(parcelService.updateWeight(id, req.weightGrams()));
+    }
+
     record ShipParcelRequest(String outboundTrackingNo, String notes) {}
 
     @PutMapping("/parcels/{id}/ship")
