@@ -163,6 +163,26 @@ public class ForwardingParcelService {
     }
 
     @Transactional
+    public ParcelDto adminUpdateParcel(Long parcelId, ForwardingParcelEntity.ParcelStatus status,
+                                       Integer weightGrams, String outboundTrackingNo,
+                                       String notes, String content, String inboundTrackingNo,
+                                       String carrier) {
+        ForwardingParcelEntity parcel = parcelRepository.findById(parcelId)
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "包裹不存在"));
+        if (status != null) parcel.setStatus(status);
+        if (weightGrams != null) parcel.setWeight(weightGrams);
+        if (outboundTrackingNo != null)
+            parcel.setOutboundTrackingNo(outboundTrackingNo.isBlank() ? null : outboundTrackingNo.trim());
+        if (notes != null) parcel.setNotes(notes.isBlank() ? null : notes.trim());
+        if (content != null && !content.isBlank()) parcel.setContent(content.trim());
+        if (inboundTrackingNo != null)
+            parcel.setInboundTrackingNo(inboundTrackingNo.isBlank() ? null : inboundTrackingNo.trim());
+        if (carrier != null) parcel.setCarrier(carrier.isBlank() ? null : carrier.trim());
+        parcelRepository.save(parcel);
+        return ParcelDto.from(parcel);
+    }
+
+    @Transactional
     public ParcelDto deliverParcel(Long parcelId) {
         ForwardingParcelEntity parcel = parcelRepository.findById(parcelId)
                 .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "包裹不存在"));

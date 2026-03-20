@@ -211,6 +211,10 @@ public class AdminController {
 
     record AdminUpdateOrderRequest(OrderEntity.OrderStatus status, String transitTrackingNo, String transitCarrier) {}
     record AdminUpdateOrderItemRequest(int quantity, BigDecimal priceCny) {}
+    record AdminUpdateParcelRequest(
+            com.zilai.zilaibuy.entity.ForwardingParcelEntity.ParcelStatus status,
+            Double weightKg, String outboundTrackingNo, String notes,
+            String content, String inboundTrackingNo, String carrier) {}
 
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPPORT')")
     @PutMapping("/orders/{id}")
@@ -227,6 +231,16 @@ public class AdminController {
             @PathVariable Long itemId,
             @RequestBody AdminUpdateOrderItemRequest req) {
         return ResponseEntity.ok(orderService.adminUpdateOrderItem(orderId, itemId, req.quantity(), req.priceCny()));
+    }
+
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPPORT')")
+    @PutMapping("/parcels/{id}")
+    public ResponseEntity<ParcelDto> adminUpdateParcel(
+            @PathVariable Long id,
+            @RequestBody AdminUpdateParcelRequest req) {
+        Integer weightGrams = req.weightKg() != null ? (int) Math.round(req.weightKg() * 1000) : null;
+        return ResponseEntity.ok(parcelService.adminUpdateParcel(id, req.status(), weightGrams,
+                req.outboundTrackingNo(), req.notes(), req.content(), req.inboundTrackingNo(), req.carrier()));
     }
 
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPPORT')")
