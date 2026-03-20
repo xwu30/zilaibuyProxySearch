@@ -2,6 +2,7 @@ package com.zilai.zilaibuy.service;
 
 import com.zilai.zilaibuy.dto.order.*;
 import com.zilai.zilaibuy.dto.order.UpdateItemTrackingRequest;
+import java.math.BigDecimal;
 import com.zilai.zilaibuy.dto.parcel.ParcelDto;
 import com.zilai.zilaibuy.entity.ForwardingParcelEntity;
 import com.zilai.zilaibuy.entity.OrderEntity;
@@ -140,6 +141,51 @@ public class OrderService {
             parcelRepository.saveAll(linked);
         }
 
+        return OrderDto.from(order);
+    }
+
+    @Transactional
+    public OrderDetailDto adminUpdateOrder(Long orderId, OrderEntity.OrderStatus status,
+                                           String transitTrackingNo, String transitCarrier) {
+        OrderEntity order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "订单不存在"));
+        if (status != null) order.setStatus(status);
+        if (transitTrackingNo != null)
+            order.setTransitTrackingNo(transitTrackingNo.isBlank() ? null : transitTrackingNo.trim());
+        if (transitCarrier != null)
+            order.setTransitCarrier(transitCarrier.isBlank() ? null : transitCarrier.trim());
+        orderRepository.save(order);
+        if (order.getStatus() == OrderEntity.OrderStatus.SHIPPED && order.getTransitTrackingNo() != null) {
+            List<ForwardingParcelEntity> linked = parcelRepository.findByLinkedOrderId(order.getId());
+            for (ForwardingParcelEntity parcel : linked) {
+                if (parcel.getStatus() == ForwardingParcelEntity.ParcelStatus.PACKING
+                        || parcel.getStatus() == ForwardingParcelEntity.ParcelStatus.IN_WAREHOUSE) {
+                    parcel.setStatus(ForwardingParcelEntity.ParcelStatus.SHIPPED);
+                    parcel.setOutboundTrackingNo(order.getTransitTrackingNo());
+                }
+            }
+            parcelRepository.saveAll(linked);
+        }
+        List<ForwardingParcelEntity> linkedParcels = parcelRepository.findByLinkedOrderId(orderId);
+        return OrderDetailDto.from(order, linkedParcels);
+    }
+
+    @Transactional
+    public OrderDto adminUpdateOrderItem(Long orderId, Long itemId, int quantity, BigDecimal priceCny) {
+        OrderEntity order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "订单不存在"));
+        OrderItemEntity item = orderItemRepository.findById(itemId)
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "商品不存在"));
+        if (!item.getOrder().getId().equals(orderId))
+            throw new AppException(HttpStatus.BAD_REQUEST, "商品不属于该订单");
+        item.setQuantity(quantity);
+        item.setPriceCny(priceCny);
+        orderItemRepository.save(item);
+        BigDecimal newTotal = order.getItems().stream()
+                .map(i -> i.getPriceCny().multiply(BigDecimal.valueOf(i.getQuantity())))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        order.setTotalCny(newTotal);
+        orderRepository.save(order);
         return OrderDto.from(order);
     }
 

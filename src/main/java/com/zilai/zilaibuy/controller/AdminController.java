@@ -1,6 +1,8 @@
 package com.zilai.zilaibuy.controller;
 
 import com.zilai.zilaibuy.dto.admin.*;
+import com.zilai.zilaibuy.dto.order.OrderDetailDto;
+import com.zilai.zilaibuy.dto.order.OrderDto;
 import com.zilai.zilaibuy.dto.parcel.ParcelDto;
 import com.zilai.zilaibuy.entity.OrderEntity;
 import com.zilai.zilaibuy.entity.UserEntity;
@@ -9,6 +11,8 @@ import com.zilai.zilaibuy.repository.*;
 import com.zilai.zilaibuy.security.AuthenticatedUser;
 import com.zilai.zilaibuy.service.AuditLogService;
 import com.zilai.zilaibuy.service.ForwardingParcelService;
+import com.zilai.zilaibuy.service.OrderService;
+import java.math.BigDecimal;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -36,6 +40,7 @@ public class AdminController {
     private final OrderRepository orderRepository;
     private final AuditLogService auditLogService;
     private final ForwardingParcelService parcelService;
+    private final OrderService orderService;
     private final RefreshTokenRepository refreshTokenRepository;
     private final PasswordResetTokenRepository passwordResetTokenRepository;
     private final EmailConfirmationRepository emailConfirmationRepository;
@@ -202,6 +207,26 @@ public class AdminController {
             try { orderStatus = OrderEntity.OrderStatus.valueOf(status); } catch (IllegalArgumentException ignored) {}
         }
         return ResponseEntity.ok(orderRepository.findByFilters(userId, orderStatus, null, null, pageable).map(AdminOrderDto::from));
+    }
+
+    record AdminUpdateOrderRequest(OrderEntity.OrderStatus status, String transitTrackingNo, String transitCarrier) {}
+    record AdminUpdateOrderItemRequest(int quantity, BigDecimal priceCny) {}
+
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPPORT')")
+    @PutMapping("/orders/{id}")
+    public ResponseEntity<OrderDetailDto> adminUpdateOrder(
+            @PathVariable Long id,
+            @RequestBody AdminUpdateOrderRequest req) {
+        return ResponseEntity.ok(orderService.adminUpdateOrder(id, req.status(), req.transitTrackingNo(), req.transitCarrier()));
+    }
+
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPPORT')")
+    @PutMapping("/orders/{orderId}/items/{itemId}")
+    public ResponseEntity<OrderDto> adminUpdateOrderItem(
+            @PathVariable Long orderId,
+            @PathVariable Long itemId,
+            @RequestBody AdminUpdateOrderItemRequest req) {
+        return ResponseEntity.ok(orderService.adminUpdateOrderItem(orderId, itemId, req.quantity(), req.priceCny()));
     }
 
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPPORT')")
