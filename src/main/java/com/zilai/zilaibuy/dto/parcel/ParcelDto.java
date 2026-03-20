@@ -8,6 +8,8 @@ import java.time.LocalDateTime;
 public record ParcelDto(
         Long id,
         Long userId,
+        String userPhone,
+        String username,
         String inboundTrackingNo,
         String carrier,
         String content,
@@ -27,6 +29,8 @@ public record ParcelDto(
         return new ParcelDto(
                 e.getId(),
                 e.getUser().getId(),
+                e.getUser().getPhone(),
+                e.getUser().getUsername(),
                 e.getInboundTrackingNo(),
                 e.getCarrier(),
                 e.getContent(),

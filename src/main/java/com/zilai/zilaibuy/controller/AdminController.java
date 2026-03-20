@@ -1,12 +1,14 @@
 package com.zilai.zilaibuy.controller;
 
 import com.zilai.zilaibuy.dto.admin.*;
+import com.zilai.zilaibuy.dto.parcel.ParcelDto;
 import com.zilai.zilaibuy.entity.OrderEntity;
 import com.zilai.zilaibuy.entity.UserEntity;
 import com.zilai.zilaibuy.exception.AppException;
 import com.zilai.zilaibuy.repository.*;
 import com.zilai.zilaibuy.security.AuthenticatedUser;
 import com.zilai.zilaibuy.service.AuditLogService;
+import com.zilai.zilaibuy.service.ForwardingParcelService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -33,6 +35,7 @@ public class AdminController {
     private final UserRepository userRepository;
     private final OrderRepository orderRepository;
     private final AuditLogService auditLogService;
+    private final ForwardingParcelService parcelService;
     private final RefreshTokenRepository refreshTokenRepository;
     private final PasswordResetTokenRepository passwordResetTokenRepository;
     private final EmailConfirmationRepository emailConfirmationRepository;
@@ -199,6 +202,20 @@ public class AdminController {
             try { orderStatus = OrderEntity.OrderStatus.valueOf(status); } catch (IllegalArgumentException ignored) {}
         }
         return ResponseEntity.ok(orderRepository.findByFilters(userId, orderStatus, null, null, pageable).map(AdminOrderDto::from));
+    }
+
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPPORT')")
+    @GetMapping("/parcels")
+    public ResponseEntity<Page<ParcelDto>> listParcels(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String status) {
+        PageRequest pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        if (status != null && !status.isBlank()) {
+            var s = com.zilai.zilaibuy.entity.ForwardingParcelEntity.ParcelStatus.valueOf(status);
+            return ResponseEntity.ok(parcelService.listAllParcelsByStatus(s, pageable));
+        }
+        return ResponseEntity.ok(parcelService.listAllParcels(pageable));
     }
 
     @GetMapping("/stats")
