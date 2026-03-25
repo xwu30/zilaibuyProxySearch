@@ -56,6 +56,12 @@ public class ForwardingParcelService {
         return parcelRepository.findByStatus(status, pageable).map(ParcelDto::from);
     }
 
+    @Transactional(readOnly = true)
+    public Page<ParcelDto> searchParcels(String q, Pageable pageable) {
+        String qLike = (q != null && !q.isBlank()) ? "%" + q.trim() + "%" : null;
+        return parcelRepository.findByStatusAndSearch(null, qLike, pageable).map(ParcelDto::from);
+    }
+
     @Transactional
     public ParcelDto updateParcel(Long parcelId, CreateParcelRequest req, Long userId) {
         ForwardingParcelEntity parcel = parcelRepository.findById(parcelId)

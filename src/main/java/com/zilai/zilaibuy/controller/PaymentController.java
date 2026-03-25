@@ -9,7 +9,9 @@ import com.stripe.model.PaymentIntent;
 import com.stripe.net.Webhook;
 import com.stripe.param.PaymentIntentCreateParams;
 import com.zilai.zilaibuy.entity.OrderEntity;
+import com.zilai.zilaibuy.entity.UserEntity;
 import com.zilai.zilaibuy.repository.OrderRepository;
+import com.zilai.zilaibuy.repository.UserRepository;
 import com.zilai.zilaibuy.security.AuthenticatedUser;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -29,7 +31,10 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class PaymentController {
 
+    private static final java.math.BigDecimal POINTS_CNY_RATE = new java.math.BigDecimal("0.05");
+
     private final OrderRepository orderRepository;
+    private final UserRepository userRepository;
 
     @Value("${stripe.secret-key}")
     private String stripeSecretKey;
@@ -37,7 +42,7 @@ public class PaymentController {
     @Value("${stripe.webhook-secret}")
     private String webhookSecret;
 
-    record CreateIntentRequest(Long orderId) {}
+    record CreateIntentRequest(Long orderId, Integer pointsToUse) {}
     record CreateIntentResponse(String clientSecret) {}
     record ConfirmPaymentRequest(Long orderId) {}
     record ConfirmPaymentResponse(String status) {}
@@ -57,9 +62,25 @@ public class PaymentController {
             return ResponseEntity.badRequest().build();
         }
 
+        // Validate and apply ZilaiPoints discount
+        int pointsToUse = req.pointsToUse() != null ? req.pointsToUse() : 0;
+        if (pointsToUse > 0) {
+            UserEntity user = userRepository.findById(currentUser.id())
+                    .orElseThrow(() -> new IllegalArgumentException("用户不存在"));
+            if (pointsToUse > user.getPoints()) {
+                return ResponseEntity.badRequest().build();
+            }
+        }
+
+        BigDecimal discount = BigDecimal.valueOf(pointsToUse).multiply(POINTS_CNY_RATE);
+        BigDecimal chargeAmount = order.getTotalCny().subtract(discount);
+        if (chargeAmount.compareTo(BigDecimal.ZERO) <= 0) {
+            chargeAmount = new BigDecimal("0.01");
+        }
+
         Stripe.apiKey = stripeSecretKey;
 
-        long amountFen = order.getTotalCny()
+        long amountFen = chargeAmount
                 .multiply(BigDecimal.valueOf(100))
                 .longValue();
 
@@ -76,6 +97,7 @@ public class PaymentController {
             PaymentIntent intent = PaymentIntent.create(params);
 
             order.setStripePaymentIntentId(intent.getId());
+            order.setPointsUsed(pointsToUse);
             orderRepository.save(order);
 
             log.info("PaymentIntent created: {} for order {}", intent.getId(), order.getOrderNo());
@@ -112,6 +134,7 @@ public class PaymentController {
             if ("succeeded".equals(intent.getStatus())) {
                 order.setStatus(OrderEntity.OrderStatus.PURCHASING);
                 orderRepository.save(order);
+                deductPoints(order);
                 log.info("Order {} confirmed as PURCHASING via client-side confirmation", order.getOrderNo());
             }
             return ResponseEntity.ok(new ConfirmPaymentResponse(order.getStatus().name()));
@@ -166,14 +189,36 @@ public class PaymentController {
         if ("payment_intent.succeeded".equals(event.getType())) {
             log.info("Payment succeeded for PaymentIntent: {}", piId);
             orderRepository.findByStripePaymentIntentId(piId).ifPresent(order -> {
-                order.setStatus(OrderEntity.OrderStatus.PURCHASING);
-                orderRepository.save(order);
-                log.info("Order {} status updated to PURCHASING", order.getOrderNo());
+                if (order.getStatus() != OrderEntity.OrderStatus.PURCHASING) {
+                    order.setStatus(OrderEntity.OrderStatus.PURCHASING);
+                    orderRepository.save(order);
+                    deductPoints(order);
+                    log.info("Order {} status updated to PURCHASING", order.getOrderNo());
+                }
             });
         } else if ("payment_intent.payment_failed".equals(event.getType())) {
             log.warn("Payment failed for PaymentIntent: {}", piId);
         }
 
         return ResponseEntity.ok().build();
+    }
+
+    private void deductPoints(OrderEntity order) {
+        userRepository.findById(order.getUser().getId()).ifPresent(user -> {
+            // Deduct used points
+            int used = order.getPointsUsed();
+            int afterDeduct = Math.max(0, user.getPoints() - used);
+
+            // Award earned points: floor(net paid CNY / POINTS_CNY_RATE)
+            java.math.BigDecimal netPaid = order.getTotalCny()
+                    .subtract(java.math.BigDecimal.valueOf(used).multiply(POINTS_CNY_RATE));
+            if (netPaid.compareTo(java.math.BigDecimal.ZERO) < 0) netPaid = java.math.BigDecimal.ZERO;
+            int earned = netPaid.divide(POINTS_CNY_RATE, 0, java.math.RoundingMode.FLOOR).intValue();
+
+            user.setPoints(afterDeduct + earned);
+            userRepository.save(user);
+            log.info("Order {}: deducted {} points, awarded {} points. User {} now has {} points",
+                    order.getOrderNo(), used, earned, user.getId(), user.getPoints());
+        });
     }
 }

@@ -206,7 +206,7 @@ public class AdminController {
         if (status != null) {
             try { orderStatus = OrderEntity.OrderStatus.valueOf(status); } catch (IllegalArgumentException ignored) {}
         }
-        return ResponseEntity.ok(orderRepository.findByFilters(userId, orderStatus, null, null, pageable).map(AdminOrderDto::from));
+        return ResponseEntity.ok(orderRepository.findByFilters(userId, orderStatus, null, null, null, pageable).map(AdminOrderDto::from));
     }
 
     record AdminUpdateOrderRequest(OrderEntity.OrderStatus status, String transitTrackingNo, String transitCarrier) {}

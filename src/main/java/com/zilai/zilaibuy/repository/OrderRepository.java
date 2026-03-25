@@ -20,15 +20,32 @@ public interface OrderRepository extends JpaRepository<OrderEntity, Long> {
 
     Page<OrderEntity> findByStatus(OrderEntity.OrderStatus status, Pageable pageable);
 
-    @Query("SELECT o FROM OrderEntity o WHERE (:userId IS NULL OR o.user.id = :userId) " +
+    @Query(value = "SELECT DISTINCT o FROM OrderEntity o " +
+           "WHERE (:userId IS NULL OR o.user.id = :userId) " +
            "AND (:status IS NULL OR o.status = :status) " +
            "AND (:dateFrom IS NULL OR o.createdAt >= :dateFrom) " +
-           "AND (:dateTo IS NULL OR o.createdAt < :dateTo)")
+           "AND (:dateTo IS NULL OR o.createdAt < :dateTo) " +
+           "AND (:qLike IS NULL OR " +
+           "  o.orderNo LIKE :qLike OR " +
+           "  (o.transitTrackingNo IS NOT NULL AND o.transitTrackingNo LIKE :qLike) OR " +
+           "  EXISTS (SELECT i FROM OrderItemEntity i WHERE i.order = o AND i.itemTrackingNo IS NOT NULL AND i.itemTrackingNo LIKE :qLike) OR " +
+           "  EXISTS (SELECT p FROM ForwardingParcelEntity p WHERE p.linkedOrder = o AND p.inboundTrackingNo IS NOT NULL AND p.inboundTrackingNo LIKE :qLike))",
+           countQuery = "SELECT COUNT(DISTINCT o) FROM OrderEntity o " +
+           "WHERE (:userId IS NULL OR o.user.id = :userId) " +
+           "AND (:status IS NULL OR o.status = :status) " +
+           "AND (:dateFrom IS NULL OR o.createdAt >= :dateFrom) " +
+           "AND (:dateTo IS NULL OR o.createdAt < :dateTo) " +
+           "AND (:qLike IS NULL OR " +
+           "  o.orderNo LIKE :qLike OR " +
+           "  (o.transitTrackingNo IS NOT NULL AND o.transitTrackingNo LIKE :qLike) OR " +
+           "  EXISTS (SELECT i FROM OrderItemEntity i WHERE i.order = o AND i.itemTrackingNo IS NOT NULL AND i.itemTrackingNo LIKE :qLike) OR " +
+           "  EXISTS (SELECT p FROM ForwardingParcelEntity p WHERE p.linkedOrder = o AND p.inboundTrackingNo IS NOT NULL AND p.inboundTrackingNo LIKE :qLike))")
     Page<OrderEntity> findByFilters(
             @Param("userId") Long userId,
             @Param("status") OrderEntity.OrderStatus status,
             @Param("dateFrom") java.time.LocalDateTime dateFrom,
             @Param("dateTo") java.time.LocalDateTime dateTo,
+            @Param("qLike") String qLike,
             Pageable pageable);
 
     @Query("SELECT COUNT(o) FROM OrderEntity o WHERE o.user.id = :userId")

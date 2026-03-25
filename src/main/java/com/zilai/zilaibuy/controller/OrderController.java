@@ -39,9 +39,10 @@ public class OrderController {
             @RequestParam(required = false) Long userId,
             @RequestParam(required = false) java.time.LocalDate dateFrom,
             @RequestParam(required = false) java.time.LocalDate dateTo,
+            @RequestParam(required = false) String q,
             @AuthenticationPrincipal AuthenticatedUser currentUser) {
         PageRequest pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
-        return ResponseEntity.ok(orderService.listOrders(currentUser, userId, status, dateFrom, dateTo, pageable));
+        return ResponseEntity.ok(orderService.listOrders(currentUser, userId, status, dateFrom, dateTo, q, pageable));
     }
 
     @GetMapping("/{id}")

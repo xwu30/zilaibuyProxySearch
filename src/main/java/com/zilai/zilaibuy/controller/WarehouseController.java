@@ -54,8 +54,12 @@ public class WarehouseController {
     public ResponseEntity<Page<ParcelDto>> listParcels(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "30") int size,
-            @RequestParam(required = false) String status) {
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String q) {
         PageRequest pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        if (q != null && !q.isBlank()) {
+            return ResponseEntity.ok(parcelService.searchParcels(q, pageable));
+        }
         if (status != null && !status.isBlank()) {
             var s = com.zilai.zilaibuy.entity.ForwardingParcelEntity.ParcelStatus.valueOf(status);
             return ResponseEntity.ok(parcelService.listAllParcelsByStatus(s, pageable));

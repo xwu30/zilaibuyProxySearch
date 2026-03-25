@@ -150,7 +150,8 @@ public class UserController {
                 u.getShippingCity(),
                 u.getShippingProvince(),
                 u.getShippingPostalCode(),
-                u.getCloudId()
+                u.getCloudId(),
+                u.getPoints()
         );
     }
 }

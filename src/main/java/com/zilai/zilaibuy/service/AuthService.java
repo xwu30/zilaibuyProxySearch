@@ -364,7 +364,7 @@ public class AuthService {
         if (displayName == null || displayName.isBlank()) {
             displayName = "紫来淘客" + String.format("%06d", user.getId());
         }
-        UserDto userDto = new UserDto(user.getId(), user.getPhone(), user.getEmail(), displayName, user.getRole().name(), user.getCloudId());
+        UserDto userDto = new UserDto(user.getId(), user.getPhone(), user.getEmail(), displayName, user.getRole().name(), user.getCloudId(), user.getPoints());
         return new AuthResponse(accessToken, rawRefresh, jwtUtil.getExpirySeconds(), userDto);
     }
 

@@ -64,6 +64,9 @@ public class OrderEntity {
     @Column(name = "transit_carrier", length = 50)
     private String transitCarrier;
 
+    @Column(name = "points_used", nullable = false, columnDefinition = "INT DEFAULT 0")
+    private int pointsUsed = 0;
+
     public enum OrderStatus {
         PENDING_PAYMENT, PURCHASING, IN_TRANSIT, IN_WAREHOUSE, PACKING, SHIPPED, DELIVERED, CANCELLED
     }

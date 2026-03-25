@@ -58,6 +58,9 @@ public class UserEntity {
     @Column(name = "display_name", length = 100)
     private String displayName;
 
+    @Column(name = "points", nullable = false, columnDefinition = "INT DEFAULT 200")
+    private int points = 200;
+
     @Column(name = "shipping_full_name", length = 100)
     private String shippingFullName;
 
