@@ -21,7 +21,14 @@ public record OrderDetailDto(
         LocalDateTime updatedAt,
         String transitTrackingNo,
         String transitCarrier,
-        List<ParcelDto> linkedParcels
+        List<ParcelDto> linkedParcels,
+        Integer weightG,
+        Integer lengthCm,
+        Integer widthCm,
+        Integer heightCm,
+        String packingPhotoUrl,
+        BigDecimal shippingFeeCny,
+        String shippingRoute
 ) {
     public static OrderDetailDto from(OrderEntity e) {
         return from(e, Collections.emptyList());
@@ -33,6 +40,8 @@ public record OrderDetailDto(
         return new OrderDetailDto(e.getId(), e.getOrderNo(), e.getStatus().name(),
                 e.getTotalCny(), e.getNotes(), e.getUser().getId(),
                 items, e.getCreatedAt(), e.getUpdatedAt(),
-                e.getTransitTrackingNo(), e.getTransitCarrier(), linkedParcels);
+                e.getTransitTrackingNo(), e.getTransitCarrier(), linkedParcels,
+                e.getWeightG(), e.getLengthCm(), e.getWidthCm(), e.getHeightCm(),
+                e.getPackingPhotoUrl(), e.getShippingFeeCny(), e.getShippingRoute());
     }
 }

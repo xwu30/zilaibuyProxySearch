@@ -5,6 +5,7 @@ import com.zilai.zilaibuy.dto.warehouse.*;
 import com.zilai.zilaibuy.security.AuthenticatedUser;
 import com.zilai.zilaibuy.service.ForwardingParcelService;
 import com.zilai.zilaibuy.service.InventoryService;
+import com.zilai.zilaibuy.service.NewProductService;
 import com.zilai.zilaibuy.service.OrderService;
 import com.zilai.zilaibuy.service.ProductService;
 import jakarta.validation.Valid;
@@ -24,6 +25,7 @@ import org.springframework.web.bind.annotation.*;
 public class WarehouseController {
 
     private final ProductService productService;
+    private final NewProductService newProductService;
     private final InventoryService inventoryService;
     private final OrderService orderService;
     private final ForwardingParcelService parcelService;
@@ -116,6 +118,36 @@ public class WarehouseController {
     @DeleteMapping("/products/{id}")
     public ResponseEntity<Void> deleteProduct(@PathVariable Long id) {
         productService.deleteProduct(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    // ── 新货产品管理 ───────────────────────────────────────────────────────────────
+
+    @PostMapping("/new-products")
+    public ResponseEntity<ProductDto> createNewProduct(
+            @Valid @RequestBody CreateProductRequest req,
+            @AuthenticationPrincipal AuthenticatedUser currentUser) {
+        return ResponseEntity.ok(newProductService.createProduct(req, currentUser.id()));
+    }
+
+    @GetMapping("/new-products")
+    public ResponseEntity<Page<ProductDto>> listNewProducts(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        PageRequest pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        return ResponseEntity.ok(newProductService.listProducts(pageable));
+    }
+
+    @PutMapping("/new-products/{id}")
+    public ResponseEntity<ProductDto> updateNewProduct(
+            @PathVariable Long id,
+            @Valid @RequestBody CreateProductRequest req) {
+        return ResponseEntity.ok(newProductService.updateProduct(id, req));
+    }
+
+    @DeleteMapping("/new-products/{id}")
+    public ResponseEntity<Void> deleteNewProduct(@PathVariable Long id) {
+        newProductService.deleteProduct(id);
         return ResponseEntity.noContent().build();
     }
 

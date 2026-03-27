@@ -102,7 +102,25 @@
       "Bash(JAVA_HOME=/usr/local/Cellar/openjdk/25.0.2/libexec/openjdk.jdk/Contents/Home /usr/local/bin/mvn package -DskipTests 2>&1 | grep \"ERROR\\\\|error:\" | head -20)",
       "Bash(JAVA_HOME=/usr/local/Cellar/openjdk@17/17.0.18/libexec/openjdk.jdk/Contents/Home /usr/local/bin/mvn package -DskipTests -q 2>&1 | tail -5)",
       "Bash(PATH=\"$HOME/Library/Python/3.8/bin:$PATH\" JAVA_HOME=/usr/local/Cellar/openjdk@17/17.0.18/libexec/openjdk.jdk/Contents/Home bash deploy.sh 2>&1 | tail -15)",
-      "Bash(cd /Users/xwu30/Projects/zilaibuyProxySearch && JAVA_HOME=/usr/local/Cellar/openjdk@17/17.0.18/libexec/openjdk.jdk/Contents/Home /usr/local/bin/mvn package -DskipTests -q 2>&1)"
+      "Bash(cd /Users/xwu30/Projects/zilaibuyProxySearch && JAVA_HOME=/usr/local/Cellar/openjdk@17/17.0.18/libexec/openjdk.jdk/Contents/Home /usr/local/bin/mvn package -DskipTests -q 2>&1)",
+      "Bash(JAVA_HOME=/usr/local/Cellar/openjdk@17/17.0.18/libexec/openjdk.jdk/Contents/Home /usr/local/bin/mvn clean package -DskipTests -q 2>&1 | tail -3 && echo \"Build OK\")",
+      "Bash(cd /Users/xwu30/Projects/zilaibuyProxySearch && JAVA_HOME=/usr/local/Cellar/openjdk@17/17.0.18/libexec/openjdk.jdk/Contents/Home /usr/local/bin/mvn clean package -DskipTests -q 2>&1 | tail -3 && echo \"Build OK\")",
+      "Bash(~/Library/Python/3.8/bin/aws elasticbeanstalk:*)",
+      "Bash(~/Library/Python/3.8/bin/aws s3:*)",
+      "Bash(JAVA_HOME=/usr/local/Cellar/openjdk@17/17.0.18/libexec/openjdk.jdk/Contents/Home mvn clean package -DskipTests -q 2>&1 | tail -20)",
+      "Bash(JAVA_HOME=/usr/local/Cellar/openjdk@17/17.0.18/libexec/openjdk.jdk/Contents/Home PATH=$JAVA_HOME/bin:$PATH mvn package -DskipTests -q 2>&1 | tail -5 && ls -la target/*.jar | tail -3)",
+      "Bash(JAVA_HOME=/usr/local/Cellar/openjdk@17/17.0.18/libexec/openjdk.jdk/Contents/Home /usr/local/bin/mvn package -DskipTests -q 2>&1 | tail -5 && ls -la target/*.jar | tail -3)",
+      "Bash(ls ~/Downloads/aws* ~/Desktop/aws* 2>/dev/null; find ~/Applications /Applications -name \"AWS*\" -maxdepth 3 2>/dev/null | head -5; pip3 show awscli 2>/dev/null | head -3; pip show awscli 2>/dev/null | head -3)",
+      "Bash(python3 -m awscli --version 2>&1 || python -m awscli --version 2>&1)",
+      "Bash(cd /Users/xwu30/Projects/zilaibuyProxySearch && JAVA_HOME=/usr/local/Cellar/openjdk@17/17.0.15/libexec/openjdk.jdk/Contents/Home ./mvnw clean package -q -DskipTests 2>&1 | tail -20)",
+      "Bash(JAVA_HOME=/usr/local/Cellar/openjdk@17/17.0.15/libexec/openjdk.jdk/Contents/Home mvn clean package -q -DskipTests 2>&1 | tail -20)",
+      "Bash(JAVA_HOME=/usr/local/Cellar/openjdk@17/17.0.18/libexec/openjdk.jdk/Contents/Home mvn clean package -q -DskipTests 2>&1 | tail -20)",
+      "Bash(cd /Users/xwu30/Projects/zilaibuyProxySearch && JAVA_HOME=/usr/local/Cellar/openjdk@17/17.0.18/libexec/openjdk.jdk/Contents/Home mvn clean package -q -DskipTests 2>&1 | tail -5)",
+      "Bash(cd /Users/xwu30/Projects/zilaibuyProxySearch && JAVA_HOME=/usr/local/Cellar/openjdk@17/17.0.18/libexec/openjdk.jdk/Contents/Home mvn compile -q 2>&1 | tail -30)",
+      "Bash(cd /Users/xwu30/Projects/zilaibuyWeb && npx tsc --noEmit 2>&1 | head -40)",
+      "Bash(./node_modules/.bin/tsc --noEmit 2>&1 | head -40)",
+      "Bash(/usr/bin/find /Users/xwu30/Projects/zilaibuyWeb/node_modules/.bin -name \"tsc\" 2>/dev/null | head -3)",
+      "Bash(/usr/bin/find node_modules -name \"tsc\" -type f 2>/dev/null | head -5)"
     ]
   }
 }

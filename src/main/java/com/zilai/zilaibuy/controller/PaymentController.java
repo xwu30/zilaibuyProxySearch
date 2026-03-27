@@ -46,6 +46,7 @@ public class PaymentController {
     record CreateIntentResponse(String clientSecret) {}
     record ConfirmPaymentRequest(Long orderId) {}
     record ConfirmPaymentResponse(String status) {}
+    record CreateShippingIntentRequest(Long orderId, String shippingRoute, java.math.BigDecimal shippingFeeCny) {}
 
     @PostMapping("/create-intent")
     public ResponseEntity<CreateIntentResponse> createIntent(
@@ -109,6 +110,51 @@ public class PaymentController {
         }
     }
 
+    @PostMapping("/create-shipping-intent")
+    public ResponseEntity<CreateIntentResponse> createShippingIntent(
+            @RequestBody CreateShippingIntentRequest req,
+            @AuthenticationPrincipal AuthenticatedUser currentUser) {
+
+        OrderEntity order = orderRepository.findById(req.orderId())
+                .orElseThrow(() -> new IllegalArgumentException("订单不存在"));
+        if (!order.getUser().getId().equals(currentUser.id())) {
+            return ResponseEntity.status(403).build();
+        }
+        if (order.getStatus() != OrderEntity.OrderStatus.AWAITING_PAYMENT) {
+            return ResponseEntity.badRequest().build();
+        }
+        if (req.shippingFeeCny() == null || req.shippingFeeCny().compareTo(BigDecimal.ZERO) <= 0) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        order.setShippingRoute(req.shippingRoute());
+        order.setShippingFeeCny(req.shippingFeeCny());
+
+        Stripe.apiKey = stripeSecretKey;
+        long amountFen = req.shippingFeeCny().multiply(BigDecimal.valueOf(100)).longValue();
+
+        try {
+            PaymentIntentCreateParams params = PaymentIntentCreateParams.builder()
+                    .setAmount(Math.max(amountFen, 1L))
+                    .setCurrency("cny")
+                    .putMetadata("orderId", String.valueOf(order.getId()))
+                    .putMetadata("orderNo", order.getOrderNo())
+                    .putMetadata("userId", String.valueOf(currentUser.id()))
+                    .putMetadata("type", "shipping")
+                    .build();
+
+            PaymentIntent intent = PaymentIntent.create(params);
+            order.setStripePaymentIntentId(intent.getId());
+            orderRepository.save(order);
+
+            log.info("Shipping PaymentIntent created: {} for order {}", intent.getId(), order.getOrderNo());
+            return ResponseEntity.ok(new CreateIntentResponse(intent.getClientSecret()));
+        } catch (Exception e) {
+            log.error("Failed to create shipping PaymentIntent for order {}", order.getId(), e);
+            throw new RuntimeException("支付初始化失败，请重试");
+        }
+    }
+
     @PostMapping("/confirm")
     public ResponseEntity<ConfirmPaymentResponse> confirmPayment(
             @RequestBody ConfirmPaymentRequest req,
@@ -124,18 +170,26 @@ public class PaymentController {
             return ResponseEntity.badRequest().build();
         }
         // Already confirmed
-        if (order.getStatus() != OrderEntity.OrderStatus.PENDING_PAYMENT) {
+        if (order.getStatus() != OrderEntity.OrderStatus.PENDING_PAYMENT
+                && order.getStatus() != OrderEntity.OrderStatus.AWAITING_PAYMENT) {
             return ResponseEntity.ok(new ConfirmPaymentResponse(order.getStatus().name()));
         }
+
+        boolean isShippingPayment = order.getStatus() == OrderEntity.OrderStatus.AWAITING_PAYMENT;
 
         Stripe.apiKey = stripeSecretKey;
         try {
             PaymentIntent intent = PaymentIntent.retrieve(order.getStripePaymentIntentId());
             if ("succeeded".equals(intent.getStatus())) {
-                order.setStatus(OrderEntity.OrderStatus.PURCHASING);
+                if (isShippingPayment) {
+                    order.setStatus(OrderEntity.OrderStatus.PACKING);
+                    log.info("Order {} shipping paid, status → PACKING", order.getOrderNo());
+                } else {
+                    order.setStatus(OrderEntity.OrderStatus.PURCHASING);
+                    deductPoints(order);
+                    log.info("Order {} confirmed as PURCHASING via client-side confirmation", order.getOrderNo());
+                }
                 orderRepository.save(order);
-                deductPoints(order);
-                log.info("Order {} confirmed as PURCHASING via client-side confirmation", order.getOrderNo());
             }
             return ResponseEntity.ok(new ConfirmPaymentResponse(order.getStatus().name()));
         } catch (Exception e) {
@@ -189,7 +243,11 @@ public class PaymentController {
         if ("payment_intent.succeeded".equals(event.getType())) {
             log.info("Payment succeeded for PaymentIntent: {}", piId);
             orderRepository.findByStripePaymentIntentId(piId).ifPresent(order -> {
-                if (order.getStatus() != OrderEntity.OrderStatus.PURCHASING) {
+                if (order.getStatus() == OrderEntity.OrderStatus.AWAITING_PAYMENT) {
+                    order.setStatus(OrderEntity.OrderStatus.PACKING);
+                    orderRepository.save(order);
+                    log.info("Order {} shipping paid (webhook), status → PACKING", order.getOrderNo());
+                } else if (order.getStatus() != OrderEntity.OrderStatus.PURCHASING) {
                     order.setStatus(OrderEntity.OrderStatus.PURCHASING);
                     orderRepository.save(order);
                     deductPoints(order);

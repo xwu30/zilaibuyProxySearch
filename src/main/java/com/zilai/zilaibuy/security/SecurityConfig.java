@@ -47,6 +47,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/api/payments/webhook").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/shipping-rates").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/announcements").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/new-products").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/image-proxy").permitAll()
                 .requestMatchers("/api/payments/**").authenticated()
                 .requestMatchers(HttpMethod.GET, "/api/admin/orders", "/api/admin/orders/**").hasAnyRole("ADMIN", "SUPPORT")

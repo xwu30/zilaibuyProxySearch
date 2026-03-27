@@ -19,7 +19,14 @@ public record OrderDto(
         List<OrderItemDto> items,
         List<ParcelDto> linkedParcels,
         LocalDateTime createdAt,
-        LocalDateTime updatedAt
+        LocalDateTime updatedAt,
+        Integer weightG,
+        Integer lengthCm,
+        Integer widthCm,
+        Integer heightCm,
+        String packingPhotoUrl,
+        BigDecimal shippingFeeCny,
+        String shippingRoute
 ) {
     public static OrderDto from(OrderEntity e) {
         List<OrderItemDto> items = e.getItems() != null
@@ -30,6 +37,8 @@ public record OrderDto(
                 : List.of();
         return new OrderDto(e.getId(), e.getOrderNo(), e.getStatus().name(),
                 e.getTotalCny(), e.getNotes(), e.getTransitTrackingNo(), e.getTransitCarrier(),
-                e.getUser().getId(), items, parcels, e.getCreatedAt(), e.getUpdatedAt());
+                e.getUser().getId(), items, parcels, e.getCreatedAt(), e.getUpdatedAt(),
+                e.getWeightG(), e.getLengthCm(), e.getWidthCm(), e.getHeightCm(),
+                e.getPackingPhotoUrl(), e.getShippingFeeCny(), e.getShippingRoute());
     }
 }

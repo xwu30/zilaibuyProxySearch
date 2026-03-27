@@ -173,6 +173,25 @@ public class OrderService {
     }
 
     @Transactional
+    public OrderDetailDto savePackingInfo(Long orderId, Integer weightG, Integer lengthCm, Integer widthCm,
+                                          Integer heightCm, String packingPhotoUrl) {
+        OrderEntity order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "订单不存在"));
+        if (order.getStatus() != OrderEntity.OrderStatus.PACKING) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "只有打包中的订单可以填写打包信息");
+        }
+        if (weightG != null) order.setWeightG(weightG);
+        if (lengthCm != null) order.setLengthCm(lengthCm);
+        if (widthCm != null) order.setWidthCm(widthCm);
+        if (heightCm != null) order.setHeightCm(heightCm);
+        if (packingPhotoUrl != null) order.setPackingPhotoUrl(packingPhotoUrl.isBlank() ? null : packingPhotoUrl.trim());
+        order.setStatus(OrderEntity.OrderStatus.AWAITING_PAYMENT);
+        orderRepository.save(order);
+        List<ForwardingParcelEntity> linkedParcels = parcelRepository.findByLinkedOrderId(orderId);
+        return OrderDetailDto.from(order, linkedParcels);
+    }
+
+    @Transactional
     public OrderDto adminUpdateOrderItem(Long orderId, Long itemId, int quantity, BigDecimal priceCny) {
         OrderEntity order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "订单不存在"));

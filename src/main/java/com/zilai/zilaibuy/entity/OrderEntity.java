@@ -67,7 +67,28 @@ public class OrderEntity {
     @Column(name = "points_used", nullable = false, columnDefinition = "INT DEFAULT 0")
     private int pointsUsed = 0;
 
+    @Column(name = "weight_g")
+    private Integer weightG;
+
+    @Column(name = "length_cm")
+    private Integer lengthCm;
+
+    @Column(name = "width_cm")
+    private Integer widthCm;
+
+    @Column(name = "height_cm")
+    private Integer heightCm;
+
+    @Column(name = "packing_photo_url", length = 500)
+    private String packingPhotoUrl;
+
+    @Column(name = "shipping_fee_cny", precision = 10, scale = 2)
+    private BigDecimal shippingFeeCny;
+
+    @Column(name = "shipping_route", length = 50)
+    private String shippingRoute;
+
     public enum OrderStatus {
-        PENDING_PAYMENT, PURCHASING, IN_TRANSIT, IN_WAREHOUSE, PACKING, SHIPPED, DELIVERED, CANCELLED
+        PENDING_PAYMENT, PURCHASING, IN_TRANSIT, IN_WAREHOUSE, PACKING, AWAITING_PAYMENT, SHIPPED, DELIVERED, CANCELLED
     }
 }

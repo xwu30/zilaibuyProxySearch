@@ -211,6 +211,7 @@ public class AdminController {
 
     record AdminUpdateOrderRequest(OrderEntity.OrderStatus status, String transitTrackingNo, String transitCarrier) {}
     record AdminUpdateOrderItemRequest(int quantity, BigDecimal priceCny) {}
+    record AdminSavePackingInfoRequest(Integer weightG, Integer lengthCm, Integer widthCm, Integer heightCm, String packingPhotoUrl) {}
     record AdminUpdateParcelRequest(
             com.zilai.zilaibuy.entity.ForwardingParcelEntity.ParcelStatus status,
             Double weightKg, String outboundTrackingNo, String notes,
@@ -222,6 +223,14 @@ public class AdminController {
             @PathVariable Long id,
             @RequestBody AdminUpdateOrderRequest req) {
         return ResponseEntity.ok(orderService.adminUpdateOrder(id, req.status(), req.transitTrackingNo(), req.transitCarrier()));
+    }
+
+    @PreAuthorize("hasAnyRole('ADMIN', 'WAREHOUSE', 'SUPPORT')")
+    @PutMapping("/orders/{id}/packing-info")
+    public ResponseEntity<OrderDetailDto> savePackingInfo(
+            @PathVariable Long id,
+            @RequestBody AdminSavePackingInfoRequest req) {
+        return ResponseEntity.ok(orderService.savePackingInfo(id, req.weightG(), req.lengthCm(), req.widthCm(), req.heightCm(), req.packingPhotoUrl()));
     }
 
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPPORT')")
