@@ -31,7 +31,8 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class PaymentController {
 
-    private static final java.math.BigDecimal POINTS_CNY_RATE = new java.math.BigDecimal("0.05");
+    private static final java.math.BigDecimal POINTS_CNY_RATE = new java.math.BigDecimal("0.05"); // 兑换：1积分 = 0.05 CNY（10积分 ≈ 1 JPY）
+    private static final java.math.BigDecimal JPY_TO_CNY = new java.math.BigDecimal("0.0467");    // 积累：1 CNY ≈ 1/0.0467 ≈ 21积分 → 1积分 ≈ 1 JPY
 
     private final OrderRepository orderRepository;
     private final UserRepository userRepository;
@@ -275,11 +276,11 @@ public class PaymentController {
             int used = order.getPointsUsed();
             int afterDeduct = Math.max(0, user.getPoints() - used);
 
-            // Award earned points: floor(net paid CNY / POINTS_CNY_RATE)
+            // Award earned points: floor(net paid CNY / JPY_TO_CNY) → 1 point per JPY
             java.math.BigDecimal netPaid = order.getTotalCny()
                     .subtract(java.math.BigDecimal.valueOf(used).multiply(POINTS_CNY_RATE));
             if (netPaid.compareTo(java.math.BigDecimal.ZERO) < 0) netPaid = java.math.BigDecimal.ZERO;
-            int earned = netPaid.divide(POINTS_CNY_RATE, 0, java.math.RoundingMode.FLOOR).intValue();
+            int earned = netPaid.divide(JPY_TO_CNY, 0, java.math.RoundingMode.FLOOR).intValue();
 
             user.setPoints(afterDeduct + earned);
             userRepository.save(user);
