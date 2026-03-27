@@ -534,6 +534,39 @@ public class OrderService {
         }
         orderRepository.saveAll(orders);
 
+        // If multiple proxy orders selected, merge all items into the earliest (primary) order
+        if (orders.size() > 1) {
+            OrderEntity primaryOrder = orders.stream()
+                    .min((a, b) -> a.getCreatedAt().compareTo(b.getCreatedAt()))
+                    .orElse(orders.get(0));
+            for (OrderEntity order : orders) {
+                if (order.getId().equals(primaryOrder.getId())) continue;
+                // Move all items from secondary order to primary order
+                List<OrderItemEntity> itemsToMove = new ArrayList<>(order.getItems());
+                order.getItems().clear();
+                orderRepository.save(order); // flush empty items first to avoid orphan conflicts
+                for (OrderItemEntity item : itemsToMove) {
+                    item.setOrder(primaryOrder);
+                    primaryOrder.getItems().add(item);
+                    orderItemRepository.save(item);
+                }
+                // Add secondary order's total to primary
+                if (order.getTotalCny() != null) {
+                    primaryOrder.setTotalCny(primaryOrder.getTotalCny() == null
+                            ? order.getTotalCny()
+                            : primaryOrder.getTotalCny().add(order.getTotalCny()));
+                }
+                // Cancel secondary order
+                order.setStatus(OrderEntity.OrderStatus.CANCELLED);
+                order.setNotes("已合并到 " + primaryOrder.getOrderNo());
+                order.setTotalCny(BigDecimal.ZERO);
+                orderRepository.save(order);
+            }
+            orderRepository.save(primaryOrder);
+            // Keep only primary order for parcel linking and response
+            orders = List.of(primaryOrder);
+        }
+
         // Link selected parcels together — always grouped under one primary order
         if (hasParcels) {
             OrderEntity primaryOrder = orders.isEmpty() ? null : orders.stream()
