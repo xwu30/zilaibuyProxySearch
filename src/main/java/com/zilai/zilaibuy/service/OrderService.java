@@ -193,23 +193,42 @@ public class OrderService {
 
     @Transactional
     public OrderItemDto updateItemTracking(Long orderId, Long itemId, UpdateItemTrackingRequest req) {
-        orderRepository.findById(orderId)
+        return updateItemTracking(orderId, itemId, req, false);
+    }
+
+    @Transactional
+    public OrderItemDto updateItemTracking(Long orderId, Long itemId, UpdateItemTrackingRequest req, boolean privileged) {
+        OrderEntity order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "订单不存在"));
         OrderItemEntity item = orderItemRepository.findById(itemId)
                 .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "商品不存在"));
         if (!item.getOrder().getId().equals(orderId)) {
             throw new AppException(HttpStatus.BAD_REQUEST, "商品不属于该订单");
         }
-        if ("IN_WAREHOUSE".equals(item.getItemStatus())) {
-            throw new AppException(HttpStatus.FORBIDDEN, "已入库的商品不可修改");
-        }
-        if (item.getItemTrackingNo() != null && !item.getItemTrackingNo().isBlank()) {
-            throw new AppException(HttpStatus.FORBIDDEN, "已绑定物流单号的商品不可修改");
+        if (!privileged) {
+            if ("IN_WAREHOUSE".equals(item.getItemStatus())) {
+                throw new AppException(HttpStatus.FORBIDDEN, "已入库的商品不可修改");
+            }
+            if (item.getItemTrackingNo() != null && !item.getItemTrackingNo().isBlank()) {
+                throw new AppException(HttpStatus.FORBIDDEN, "已绑定物流单号的商品不可修改");
+            }
         }
         if (req.itemStatus() != null) item.setItemStatus(req.itemStatus());
         if (req.itemTrackingNo() != null) item.setItemTrackingNo(req.itemTrackingNo());
         if (req.itemCarrier() != null) item.setItemCarrier(req.itemCarrier());
         orderItemRepository.save(item);
+
+        // Auto-advance order to IN_WAREHOUSE if all items are now in warehouse
+        if ("IN_WAREHOUSE".equals(item.getItemStatus())) {
+            long total = orderItemRepository.countByOrderId(orderId);
+            long inWarehouse = orderItemRepository.countByOrderIdAndItemStatus(orderId, "IN_WAREHOUSE");
+            if (total > 0 && total == inWarehouse
+                    && order.getStatus() == OrderEntity.OrderStatus.PURCHASING) {
+                order.setStatus(OrderEntity.OrderStatus.IN_WAREHOUSE);
+                orderRepository.save(order);
+            }
+        }
+
         return OrderItemDto.from(item);
     }
 

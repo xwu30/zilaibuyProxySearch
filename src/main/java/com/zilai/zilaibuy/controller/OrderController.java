@@ -88,8 +88,10 @@ public class OrderController {
     public ResponseEntity<OrderItemDto> updateItemTracking(
             @PathVariable Long orderId,
             @PathVariable Long itemId,
-            @RequestBody UpdateItemTrackingRequest req) {
-        return ResponseEntity.ok(orderService.updateItemTracking(orderId, itemId, req));
+            @RequestBody UpdateItemTrackingRequest req,
+            @AuthenticationPrincipal AuthenticatedUser currentUser) {
+        boolean privileged = "ADMIN".equals(currentUser.role()) || "WAREHOUSE".equals(currentUser.role()) || "SUPPORT".equals(currentUser.role());
+        return ResponseEntity.ok(orderService.updateItemTracking(orderId, itemId, req, privileged));
     }
 
     @PutMapping("/{orderId}/items/{itemId}")
