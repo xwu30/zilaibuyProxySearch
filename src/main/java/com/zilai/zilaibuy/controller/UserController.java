@@ -53,6 +53,7 @@ public class UserController {
         if (req.shippingCity() != null)      user.setShippingCity(req.shippingCity());
         if (req.shippingProvince() != null)  user.setShippingProvince(req.shippingProvince());
         if (req.shippingPostalCode() != null) user.setShippingPostalCode(req.shippingPostalCode());
+        if (req.shippingCountry() != null)   user.setShippingCountry(req.shippingCountry());
 
         userRepository.save(user);
         return toDto(user);
@@ -150,6 +151,7 @@ public class UserController {
                 u.getShippingCity(),
                 u.getShippingProvince(),
                 u.getShippingPostalCode(),
+                u.getShippingCountry(),
                 u.getCloudId(),
                 u.getPoints()
         );

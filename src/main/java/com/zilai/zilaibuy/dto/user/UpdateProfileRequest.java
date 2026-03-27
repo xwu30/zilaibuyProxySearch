@@ -7,5 +7,6 @@ public record UpdateProfileRequest(
         String shippingStreet,
         String shippingCity,
         String shippingProvince,
-        String shippingPostalCode
+        String shippingPostalCode,
+        String shippingCountry
 ) {}

@@ -79,6 +79,9 @@ public class UserEntity {
     @Column(name = "shipping_postal_code", length = 20)
     private String shippingPostalCode;
 
+    @Column(name = "shipping_country", length = 10)
+    private String shippingCountry;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
