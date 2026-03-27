@@ -474,7 +474,11 @@ public class OrderService {
                 orderItemRepository.findById(itemId).ifPresent(item -> orderIdSet.add(item.getOrder().getId()));
             }
         }
-        if (orderIdSet.isEmpty()) throw new AppException(HttpStatus.BAD_REQUEST, "未选择代购商品");
+
+        boolean hasParcels = parcelIds != null && !parcelIds.isEmpty();
+        if (orderIdSet.isEmpty() && !hasParcels) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "请至少选择一个订单或转运包裹");
+        }
 
         List<OrderEntity> orders = orderRepository.findAllById(orderIdSet);
         for (OrderEntity order : orders) {
@@ -492,16 +496,16 @@ public class OrderService {
         }
         orderRepository.saveAll(orders);
 
-        // Link selected parcels to the first (earliest) order
-        if (parcelIds != null && !parcelIds.isEmpty()) {
-            OrderEntity primaryOrder = orders.stream()
+        // Link selected parcels to the first order (if any), or mark them PACKING standalone
+        if (hasParcels) {
+            OrderEntity primaryOrder = orders.isEmpty() ? null : orders.stream()
                     .min((a, b) -> a.getCreatedAt().compareTo(b.getCreatedAt()))
                     .orElse(orders.get(0));
             List<ForwardingParcelEntity> parcels = parcelRepository.findAllById(parcelIds);
             for (ForwardingParcelEntity parcel : parcels) {
                 if (!parcel.getUser().getId().equals(currentUser.id())) continue;
                 if (parcel.getStatus() == ForwardingParcelEntity.ParcelStatus.IN_WAREHOUSE) {
-                    parcel.setLinkedOrder(primaryOrder);
+                    if (primaryOrder != null) parcel.setLinkedOrder(primaryOrder);
                     parcel.setStatus(ForwardingParcelEntity.ParcelStatus.PACKING);
                 }
             }
