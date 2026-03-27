@@ -86,14 +86,20 @@ public class PaymentController {
                 .longValue();
 
         try {
+            String desc = "采购费 " + order.getOrderNo();
+            if (pointsToUse > 0) {
+                desc += " | 积分抵扣 " + pointsToUse + "分(-¥" + discount.setScale(2, java.math.RoundingMode.HALF_UP) + ")";
+            }
             PaymentIntentCreateParams params = PaymentIntentCreateParams.builder()
                     .setAmount(amountFen)
                     .setCurrency("cny")
-                    .setDescription("采购费 " + order.getOrderNo())
+                    .setDescription(desc)
                     .putMetadata("orderId", String.valueOf(order.getId()))
                     .putMetadata("orderNo", order.getOrderNo())
                     .putMetadata("userId", String.valueOf(currentUser.id()))
                     .putMetadata("userPhone", currentUser.phone())
+                    .putMetadata("pointsUsed", String.valueOf(pointsToUse))
+                    .putMetadata("discountCny", discount.setScale(2, java.math.RoundingMode.HALF_UP).toPlainString())
                     .build();
 
             PaymentIntent intent = PaymentIntent.create(params);
