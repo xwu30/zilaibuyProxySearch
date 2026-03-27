@@ -480,7 +480,7 @@ public class OrderService {
             throw new AppException(HttpStatus.BAD_REQUEST, "请至少选择一个订单或转运包裹");
         }
 
-        List<OrderEntity> orders = orderRepository.findAllById(orderIdSet);
+        List<OrderEntity> orders = new ArrayList<>(orderRepository.findAllById(orderIdSet));
         for (OrderEntity order : orders) {
             if (!order.getUser().getId().equals(currentUser.id())) {
                 throw new AppException(HttpStatus.FORBIDDEN, "无权操作此订单");
@@ -496,16 +496,31 @@ public class OrderService {
         }
         orderRepository.saveAll(orders);
 
-        // Link selected parcels to the first order (if any), or mark them PACKING standalone
+        // Link selected parcels together — always grouped under one primary order
         if (hasParcels) {
             OrderEntity primaryOrder = orders.isEmpty() ? null : orders.stream()
                     .min((a, b) -> a.getCreatedAt().compareTo(b.getCreatedAt()))
                     .orElse(orders.get(0));
+
+            // No proxy orders selected: create a consolidation order to group all parcels together
+            if (primaryOrder == null) {
+                UserEntity user = userRepository.findById(currentUser.id())
+                        .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "用户不存在"));
+                OrderEntity consolidation = new OrderEntity();
+                consolidation.setUser(user);
+                consolidation.setOrderNo(generateOrderNo());
+                consolidation.setTotalCny(java.math.BigDecimal.ZERO);
+                consolidation.setStatus(OrderEntity.OrderStatus.PACKING);
+                consolidation.setNotes("合箱转运");
+                primaryOrder = orderRepository.save(consolidation);
+                orders.add(primaryOrder);
+            }
+
             List<ForwardingParcelEntity> parcels = parcelRepository.findAllById(parcelIds);
             for (ForwardingParcelEntity parcel : parcels) {
                 if (!parcel.getUser().getId().equals(currentUser.id())) continue;
                 if (parcel.getStatus() == ForwardingParcelEntity.ParcelStatus.IN_WAREHOUSE) {
-                    if (primaryOrder != null) parcel.setLinkedOrder(primaryOrder);
+                    parcel.setLinkedOrder(primaryOrder);
                     parcel.setStatus(ForwardingParcelEntity.ParcelStatus.PACKING);
                 }
             }
