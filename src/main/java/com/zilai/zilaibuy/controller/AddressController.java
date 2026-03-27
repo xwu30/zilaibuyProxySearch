@@ -23,14 +23,17 @@ public class AddressController {
      * Proxies Google Places Autocomplete API, restricted to Canada.
      */
     @GetMapping("/autocomplete")
-    public ResponseEntity<?> autocomplete(@RequestParam String input) {
+    public ResponseEntity<?> autocomplete(@RequestParam String input,
+                                          @RequestParam(defaultValue = "ca") String country) {
         if (input == null || input.trim().length() < 2) {
             return ResponseEntity.ok(Map.of("predictions", List.of(), "status", "ZERO_RESULTS"));
         }
+        String countryCode = country.toLowerCase().replaceAll("[^a-z]", "");
+        if (!List.of("ca", "us", "au", "nz").contains(countryCode)) countryCode = "ca";
         String url = UriComponentsBuilder
                 .fromHttpUrl("https://maps.googleapis.com/maps/api/place/autocomplete/json")
                 .queryParam("input", input.trim())
-                .queryParam("components", "country:ca")
+                .queryParam("components", "country:" + countryCode)
                 .queryParam("types", "address")
                 .queryParam("language", "en")
                 .queryParam("key", placesApiKey)
