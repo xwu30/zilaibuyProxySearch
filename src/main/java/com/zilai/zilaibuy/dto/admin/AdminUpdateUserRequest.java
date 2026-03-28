@@ -11,5 +11,6 @@ public record AdminUpdateUserRequest(
         String shippingStreet,
         String shippingCity,
         String shippingProvince,
-        String shippingPostalCode
+        String shippingPostalCode,
+        Integer points
 ) {}

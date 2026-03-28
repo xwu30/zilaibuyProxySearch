@@ -21,7 +21,8 @@ public record AdminUserDto(
         String shippingStreet,
         String shippingCity,
         String shippingProvince,
-        String shippingPostalCode
+        String shippingPostalCode,
+        int points
 ) {
     public static AdminUserDto from(UserEntity e) {
         return new AdminUserDto(
@@ -29,7 +30,8 @@ public record AdminUserDto(
                 e.getDisplayName(), e.getRole().name(), e.getCloudId(),
                 e.isActive(), e.isLocked(), e.getLockUntil(), e.getCreatedAt(),
                 e.getShippingFullName(), e.getShippingPhone(), e.getShippingStreet(),
-                e.getShippingCity(), e.getShippingProvince(), e.getShippingPostalCode()
+                e.getShippingCity(), e.getShippingProvince(), e.getShippingPostalCode(),
+                e.getPoints()
         );
     }
 }

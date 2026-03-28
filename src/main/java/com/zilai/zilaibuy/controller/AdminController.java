@@ -99,6 +99,7 @@ public class AdminController {
         if (req.shippingCity() != null)      user.setShippingCity(req.shippingCity());
         if (req.shippingProvince() != null)  user.setShippingProvince(req.shippingProvince());
         if (req.shippingPostalCode() != null) user.setShippingPostalCode(req.shippingPostalCode());
+        if (req.points() != null)            user.setPoints(Math.max(0, req.points()));
 
         userRepository.save(user);
         auditLogService.log(currentUser.id(), "USER_UPDATED", "USER", String.valueOf(id), null, httpReq.getRemoteAddr());
