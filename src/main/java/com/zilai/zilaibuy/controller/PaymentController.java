@@ -31,8 +31,8 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class PaymentController {
 
-    private static final java.math.BigDecimal POINTS_CNY_RATE = new java.math.BigDecimal("0.05"); // 兑换：1积分 = 0.05 CNY（10积分 ≈ 1 JPY）
-    private static final java.math.BigDecimal JPY_TO_CNY = new java.math.BigDecimal("0.0467");    // 积累：1 CNY ≈ 1/0.0467 ≈ 21积分 → 1积分 ≈ 1 JPY
+    private static final java.math.BigDecimal JPY_TO_CNY = new java.math.BigDecimal("0.0467");    // 积累：1积分 ≈ 1 JPY
+    private static final java.math.BigDecimal POINTS_CNY_RATE = JPY_TO_CNY.divide(new java.math.BigDecimal("10"), 6, java.math.RoundingMode.HALF_UP); // 兑换：10积分 = 1 JPY → 1积分 = 0.00467 CNY
 
     private final OrderRepository orderRepository;
     private final UserRepository userRepository;
