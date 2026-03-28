@@ -26,8 +26,8 @@ public interface ForwardingParcelRepository extends JpaRepository<ForwardingParc
 
     long countByUserId(Long userId);
 
-    @Query("SELECT COUNT(p) FROM ForwardingParcelEntity p WHERE p.user.id = :userId AND p.inboundCode IS NOT NULL")
-    long countByUserIdAndInboundCodeNotNull(@Param("userId") Long userId);
+    @Query(value = "SELECT COALESCE(MAX(CAST(SUBSTRING_INDEX(inbound_code, '-', -1) AS UNSIGNED)), 0) FROM forwarding_parcels WHERE user_id = :userId AND inbound_code IS NOT NULL", nativeQuery = true)
+    long findMaxInboundCodeSeqForUser(@Param("userId") Long userId);
 
     @Query("SELECT p FROM ForwardingParcelEntity p " +
            "WHERE (:status IS NULL OR p.status = :status) " +

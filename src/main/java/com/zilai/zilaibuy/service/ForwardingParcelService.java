@@ -8,7 +8,6 @@ import com.zilai.zilaibuy.exception.AppException;
 import com.zilai.zilaibuy.repository.ForwardingParcelRepository;
 import com.zilai.zilaibuy.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -131,14 +130,7 @@ public class ForwardingParcelService {
                     parcel.setStatus(ForwardingParcelEntity.ParcelStatus.IN_WAREHOUSE);
                     parcel.setWarehouseLocation(loc);
                     parcel.setInboundCode(code);
-                    try {
-                        parcelRepository.saveAndFlush(parcel);
-                    } catch (DataIntegrityViolationException e) {
-                        // inbound_code collision — append timestamp to make unique
-                        code = code + "-" + (System.currentTimeMillis() % 10000);
-                        parcel.setInboundCode(code);
-                        parcelRepository.saveAndFlush(parcel);
-                    }
+                    parcelRepository.save(parcel);
                     return new OrderService.CheckinResult(true, "转运包裹入库成功",
                             no, "IN_WAREHOUSE", displayName(parcel.getUser()), code, parcel.getId());
                 })
@@ -149,8 +141,8 @@ public class ForwardingParcelService {
         String cloudId = (user.getCloudId() != null && !user.getCloudId().isBlank())
                 ? user.getCloudId()
                 : String.format("ZL%06d", user.getId());
-        // Use count of already-assigned inbound codes (not total parcels) to avoid collisions
-        long seq = parcelRepository.countByUserIdAndInboundCodeNotNull(user.getId()) + 1;
+        // Use max existing sequence number + 1 to avoid collisions even after parcel deletions
+        long seq = parcelRepository.findMaxInboundCodeSeqForUser(user.getId()) + 1;
         String seqPart = String.format("%03d", seq);
         return cloudId + "-" + location + "-" + seqPart;
     }
