@@ -48,6 +48,17 @@ public interface OrderRepository extends JpaRepository<OrderEntity, Long> {
             @Param("qLike") String qLike,
             Pageable pageable);
 
+    @Query(value = "SELECT DISTINCT o FROM OrderEntity o " +
+           "WHERE (:userId IS NULL OR o.user.id = :userId) " +
+           "AND o.status IN :statuses",
+           countQuery = "SELECT COUNT(DISTINCT o) FROM OrderEntity o " +
+           "WHERE (:userId IS NULL OR o.user.id = :userId) " +
+           "AND o.status IN :statuses")
+    Page<OrderEntity> findByFiltersWithStatusIn(
+            @Param("userId") Long userId,
+            @Param("statuses") List<OrderEntity.OrderStatus> statuses,
+            Pageable pageable);
+
     @Query("SELECT COUNT(o) FROM OrderEntity o WHERE o.user.id = :userId")
     long countByUserId(@Param("userId") Long userId);
 

@@ -630,7 +630,7 @@ public class OrderService {
 
     private String generateOrderNo() {
         String dateStr = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
-        String prefix = "DG-" + dateStr + "-";
+        String prefix = "CG-" + dateStr + "-";
         long count = orderRepository.countByOrderNoPrefix(prefix);
         return prefix + String.format("%04d", count + 1);
     }

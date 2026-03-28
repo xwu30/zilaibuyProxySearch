@@ -195,6 +195,12 @@ public class AdminController {
         return ResponseEntity.noContent().build();
     }
 
+    private static final java.util.List<OrderEntity.OrderStatus> PROXY_STATUSES = java.util.List.of(
+            OrderEntity.OrderStatus.PENDING_PAYMENT, OrderEntity.OrderStatus.PURCHASING, OrderEntity.OrderStatus.IN_WAREHOUSE);
+    private static final java.util.List<OrderEntity.OrderStatus> CONSOLIDATED_STATUSES = java.util.List.of(
+            OrderEntity.OrderStatus.PACKING, OrderEntity.OrderStatus.AWAITING_PAYMENT,
+            OrderEntity.OrderStatus.SHIPPED, OrderEntity.OrderStatus.DELIVERED);
+
     @Transactional(readOnly = true)
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPPORT')")
     @GetMapping("/orders")
@@ -202,13 +208,25 @@ public class AdminController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(required = false) Long userId,
-            @RequestParam(required = false) String status) {
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String statusGroup) {
         PageRequest pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
         OrderEntity.OrderStatus orderStatus = null;
-        if (status != null) {
+        if (status != null && !status.isBlank()) {
             try { orderStatus = OrderEntity.OrderStatus.valueOf(status); } catch (IllegalArgumentException ignored) {}
         }
-        return ResponseEntity.ok(orderRepository.findByFilters(userId, orderStatus, null, null, null, pageable).map(AdminOrderDto::from));
+        // If a specific status is provided, use single-status filter regardless of group
+        if (orderStatus != null) {
+            return ResponseEntity.ok(orderRepository.findByFilters(userId, orderStatus, null, null, null, pageable).map(AdminOrderDto::from));
+        }
+        // statusGroup scopes the listing to proxy or consolidated orders
+        if ("proxy".equals(statusGroup)) {
+            return ResponseEntity.ok(orderRepository.findByFiltersWithStatusIn(userId, PROXY_STATUSES, pageable).map(AdminOrderDto::from));
+        }
+        if ("consolidated".equals(statusGroup)) {
+            return ResponseEntity.ok(orderRepository.findByFiltersWithStatusIn(userId, CONSOLIDATED_STATUSES, pageable).map(AdminOrderDto::from));
+        }
+        return ResponseEntity.ok(orderRepository.findByFilters(userId, null, null, null, null, pageable).map(AdminOrderDto::from));
     }
 
     record AdminUpdateOrderRequest(OrderEntity.OrderStatus status, String transitTrackingNo, String transitCarrier) {}
