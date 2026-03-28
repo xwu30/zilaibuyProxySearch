@@ -26,6 +26,9 @@ public interface ForwardingParcelRepository extends JpaRepository<ForwardingParc
 
     long countByUserId(Long userId);
 
+    @Query("SELECT COUNT(p) FROM ForwardingParcelEntity p WHERE p.user.id = :userId AND p.inboundCode IS NOT NULL")
+    long countByUserIdAndInboundCodeNotNull(@Param("userId") Long userId);
+
     @Query("SELECT p FROM ForwardingParcelEntity p " +
            "WHERE (:status IS NULL OR p.status = :status) " +
            "AND (:qLike IS NULL OR " +
