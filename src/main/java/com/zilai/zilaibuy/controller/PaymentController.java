@@ -74,33 +74,30 @@ public class PaymentController {
             }
         }
 
-        BigDecimal discount = BigDecimal.valueOf(pointsToUse).multiply(POINTS_CNY_RATE);
-        BigDecimal chargeAmount = order.getTotalCny().subtract(discount);
-        if (chargeAmount.compareTo(BigDecimal.ZERO) <= 0) {
-            chargeAmount = new BigDecimal("0.01");
-        }
+        // Convert CNY to JPY (zero-decimal currency for Stripe)
+        long totalJpy = order.getTotalCny()
+                .divide(JPY_TO_CNY, 0, java.math.RoundingMode.HALF_UP)
+                .longValue();
+        long discountJpy = pointsToUse / 10; // 10 points = 1 JPY
+        long chargeJpy = Math.max(50L, totalJpy - discountJpy); // Stripe JPY minimum ¥50
 
         Stripe.apiKey = stripeSecretKey;
 
-        long amountFen = chargeAmount
-                .multiply(BigDecimal.valueOf(100))
-                .longValue();
-
         try {
             String desc = "采购费 " + order.getOrderNo();
-            if (pointsToUse > 0) {
-                desc += " | 积分抵扣 " + pointsToUse + "分(-¥" + discount.setScale(2, java.math.RoundingMode.HALF_UP) + ")";
+            if (pointsToUse > 0 && discountJpy > 0) {
+                desc += " | 积分抵扣 -¥" + discountJpy + " JPY (" + pointsToUse + "分)";
             }
             PaymentIntentCreateParams params = PaymentIntentCreateParams.builder()
-                    .setAmount(amountFen)
-                    .setCurrency("cny")
+                    .setAmount(chargeJpy)
+                    .setCurrency("jpy")
                     .setDescription(desc)
                     .putMetadata("orderId", String.valueOf(order.getId()))
                     .putMetadata("orderNo", order.getOrderNo())
                     .putMetadata("userId", String.valueOf(currentUser.id()))
                     .putMetadata("userPhone", currentUser.phone())
                     .putMetadata("pointsUsed", String.valueOf(pointsToUse))
-                    .putMetadata("discountCny", discount.setScale(2, java.math.RoundingMode.HALF_UP).toPlainString())
+                    .putMetadata("discountJpy", String.valueOf(discountJpy))
                     .build();
 
             PaymentIntent intent = PaymentIntent.create(params);
@@ -139,12 +136,15 @@ public class PaymentController {
         order.setShippingFeeCny(req.shippingFeeCny());
 
         Stripe.apiKey = stripeSecretKey;
-        long amountFen = req.shippingFeeCny().multiply(BigDecimal.valueOf(100)).longValue();
+        long shippingJpy = req.shippingFeeCny()
+                .divide(JPY_TO_CNY, 0, java.math.RoundingMode.HALF_UP)
+                .longValue();
+        long chargeJpy = Math.max(50L, shippingJpy);
 
         try {
             PaymentIntentCreateParams params = PaymentIntentCreateParams.builder()
-                    .setAmount(Math.max(amountFen, 1L))
-                    .setCurrency("cny")
+                    .setAmount(chargeJpy)
+                    .setCurrency("jpy")
                     .setDescription("运费 " + order.getOrderNo())
                     .putMetadata("orderId", String.valueOf(order.getId()))
                     .putMetadata("orderNo", order.getOrderNo())
@@ -276,11 +276,12 @@ public class PaymentController {
             int used = order.getPointsUsed();
             int afterDeduct = Math.max(0, user.getPoints() - used);
 
-            // Award earned points: floor(net paid CNY / JPY_TO_CNY) → 1 point per JPY
-            java.math.BigDecimal netPaid = order.getTotalCny()
-                    .subtract(java.math.BigDecimal.valueOf(used).multiply(POINTS_CNY_RATE));
-            if (netPaid.compareTo(java.math.BigDecimal.ZERO) < 0) netPaid = java.math.BigDecimal.ZERO;
-            int earned = netPaid.divide(JPY_TO_CNY, 0, java.math.RoundingMode.FLOOR).intValue();
+            // Award earned points: 1 point per JPY paid (after points discount)
+            long totalJpy = order.getTotalCny()
+                    .divide(JPY_TO_CNY, 0, java.math.RoundingMode.HALF_UP)
+                    .longValue();
+            long discountJpy = used / 10; // 10 points = 1 JPY
+            int earned = (int) Math.max(0, totalJpy - discountJpy);
 
             user.setPoints(afterDeduct + earned);
             userRepository.save(user);
