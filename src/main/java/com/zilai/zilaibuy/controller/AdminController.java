@@ -295,7 +295,9 @@ public class AdminController {
                 orderRepository.countByStatus(OrderEntity.OrderStatus.PENDING_PAYMENT),
                 orderRepository.countByStatus(OrderEntity.OrderStatus.PURCHASING),
                 orderRepository.countByStatus(OrderEntity.OrderStatus.IN_WAREHOUSE),
-                orderRepository.countByStatus(OrderEntity.OrderStatus.SHIPPED)
+                orderRepository.countByStatus(OrderEntity.OrderStatus.SHIPPED),
+                orderRepository.countByStatus(OrderEntity.OrderStatus.PACKING),
+                orderRepository.countByStatus(OrderEntity.OrderStatus.AWAITING_PAYMENT)
         ));
     }
 

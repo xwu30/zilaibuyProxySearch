@@ -9,5 +9,7 @@ public record AdminStatsDto(
         long pendingOrders,
         long purchasingOrders,
         long inWarehouseOrders,
-        long shippedOrders
+        long shippedOrders,
+        long packingOrders,
+        long awaitingPaymentOrders
 ) {}
