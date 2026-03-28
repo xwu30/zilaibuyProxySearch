@@ -504,6 +504,33 @@ public class OrderService {
     }
 
     @Transactional
+    public OrderDto cancelPacking(Long orderId, AuthenticatedUser currentUser) {
+        OrderEntity order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "订单不存在"));
+        if (!order.getUser().getId().equals(currentUser.id()) && !isPrivileged(currentUser.role())) {
+            throw new AppException(HttpStatus.FORBIDDEN, "无权操作此订单");
+        }
+        if (order.getStatus() != OrderEntity.OrderStatus.PACKING) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "只有打包中的订单可以撤销");
+        }
+        // Unlink and revert forwarding parcels back to IN_WAREHOUSE
+        List<ForwardingParcelEntity> parcels = parcelRepository.findByLinkedOrderId(orderId);
+        for (ForwardingParcelEntity parcel : parcels) {
+            parcel.setLinkedOrder(null);
+            parcel.setStatus(ForwardingParcelEntity.ParcelStatus.IN_WAREHOUSE);
+        }
+        parcelRepository.saveAll(parcels);
+        // Revert order to IN_WAREHOUSE
+        order.setStatus(OrderEntity.OrderStatus.IN_WAREHOUSE);
+        order.setWeightG(null);
+        order.setLengthCm(null);
+        order.setWidthCm(null);
+        order.setHeightCm(null);
+        order.setPackingPhotoUrl(null);
+        return OrderDto.from(orderRepository.save(order));
+    }
+
+    @Transactional
     public List<OrderDto> createPackingRequest(List<Long> orderItemIds, List<Long> parcelIds, AuthenticatedUser currentUser) {
         // Collect unique order IDs from selected items
         Set<Long> orderIdSet = new HashSet<>();
