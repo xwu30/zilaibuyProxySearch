@@ -277,13 +277,18 @@ public class AdminController {
     public ResponseEntity<Page<ParcelDto>> listParcels(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
-            @RequestParam(required = false) String status) {
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) Long userId,
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime dateFrom,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime dateTo) {
         PageRequest pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        com.zilai.zilaibuy.entity.ForwardingParcelEntity.ParcelStatus parcelStatus = null;
         if (status != null && !status.isBlank()) {
-            var s = com.zilai.zilaibuy.entity.ForwardingParcelEntity.ParcelStatus.valueOf(status);
-            return ResponseEntity.ok(parcelService.listAllParcelsByStatus(s, pageable));
+            try { parcelStatus = com.zilai.zilaibuy.entity.ForwardingParcelEntity.ParcelStatus.valueOf(status); } catch (IllegalArgumentException ignored) {}
         }
-        return ResponseEntity.ok(parcelService.listAllParcels(pageable));
+        String qLike = (q != null && !q.isBlank()) ? "%" + q.trim() + "%" : null;
+        return ResponseEntity.ok(parcelService.findByFilters(userId, parcelStatus, dateFrom, dateTo, qLike, pageable));
     }
 
     @GetMapping("/stats")

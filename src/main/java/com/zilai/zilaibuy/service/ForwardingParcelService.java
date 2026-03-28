@@ -62,6 +62,13 @@ public class ForwardingParcelService {
         return parcelRepository.findByStatusAndSearch(null, qLike, pageable).map(ParcelDto::from);
     }
 
+    @Transactional(readOnly = true)
+    public Page<ParcelDto> findByFilters(Long userId, ForwardingParcelEntity.ParcelStatus status,
+                                         LocalDateTime dateFrom, LocalDateTime dateTo,
+                                         String qLike, Pageable pageable) {
+        return parcelRepository.findByFilters(userId, status, dateFrom, dateTo, qLike, pageable).map(ParcelDto::from);
+    }
+
     @Transactional
     public ParcelDto updateParcel(Long parcelId, CreateParcelRequest req, Long userId) {
         ForwardingParcelEntity parcel = parcelRepository.findById(parcelId)

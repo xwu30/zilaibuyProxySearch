@@ -39,4 +39,30 @@ public interface ForwardingParcelRepository extends JpaRepository<ForwardingParc
             @Param("status") ForwardingParcelEntity.ParcelStatus status,
             @Param("qLike") String qLike,
             Pageable pageable);
+
+    @Query(value = "SELECT p FROM ForwardingParcelEntity p " +
+           "WHERE (:userId IS NULL OR p.user.id = :userId) " +
+           "AND (:status IS NULL OR p.status = :status) " +
+           "AND (:dateFrom IS NULL OR p.createdAt >= :dateFrom) " +
+           "AND (:dateTo IS NULL OR p.createdAt < :dateTo) " +
+           "AND (:qLike IS NULL OR " +
+           "  (p.inboundTrackingNo IS NOT NULL AND p.inboundTrackingNo LIKE :qLike) OR " +
+           "  (p.inboundCode IS NOT NULL AND p.inboundCode LIKE :qLike) OR " +
+           "  p.content LIKE :qLike)",
+           countQuery = "SELECT COUNT(p) FROM ForwardingParcelEntity p " +
+           "WHERE (:userId IS NULL OR p.user.id = :userId) " +
+           "AND (:status IS NULL OR p.status = :status) " +
+           "AND (:dateFrom IS NULL OR p.createdAt >= :dateFrom) " +
+           "AND (:dateTo IS NULL OR p.createdAt < :dateTo) " +
+           "AND (:qLike IS NULL OR " +
+           "  (p.inboundTrackingNo IS NOT NULL AND p.inboundTrackingNo LIKE :qLike) OR " +
+           "  (p.inboundCode IS NOT NULL AND p.inboundCode LIKE :qLike) OR " +
+           "  p.content LIKE :qLike)")
+    Page<ForwardingParcelEntity> findByFilters(
+            @Param("userId") Long userId,
+            @Param("status") ForwardingParcelEntity.ParcelStatus status,
+            @Param("dateFrom") java.time.LocalDateTime dateFrom,
+            @Param("dateTo") java.time.LocalDateTime dateTo,
+            @Param("qLike") String qLike,
+            Pageable pageable);
 }
