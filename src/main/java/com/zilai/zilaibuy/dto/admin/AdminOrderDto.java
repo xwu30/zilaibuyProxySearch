@@ -14,6 +14,7 @@ public record AdminOrderDto(
         String status,
         BigDecimal totalCny,
         int itemCount,
+        int linkedParcelCount,
         LocalDateTime createdAt
 ) {
     public static AdminOrderDto from(OrderEntity o) {
@@ -26,6 +27,7 @@ public record AdminOrderDto(
                 o.getStatus().name(),
                 o.getTotalCny(),
                 o.getItems() != null ? o.getItems().size() : 0,
+                o.getLinkedParcels() != null ? o.getLinkedParcels().size() : 0,
                 o.getCreatedAt()
         );
     }

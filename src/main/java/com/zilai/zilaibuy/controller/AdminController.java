@@ -195,6 +195,7 @@ public class AdminController {
         return ResponseEntity.noContent().build();
     }
 
+    @Transactional(readOnly = true)
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPPORT')")
     @GetMapping("/orders")
     public ResponseEntity<Page<AdminOrderDto>> listOrders(
