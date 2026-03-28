@@ -107,6 +107,13 @@ public class ForwardingParcelService {
         parcelRepository.delete(parcel);
     }
 
+    /** Check if a tracking number already exists for any user (excluding a specific parcel id if editing). */
+    public boolean trackingNumberExists(String trackingNo, Long excludeParcelId) {
+        return parcelRepository.findByInboundTrackingNo(trackingNo)
+                .map(p -> !p.getId().equals(excludeParcelId))
+                .orElse(false);
+    }
+
     /** Called by warehouse checkin. Returns null if no matching parcel found. */
     @Transactional
     public OrderService.CheckinResult checkinByTrackingNo(String trackingNo, String location) {

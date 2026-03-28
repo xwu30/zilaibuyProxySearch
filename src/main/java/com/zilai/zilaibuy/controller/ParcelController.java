@@ -65,6 +65,15 @@ public class ParcelController {
         return ResponseEntity.noContent().build();
     }
 
+    @GetMapping("/check-tracking")
+    public ResponseEntity<Map<String, Boolean>> checkTracking(
+            @RequestParam String trackingNo,
+            @RequestParam(required = false) Long excludeId,
+            @AuthenticationPrincipal AuthenticatedUser currentUser) {
+        boolean exists = parcelService.trackingNumberExists(trackingNo.trim(), excludeId);
+        return ResponseEntity.ok(Map.of("exists", exists));
+    }
+
     record ShippingRequestBody(List<Long> parcelIds, String shippingLine, double totalCny, boolean addInspection, boolean addPhoto) {}
     record ShippingRequestResponse(long orderId, String orderNo) {}
 
