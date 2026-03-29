@@ -60,9 +60,7 @@ public class PaymentController {
         if (!order.getUser().getId().equals(currentUser.id())) {
             return ResponseEntity.status(403).build();
         }
-        boolean isPending = order.getStatus() == OrderEntity.OrderStatus.PENDING_PAYMENT;
-        boolean isFeeQuoted = order.getStatus() == OrderEntity.OrderStatus.FEE_QUOTED;
-        if (!isPending && !isFeeQuoted) {
+        if (order.getStatus() != OrderEntity.OrderStatus.PENDING_PAYMENT) {
             return ResponseEntity.badRequest().build();
         }
 
@@ -80,14 +78,13 @@ public class PaymentController {
         long totalJpy = order.getTotalCny()
                 .divide(JPY_TO_CNY, 0, java.math.RoundingMode.HALF_UP)
                 .longValue();
-        long serviceFeeJpy = order.getServiceFeeJpy() != null ? order.getServiceFeeJpy() : 0L;
         long discountJpy = pointsToUse / 10; // 10 points = 1 JPY
-        long chargeJpy = Math.max(50L, totalJpy + serviceFeeJpy - discountJpy); // Stripe JPY minimum ¥50
+        long chargeJpy = Math.max(50L, totalJpy + 200L - discountJpy); // +200 JPY proxy service fee
 
         Stripe.apiKey = stripeSecretKey;
 
         try {
-            String desc = "采购费 " + order.getOrderNo();
+            String desc = "采购费+服务费 " + order.getOrderNo();
             if (pointsToUse > 0 && discountJpy > 0) {
                 desc += " | 积分抵扣 -¥" + discountJpy + " JPY (" + pointsToUse + "分)";
             }
