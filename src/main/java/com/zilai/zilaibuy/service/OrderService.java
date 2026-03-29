@@ -495,6 +495,11 @@ public class OrderService {
         order.getItems().remove(item);
         orderItemRepository.delete(item);
 
+        if (order.getItems().isEmpty()) {
+            orderRepository.delete(order);
+            return null;
+        }
+
         java.math.BigDecimal newTotal = order.getItems().stream()
                 .map(i -> i.getPriceCny().multiply(java.math.BigDecimal.valueOf(i.getQuantity())))
                 .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);

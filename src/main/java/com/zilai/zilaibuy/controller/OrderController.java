@@ -122,7 +122,8 @@ public class OrderController {
             @PathVariable Long orderId,
             @PathVariable Long itemId,
             @AuthenticationPrincipal AuthenticatedUser currentUser) {
-        return ResponseEntity.ok(orderService.deleteOrderItem(orderId, itemId, currentUser));
+        OrderDto result = orderService.deleteOrderItem(orderId, itemId, currentUser);
+        return result != null ? ResponseEntity.ok(result) : ResponseEntity.noContent().build();
     }
 
     @PostMapping("/packing-request")
