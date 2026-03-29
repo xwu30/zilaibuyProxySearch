@@ -10,6 +10,7 @@ import java.util.List;
 public record OrderDto(
         Long id,
         String orderNo,
+        String packingNo,
         String status,
         BigDecimal totalCny,
         String notes,
@@ -26,7 +27,9 @@ public record OrderDto(
         Integer heightCm,
         String packingPhotoUrl,
         BigDecimal shippingFeeCny,
-        String shippingRoute
+        String shippingRoute,
+        Integer serviceFeeJpy,
+        String serviceFeeMemo
 ) {
     public static OrderDto from(OrderEntity e) {
         List<OrderItemDto> items = e.getItems() != null
@@ -35,10 +38,11 @@ public record OrderDto(
         List<ParcelDto> parcels = e.getLinkedParcels() != null
                 ? e.getLinkedParcels().stream().map(ParcelDto::from).toList()
                 : List.of();
-        return new OrderDto(e.getId(), e.getOrderNo(), e.getStatus().name(),
+        return new OrderDto(e.getId(), e.getOrderNo(), e.getPackingNo(), e.getStatus().name(),
                 e.getTotalCny(), e.getNotes(), e.getTransitTrackingNo(), e.getTransitCarrier(),
                 e.getUser().getId(), items, parcels, e.getCreatedAt(), e.getUpdatedAt(),
                 e.getWeightG(), e.getLengthCm(), e.getWidthCm(), e.getHeightCm(),
-                e.getPackingPhotoUrl(), e.getShippingFeeCny(), e.getShippingRoute());
+                e.getPackingPhotoUrl(), e.getShippingFeeCny(), e.getShippingRoute(),
+                e.getServiceFeeJpy(), e.getServiceFeeMemo());
     }
 }

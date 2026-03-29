@@ -31,6 +31,9 @@ public class OrderEntity {
     @Column(name = "order_no", unique = true, nullable = false, length = 32)
     private String orderNo;
 
+    @Column(name = "packing_no", unique = true, length = 32)
+    private String packingNo;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
     private OrderStatus status = OrderStatus.PENDING_PAYMENT;
@@ -88,7 +91,13 @@ public class OrderEntity {
     @Column(name = "shipping_route", length = 50)
     private String shippingRoute;
 
+    @Column(name = "service_fee_jpy")
+    private Integer serviceFeeJpy;
+
+    @Column(name = "service_fee_memo", length = 500)
+    private String serviceFeeMemo;
+
     public enum OrderStatus {
-        PENDING_PAYMENT, PURCHASING, IN_TRANSIT, IN_WAREHOUSE, PACKING, AWAITING_PAYMENT, SHIPPED, DELIVERED, CANCELLED
+        PENDING_PAYMENT, FEE_QUOTED, PURCHASING, IN_TRANSIT, IN_WAREHOUSE, PACKING, AWAITING_PAYMENT, SHIPPED, DELIVERED, CANCELLED
     }
 }

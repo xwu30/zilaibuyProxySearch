@@ -196,7 +196,8 @@ public class AdminController {
     }
 
     private static final java.util.List<OrderEntity.OrderStatus> PROXY_STATUSES = java.util.List.of(
-            OrderEntity.OrderStatus.PENDING_PAYMENT, OrderEntity.OrderStatus.PURCHASING, OrderEntity.OrderStatus.IN_WAREHOUSE);
+            OrderEntity.OrderStatus.PENDING_PAYMENT, OrderEntity.OrderStatus.FEE_QUOTED,
+            OrderEntity.OrderStatus.PURCHASING, OrderEntity.OrderStatus.IN_WAREHOUSE);
     private static final java.util.List<OrderEntity.OrderStatus> CONSOLIDATED_STATUSES = java.util.List.of(
             OrderEntity.OrderStatus.PACKING, OrderEntity.OrderStatus.AWAITING_PAYMENT,
             OrderEntity.OrderStatus.SHIPPED, OrderEntity.OrderStatus.DELIVERED);
@@ -232,6 +233,7 @@ public class AdminController {
     record AdminUpdateOrderRequest(OrderEntity.OrderStatus status, String transitTrackingNo, String transitCarrier) {}
     record AdminUpdateOrderItemRequest(int quantity, BigDecimal priceCny) {}
     record AdminSavePackingInfoRequest(Integer weightG, Integer lengthCm, Integer widthCm, Integer heightCm, String packingPhotoUrl) {}
+    record AdminSetServiceFeeRequest(Integer serviceFeeJpy, String serviceFeeMemo) {}
     record AdminUpdateParcelRequest(
             com.zilai.zilaibuy.entity.ForwardingParcelEntity.ParcelStatus status,
             Double weightKg, String outboundTrackingNo, String notes,
@@ -243,6 +245,14 @@ public class AdminController {
             @PathVariable Long id,
             @RequestBody AdminUpdateOrderRequest req) {
         return ResponseEntity.ok(orderService.adminUpdateOrder(id, req.status(), req.transitTrackingNo(), req.transitCarrier()));
+    }
+
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPPORT')")
+    @PutMapping("/orders/{id}/service-fee")
+    public ResponseEntity<OrderDetailDto> setServiceFee(
+            @PathVariable Long id,
+            @RequestBody AdminSetServiceFeeRequest req) {
+        return ResponseEntity.ok(orderService.setServiceFee(id, req.serviceFeeJpy(), req.serviceFeeMemo()));
     }
 
     @PreAuthorize("hasAnyRole('ADMIN', 'WAREHOUSE', 'SUPPORT')")
@@ -298,6 +308,7 @@ public class AdminController {
                 orderRepository.count(),
                 orderRepository.sumTotalRevenue(),
                 orderRepository.countByStatus(OrderEntity.OrderStatus.PENDING_PAYMENT),
+                orderRepository.countByStatus(OrderEntity.OrderStatus.FEE_QUOTED),
                 orderRepository.countByStatus(OrderEntity.OrderStatus.PURCHASING),
                 orderRepository.countByStatus(OrderEntity.OrderStatus.IN_WAREHOUSE),
                 orderRepository.countByStatus(OrderEntity.OrderStatus.SHIPPED),

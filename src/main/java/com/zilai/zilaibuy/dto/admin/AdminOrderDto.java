@@ -8,6 +8,7 @@ import java.time.LocalDateTime;
 public record AdminOrderDto(
         Long id,
         String orderNo,
+        String packingNo,
         Long userId,
         String userPhone,
         String username,
@@ -15,12 +16,15 @@ public record AdminOrderDto(
         BigDecimal totalCny,
         int itemCount,
         int linkedParcelCount,
-        LocalDateTime createdAt
+        LocalDateTime createdAt,
+        Integer serviceFeeJpy,
+        String serviceFeeMemo
 ) {
     public static AdminOrderDto from(OrderEntity o) {
         return new AdminOrderDto(
                 o.getId(),
                 o.getOrderNo(),
+                o.getPackingNo(),
                 o.getUser().getId(),
                 o.getUser().getPhone(),
                 o.getUser().getUsername(),
@@ -28,7 +32,9 @@ public record AdminOrderDto(
                 o.getTotalCny(),
                 o.getItems() != null ? o.getItems().size() : 0,
                 o.getLinkedParcels() != null ? o.getLinkedParcels().size() : 0,
-                o.getCreatedAt()
+                o.getCreatedAt(),
+                o.getServiceFeeJpy(),
+                o.getServiceFeeMemo()
         );
     }
 }

@@ -7,6 +7,7 @@ public record AdminStatsDto(
         long totalOrders,
         BigDecimal totalRevenueCny,
         long pendingOrders,
+        long feeQuotedOrders,
         long purchasingOrders,
         long inWarehouseOrders,
         long shippedOrders,

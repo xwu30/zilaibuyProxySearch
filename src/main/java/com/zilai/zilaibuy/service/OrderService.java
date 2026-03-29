@@ -173,6 +173,18 @@ public class OrderService {
     }
 
     @Transactional
+    public OrderDetailDto setServiceFee(Long orderId, Integer serviceFeeJpy, String serviceFeeMemo) {
+        OrderEntity order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "订单不存在"));
+        order.setServiceFeeJpy(serviceFeeJpy != null ? serviceFeeJpy : 0);
+        order.setServiceFeeMemo(serviceFeeMemo);
+        order.setStatus(OrderEntity.OrderStatus.FEE_QUOTED);
+        orderRepository.save(order);
+        List<ForwardingParcelEntity> linkedParcels = parcelRepository.findByLinkedOrderId(orderId);
+        return OrderDetailDto.from(order, linkedParcels);
+    }
+
+    @Transactional
     public OrderDetailDto savePackingInfo(Long orderId, Integer weightG, Integer lengthCm, Integer widthCm,
                                           Integer heightCm, String packingPhotoUrl) {
         OrderEntity order = orderRepository.findById(orderId)
@@ -321,6 +333,7 @@ public class OrderService {
             return OrderDto.from(order);
         }
         order.setStatus(OrderEntity.OrderStatus.PACKING);
+        if (order.getPackingNo() == null) order.setPackingNo(generatePackingNo());
         orderRepository.save(order);
         return OrderDto.from(order);
     }
@@ -557,6 +570,7 @@ public class OrderService {
             if (order.getStatus() == OrderEntity.OrderStatus.PURCHASING
                     || order.getStatus() == OrderEntity.OrderStatus.IN_WAREHOUSE) {
                 order.setStatus(OrderEntity.OrderStatus.PACKING);
+                if (order.getPackingNo() == null) order.setPackingNo(generatePackingNo());
             }
         }
         orderRepository.saveAll(orders);
@@ -631,6 +645,13 @@ public class OrderService {
     private String generateOrderNo() {
         String dateStr = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
         String prefix = "CG-" + dateStr + "-";
+        long count = orderRepository.countByOrderNoPrefix(prefix);
+        return prefix + String.format("%04d", count + 1);
+    }
+
+    private String generatePackingNo() {
+        String dateStr = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
+        String prefix = "HX-" + dateStr + "-";
         long count = orderRepository.countByOrderNoPrefix(prefix);
         return prefix + String.format("%04d", count + 1);
     }
