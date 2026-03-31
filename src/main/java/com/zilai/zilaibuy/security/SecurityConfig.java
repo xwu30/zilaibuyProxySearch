@@ -39,11 +39,13 @@ public class SecurityConfig {
             .csrf(AbstractHttpConfigurer::disable)
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
+                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/items/search").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/products").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/address/**").permitAll()
                 .requestMatchers("/actuator/health", "/api/actuator/health").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/shipping/debug-quote").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/payments/webhook").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/shipping-rates").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/announcements").permitAll()
