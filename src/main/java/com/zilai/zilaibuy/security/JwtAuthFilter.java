@@ -1,5 +1,6 @@
 package com.zilai.zilaibuy.security;
 
+import com.zilai.zilaibuy.repository.UserRepository;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -21,6 +22,7 @@ import java.util.List;
 public class JwtAuthFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
+    private final UserRepository userRepository;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -33,12 +35,15 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             String role = claims.get("role", String.class);
             String phone = claims.get("phone", String.class);
 
-            var auth = new UsernamePasswordAuthenticationToken(
-                    new AuthenticatedUser(Long.parseLong(userId), phone, role),
-                    null,
-                    List.of(new SimpleGrantedAuthority("ROLE_" + role))
-            );
-            SecurityContextHolder.getContext().setAuthentication(auth);
+            long uid = Long.parseLong(userId);
+            if (userRepository.existsById(uid)) {
+                var auth = new UsernamePasswordAuthenticationToken(
+                        new AuthenticatedUser(uid, phone, role),
+                        null,
+                        List.of(new SimpleGrantedAuthority("ROLE_" + role))
+                );
+                SecurityContextHolder.getContext().setAuthentication(auth);
+            }
         }
         filterChain.doFilter(request, response);
     }

@@ -34,8 +34,6 @@ public class HbrShippingController {
             .connectTimeout(Duration.ofSeconds(10))
             .build();
 
-    record QuoteRequest(double weightKg, String countryCode) {}
-
     /** Temporary debug endpoint — no auth, returns raw HBR response for diagnostics */
     @GetMapping("/debug-quote")
     public ResponseEntity<String> debugQuote() {
@@ -58,11 +56,13 @@ public class HbrShippingController {
         }
     }
 
-    @PostMapping("/quote")
-    public ResponseEntity<?> getQuote(@RequestBody QuoteRequest req) {
+    @GetMapping("/quote")
+    public ResponseEntity<?> getQuote(
+            @RequestParam double weightKg,
+            @RequestParam(defaultValue = "CA") String countryCode) {
         try {
-            String country = req.countryCode() != null ? req.countryCode() : "CA";
-            String paramsJson = String.format("{\"country_code\":\"%s\",\"weight\":%.3f}", country, req.weightKg());
+            String country = countryCode;
+            String paramsJson = String.format("{\"country_code\":\"%s\",\"weight\":%.3f}", country, weightKg);
 
             String body = "appToken=" + encode(appToken)
                     + "&appKey=" + encode(appKey)

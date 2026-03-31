@@ -59,6 +59,24 @@ public interface OrderRepository extends JpaRepository<OrderEntity, Long> {
             @Param("statuses") List<OrderEntity.OrderStatus> statuses,
             Pageable pageable);
 
+    @Query(value = "SELECT DISTINCT o FROM OrderEntity o " +
+           "WHERE (:userId IS NULL OR o.user.id = :userId) " +
+           "AND (:status IS NULL OR o.status = :status) " +
+           "AND (:qLike IS NOT NULL OR o.orderNo LIKE 'HX%' OR o.orderNo LIKE 'SH-%' OR o.orderNo LIKE 'DG-%') " +
+           "AND (:qLike IS NULL OR o.orderNo LIKE :qLike OR " +
+           "  EXISTS (SELECT p FROM ForwardingParcelEntity p WHERE p.linkedOrder = o AND p.inboundTrackingNo IS NOT NULL AND p.inboundTrackingNo LIKE :qLike))",
+           countQuery = "SELECT COUNT(DISTINCT o) FROM OrderEntity o " +
+           "WHERE (:userId IS NULL OR o.user.id = :userId) " +
+           "AND (:status IS NULL OR o.status = :status) " +
+           "AND (:qLike IS NOT NULL OR o.orderNo LIKE 'HX%' OR o.orderNo LIKE 'SH-%' OR o.orderNo LIKE 'DG-%') " +
+           "AND (:qLike IS NULL OR o.orderNo LIKE :qLike OR " +
+           "  EXISTS (SELECT p FROM ForwardingParcelEntity p WHERE p.linkedOrder = o AND p.inboundTrackingNo IS NOT NULL AND p.inboundTrackingNo LIKE :qLike))")
+    Page<OrderEntity> findConsolidatedOrders(
+            @Param("userId") Long userId,
+            @Param("status") OrderEntity.OrderStatus status,
+            @Param("qLike") String qLike,
+            Pageable pageable);
+
     @Query("SELECT COUNT(o) FROM OrderEntity o WHERE o.user.id = :userId")
     long countByUserId(@Param("userId") Long userId);
 

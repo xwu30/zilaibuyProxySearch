@@ -210,22 +210,25 @@ public class AdminController {
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(required = false) Long userId,
             @RequestParam(required = false) String status,
-            @RequestParam(required = false) String statusGroup) {
+            @RequestParam(required = false) String statusGroup,
+            @RequestParam(required = false) String q) {
         PageRequest pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
         OrderEntity.OrderStatus orderStatus = null;
         if (status != null && !status.isBlank()) {
             try { orderStatus = OrderEntity.OrderStatus.valueOf(status); } catch (IllegalArgumentException ignored) {}
         }
-        // If a specific status is provided, use single-status filter regardless of group
+        String qLike = (q != null && !q.isBlank()) ? "%" + q.trim() + "%" : null;
+        // consolidated tab: always query HX/SH prefix orders; optionally filter by status and search
+        if ("consolidated".equals(statusGroup)) {
+            return ResponseEntity.ok(orderRepository.findConsolidatedOrders(userId, orderStatus, qLike, pageable).map(AdminOrderDto::from));
+        }
+        // If a specific status is provided (proxy context), use single-status filter
         if (orderStatus != null) {
             return ResponseEntity.ok(orderRepository.findByFilters(userId, orderStatus, null, null, null, pageable).map(AdminOrderDto::from));
         }
-        // statusGroup scopes the listing to proxy or consolidated orders
+        // proxy group
         if ("proxy".equals(statusGroup)) {
             return ResponseEntity.ok(orderRepository.findByFiltersWithStatusIn(userId, PROXY_STATUSES, pageable).map(AdminOrderDto::from));
-        }
-        if ("consolidated".equals(statusGroup)) {
-            return ResponseEntity.ok(orderRepository.findByFiltersWithStatusIn(userId, CONSOLIDATED_STATUSES, pageable).map(AdminOrderDto::from));
         }
         return ResponseEntity.ok(orderRepository.findByFilters(userId, null, null, null, null, pageable).map(AdminOrderDto::from));
     }
@@ -328,4 +331,5 @@ public class AdminController {
         PageRequest pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
         return ResponseEntity.ok(auditLogService.listLogs(action, operatorId, from, to, pageable));
     }
+
 }

@@ -229,10 +229,10 @@ public class AuthService {
     public AuthResponse loginWithPassword(String account, String password) {
         UserEntity user = account.contains("@")
                 ? userRepository.findByEmail(account)
-                        .orElseThrow(() -> new AppException(HttpStatus.UNAUTHORIZED, "邮箱或密码错误"))
+                        .orElseThrow(() -> new AppException(HttpStatus.UNAUTHORIZED, "用户不存在或密码错误"))
                 : userRepository.findByUsername(account)
                         .or(() -> userRepository.findByPhone(account))
-                        .orElseThrow(() -> new AppException(HttpStatus.UNAUTHORIZED, "用户名或密码错误"));
+                        .orElseThrow(() -> new AppException(HttpStatus.UNAUTHORIZED, "用户不存在或密码错误"));
 
         if (!user.isActive()) {
             throw new AppException(HttpStatus.FORBIDDEN, "账户已被禁用，请联系客服");
@@ -242,7 +242,7 @@ public class AuthService {
         if (user.getPasswordHash() == null ||
                 !passwordEncoder.matches(password, user.getPasswordHash())) {
             handleLoginFailure(user);
-            throw new AppException(HttpStatus.UNAUTHORIZED, "账号或密码错误");
+            throw new AppException(HttpStatus.UNAUTHORIZED, "用户不存在或密码错误");
         }
 
         // Reset fail count on success

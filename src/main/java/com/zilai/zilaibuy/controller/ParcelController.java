@@ -2,8 +2,10 @@ package com.zilai.zilaibuy.controller;
 
 import com.zilai.zilaibuy.dto.parcel.CreateParcelRequest;
 import com.zilai.zilaibuy.dto.parcel.ParcelDto;
+import com.zilai.zilaibuy.entity.ForwardingParcelEntity;
 import com.zilai.zilaibuy.entity.OrderEntity;
 import com.zilai.zilaibuy.entity.UserEntity;
+import com.zilai.zilaibuy.repository.ForwardingParcelRepository;
 import com.zilai.zilaibuy.repository.OrderRepository;
 import com.zilai.zilaibuy.repository.UserRepository;
 import com.zilai.zilaibuy.security.AuthenticatedUser;
@@ -15,6 +17,8 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -27,6 +31,7 @@ public class ParcelController {
     private final ForwardingParcelService parcelService;
     private final OrderRepository orderRepository;
     private final UserRepository userRepository;
+    private final ForwardingParcelRepository forwardingParcelRepository;
 
     @PostMapping
     public ResponseEntity<ParcelDto> create(
@@ -86,9 +91,11 @@ public class ParcelController {
 
         OrderEntity order = new OrderEntity();
         order.setUser(user);
-        order.setOrderNo("SH-" + UUID.randomUUID().toString().replace("-", "").substring(0, 12).toUpperCase());
+        String datePart = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
+        String randPart = UUID.randomUUID().toString().replace("-", "").substring(0, 6).toUpperCase();
+        order.setOrderNo("HX" + datePart + "-" + randPart);
         order.setTotalCny(BigDecimal.valueOf(req.totalCny()));
-        order.setStatus(OrderEntity.OrderStatus.PENDING_PAYMENT);
+        order.setStatus(OrderEntity.OrderStatus.PACKING);
         String notes = String.format("转运申请 | 线路: %s | 验货: %s | 拍照: %s | 包裹数: %d",
                 req.shippingLine(),
                 req.addInspection() ? "是" : "否",
@@ -97,6 +104,15 @@ public class ParcelController {
         order.setNotes(notes);
 
         OrderEntity saved = orderRepository.save(order);
+
+        List<ForwardingParcelEntity> parcels = forwardingParcelRepository.findAllById(req.parcelIds());
+        for (ForwardingParcelEntity parcel : parcels) {
+            if (!parcel.getUser().getId().equals(currentUser.id())) continue;
+            parcel.setLinkedOrder(saved);
+            parcel.setStatus(ForwardingParcelEntity.ParcelStatus.PACKING);
+        }
+        forwardingParcelRepository.saveAll(parcels);
+
         return ResponseEntity.ok(new ShippingRequestResponse(saved.getId(), saved.getOrderNo()));
     }
 }
