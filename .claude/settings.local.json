@@ -229,7 +229,12 @@
       "Bash(cd /Users/xwu30/Projects/zilaibuyProxySearch && JAVA_HOME=/Library/Java/JavaVirtualMachines/temurin-17.jdk/Contents/Home mvn package -DskipTests -q 2>&1 | tail -5)",
       "Bash(VERSION=\"v-20260331191657\"\nBUCKET=elasticbeanstalk-us-east-1-579324938856\n/Users/xwu30/Library/Python/3.8/bin/aws elasticbeanstalk create-application-version \\\\\n  --application-name zilaibuy-backend \\\\\n  --version-label \"$VERSION\" \\\\\n  --source-bundle S3Bucket=\"$BUCKET\",S3Key=\"zilaibuy/$VERSION.jar\" --query 'ApplicationVersion.VersionLabel' --output text && \\\\\n/Users/xwu30/Library/Python/3.8/bin/aws elasticbeanstalk update-environment \\\\\n  --environment-name Zilaibuy-backend-env \\\\\n  --version-label \"$VERSION\" --query 'Status' --output text)",
       "Bash(cd /Users/xwu30/Projects/zilaibuyProxySearch && JAVA_HOME=/Library/Java/JavaVirtualMachines/temurin-17.jdk/Contents/Home mvn package -DskipTests -q 2>&1 | tail -3)",
-      "Bash(cd /Users/xwu30/Projects/zilaibuyProxySearch && JAVA_HOME=/Library/Java/JavaVirtualMachines/temurin-17.jdk/Contents/Home mvn package -DskipTests -q && echo \"Build OK\")"
+      "Bash(cd /Users/xwu30/Projects/zilaibuyProxySearch && JAVA_HOME=/Library/Java/JavaVirtualMachines/temurin-17.jdk/Contents/Home mvn package -DskipTests -q && echo \"Build OK\")",
+      "Bash(JAVA_HOME=/Library/Java/JavaVirtualMachines/temurin-17.jdk/Contents/Home mvn compile -q 2>&1 | tail -5)",
+      "Bash(wait 62611 2>/dev/null; echo \"Done\")",
+      "Bash(jobs -l 2>/dev/null; ps aux | grep deploy.sh | grep -v grep)",
+      "Bash(JAVA_HOME=/Library/Java/JavaVirtualMachines/temurin-17.jdk/Contents/Home bash /Users/xwu30/Projects/zilaibuyProxySearch/deploy.sh 2>&1)",
+      "Bash(export PATH=\"$PATH:/Users/xwu30/Library/Python/3.8/bin\" && JAVA_HOME=/Library/Java/JavaVirtualMachines/temurin-17.jdk/Contents/Home bash /Users/xwu30/Projects/zilaibuyProxySearch/deploy.sh 2>&1)"
     ]
   }
 }

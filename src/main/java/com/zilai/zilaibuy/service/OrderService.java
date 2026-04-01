@@ -185,6 +185,16 @@ public class OrderService {
     }
 
     @Transactional
+    public OrderDetailDto savePackingPhotoOnly(Long orderId, String packingPhotoUrl) {
+        OrderEntity order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "订单不存在"));
+        order.setPackingPhotoUrl(packingPhotoUrl != null && !packingPhotoUrl.isBlank() ? packingPhotoUrl.trim() : null);
+        orderRepository.save(order);
+        List<ForwardingParcelEntity> linkedParcels = parcelRepository.findByLinkedOrderId(orderId);
+        return OrderDetailDto.from(order, linkedParcels);
+    }
+
+    @Transactional
     public OrderDetailDto savePackingInfo(Long orderId, Integer weightG, Integer lengthCm, Integer widthCm,
                                           Integer heightCm, String packingPhotoUrl) {
         OrderEntity order = orderRepository.findById(orderId)

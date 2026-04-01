@@ -262,6 +262,16 @@ public class AdminController {
         return ResponseEntity.ok(orderService.setServiceFee(id, req.serviceFeeJpy(), req.serviceFeeMemo()));
     }
 
+    record AdminSavePhotoRequest(String packingPhotoUrl) {}
+
+    @PreAuthorize("hasAnyRole('ADMIN', 'WAREHOUSE', 'SUPPORT')")
+    @PutMapping("/orders/{id}/packing-photo")
+    public ResponseEntity<OrderDetailDto> savePackingPhoto(
+            @PathVariable Long id,
+            @RequestBody AdminSavePhotoRequest req) {
+        return ResponseEntity.ok(orderService.savePackingPhotoOnly(id, req.packingPhotoUrl()));
+    }
+
     @PreAuthorize("hasAnyRole('ADMIN', 'WAREHOUSE', 'SUPPORT')")
     @PutMapping("/orders/{id}/packing-info")
     public ResponseEntity<OrderDetailDto> savePackingInfo(
