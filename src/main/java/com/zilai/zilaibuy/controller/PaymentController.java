@@ -47,7 +47,9 @@ public class PaymentController {
     record CreateIntentResponse(String clientSecret) {}
     record ConfirmPaymentRequest(Long orderId) {}
     record ConfirmPaymentResponse(String status) {}
-    record CreateShippingIntentRequest(Long orderId, String shippingRoute, java.math.BigDecimal shippingFeeCny) {}
+    record CreateShippingIntentRequest(Long orderId, String shippingRoute, java.math.BigDecimal shippingFeeCny,
+                                       Integer routeFeeJpy, Integer handlingFeeJpy,
+                                       Integer inspectionFeeJpy, Integer photoFeeJpy) {}
 
     @PostMapping("/create-intent")
     public ResponseEntity<CreateIntentResponse> createIntent(
@@ -134,6 +136,15 @@ public class PaymentController {
 
         order.setShippingRoute(req.shippingRoute());
         order.setShippingFeeCny(req.shippingFeeCny());
+        // Store fee breakdown in serviceFeeMemo as "route:X,handling:X,inspection:X,photo:X"
+        if (req.routeFeeJpy() != null) {
+            String memo = String.format("route:%d,handling:%d,inspection:%d,photo:%d",
+                    req.routeFeeJpy() != null ? req.routeFeeJpy() : 0,
+                    req.handlingFeeJpy() != null ? req.handlingFeeJpy() : 0,
+                    req.inspectionFeeJpy() != null ? req.inspectionFeeJpy() : 0,
+                    req.photoFeeJpy() != null ? req.photoFeeJpy() : 0);
+            order.setServiceFeeMemo(memo);
+        }
 
         Stripe.apiKey = stripeSecretKey;
         long shippingJpy = req.shippingFeeCny()
