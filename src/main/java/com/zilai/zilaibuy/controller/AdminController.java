@@ -220,6 +220,10 @@ public class AdminController {
         String qLike = (q != null && !q.isBlank()) ? "%" + q.trim() + "%" : null;
         // consolidated tab: always query HX/SH prefix orders; optionally filter by status and search
         if ("consolidated".equals(statusGroup)) {
+            // Virtual status SHIPPING_PAID: orders with shippingRoute set (paid, awaiting shipment)
+            if ("SHIPPING_PAID".equals(status)) {
+                return ResponseEntity.ok(orderRepository.findConsolidatedPaidOrders(userId, qLike, pageable).map(AdminOrderDto::from));
+            }
             return ResponseEntity.ok(orderRepository.findConsolidatedOrders(userId, orderStatus, qLike, pageable).map(AdminOrderDto::from));
         }
         // If a specific status is provided (proxy context), use single-status filter

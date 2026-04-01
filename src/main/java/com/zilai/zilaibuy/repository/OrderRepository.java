@@ -77,6 +77,28 @@ public interface OrderRepository extends JpaRepository<OrderEntity, Long> {
             @Param("qLike") String qLike,
             Pageable pageable);
 
+    // Shipping paid: PACKING or PURCHASING with shippingRoute set (includes webhook-bug recovery orders)
+    @Query(value = "SELECT DISTINCT o FROM OrderEntity o " +
+           "WHERE (:userId IS NULL OR o.user.id = :userId) " +
+           "AND o.shippingRoute IS NOT NULL " +
+           "AND o.status IN (com.zilai.zilaibuy.entity.OrderEntity.OrderStatus.PACKING, " +
+           "                 com.zilai.zilaibuy.entity.OrderEntity.OrderStatus.PURCHASING) " +
+           "AND (o.orderNo LIKE 'HX%' OR o.orderNo LIKE 'SH-%' OR o.orderNo LIKE 'DG-%') " +
+           "AND (:qLike IS NULL OR o.orderNo LIKE :qLike OR " +
+           "  EXISTS (SELECT p FROM ForwardingParcelEntity p WHERE p.linkedOrder = o AND p.inboundTrackingNo IS NOT NULL AND p.inboundTrackingNo LIKE :qLike))",
+           countQuery = "SELECT COUNT(DISTINCT o) FROM OrderEntity o " +
+           "WHERE (:userId IS NULL OR o.user.id = :userId) " +
+           "AND o.shippingRoute IS NOT NULL " +
+           "AND o.status IN (com.zilai.zilaibuy.entity.OrderEntity.OrderStatus.PACKING, " +
+           "                 com.zilai.zilaibuy.entity.OrderEntity.OrderStatus.PURCHASING) " +
+           "AND (o.orderNo LIKE 'HX%' OR o.orderNo LIKE 'SH-%' OR o.orderNo LIKE 'DG-%') " +
+           "AND (:qLike IS NULL OR o.orderNo LIKE :qLike OR " +
+           "  EXISTS (SELECT p FROM ForwardingParcelEntity p WHERE p.linkedOrder = o AND p.inboundTrackingNo IS NOT NULL AND p.inboundTrackingNo LIKE :qLike))")
+    Page<OrderEntity> findConsolidatedPaidOrders(
+            @Param("userId") Long userId,
+            @Param("qLike") String qLike,
+            Pageable pageable);
+
     @Query("SELECT COUNT(o) FROM OrderEntity o WHERE o.user.id = :userId")
     long countByUserId(@Param("userId") Long userId);
 
