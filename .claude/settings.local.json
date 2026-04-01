@@ -227,7 +227,8 @@
       "Bash(APP_ID=\"d1mrimskujb9bx\"\n/Users/xwu30/Library/Python/3.8/bin/aws amplify list-jobs --app-id \"$APP_ID\" --branch-name main \\\\\n  --query 'jobSummaries[0:2].[jobId,status,commitMessage]' --output table 2>&1)",
       "Bash(/bin/git -C /Users/xwu30/Projects/zilaibuyProxySearch log --oneline -10)",
       "Bash(cd /Users/xwu30/Projects/zilaibuyProxySearch && JAVA_HOME=/Library/Java/JavaVirtualMachines/temurin-17.jdk/Contents/Home mvn package -DskipTests -q 2>&1 | tail -5)",
-      "Bash(VERSION=\"v-20260331191657\"\nBUCKET=elasticbeanstalk-us-east-1-579324938856\n/Users/xwu30/Library/Python/3.8/bin/aws elasticbeanstalk create-application-version \\\\\n  --application-name zilaibuy-backend \\\\\n  --version-label \"$VERSION\" \\\\\n  --source-bundle S3Bucket=\"$BUCKET\",S3Key=\"zilaibuy/$VERSION.jar\" --query 'ApplicationVersion.VersionLabel' --output text && \\\\\n/Users/xwu30/Library/Python/3.8/bin/aws elasticbeanstalk update-environment \\\\\n  --environment-name Zilaibuy-backend-env \\\\\n  --version-label \"$VERSION\" --query 'Status' --output text)"
+      "Bash(VERSION=\"v-20260331191657\"\nBUCKET=elasticbeanstalk-us-east-1-579324938856\n/Users/xwu30/Library/Python/3.8/bin/aws elasticbeanstalk create-application-version \\\\\n  --application-name zilaibuy-backend \\\\\n  --version-label \"$VERSION\" \\\\\n  --source-bundle S3Bucket=\"$BUCKET\",S3Key=\"zilaibuy/$VERSION.jar\" --query 'ApplicationVersion.VersionLabel' --output text && \\\\\n/Users/xwu30/Library/Python/3.8/bin/aws elasticbeanstalk update-environment \\\\\n  --environment-name Zilaibuy-backend-env \\\\\n  --version-label \"$VERSION\" --query 'Status' --output text)",
+      "Bash(cd /Users/xwu30/Projects/zilaibuyProxySearch && JAVA_HOME=/Library/Java/JavaVirtualMachines/temurin-17.jdk/Contents/Home mvn package -DskipTests -q 2>&1 | tail -3)"
     ]
   }
 }

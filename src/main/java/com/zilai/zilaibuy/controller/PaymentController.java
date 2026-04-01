@@ -253,15 +253,18 @@ public class PaymentController {
             log.info("Payment succeeded for PaymentIntent: {}", piId);
             orderRepository.findByStripePaymentIntentId(piId).ifPresent(order -> {
                 if (order.getStatus() == OrderEntity.OrderStatus.AWAITING_PAYMENT) {
+                    // Shipping payment: confirm hasn't run yet
                     order.setStatus(OrderEntity.OrderStatus.PACKING);
                     orderRepository.save(order);
                     log.info("Order {} shipping paid (webhook), status → PACKING", order.getOrderNo());
-                } else if (order.getStatus() != OrderEntity.OrderStatus.PURCHASING) {
+                } else if (order.getStatus() == OrderEntity.OrderStatus.PENDING_PAYMENT) {
+                    // Proxy payment: confirm hasn't run yet
                     order.setStatus(OrderEntity.OrderStatus.PURCHASING);
                     orderRepository.save(order);
                     deductPoints(order);
-                    log.info("Order {} status updated to PURCHASING", order.getOrderNo());
+                    log.info("Order {} status updated to PURCHASING (webhook)", order.getOrderNo());
                 }
+                // PACKING or PURCHASING: confirm already ran — skip to avoid double-processing
             });
         } else if ("payment_intent.payment_failed".equals(event.getType())) {
             log.warn("Payment failed for PaymentIntent: {}", piId);
