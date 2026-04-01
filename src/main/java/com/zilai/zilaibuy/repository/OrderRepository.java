@@ -25,6 +25,7 @@ public interface OrderRepository extends JpaRepository<OrderEntity, Long> {
            "AND (:status IS NULL OR o.status = :status) " +
            "AND (:dateFrom IS NULL OR o.createdAt >= :dateFrom) " +
            "AND (:dateTo IS NULL OR o.createdAt < :dateTo) " +
+           "AND o.orderNo NOT LIKE 'HX%' AND o.orderNo NOT LIKE 'SH-%' AND o.orderNo NOT LIKE 'DG-%' " +
            "AND (:qLike IS NULL OR " +
            "  o.orderNo LIKE :qLike OR " +
            "  (o.transitTrackingNo IS NOT NULL AND o.transitTrackingNo LIKE :qLike) OR " +
@@ -35,6 +36,7 @@ public interface OrderRepository extends JpaRepository<OrderEntity, Long> {
            "AND (:status IS NULL OR o.status = :status) " +
            "AND (:dateFrom IS NULL OR o.createdAt >= :dateFrom) " +
            "AND (:dateTo IS NULL OR o.createdAt < :dateTo) " +
+           "AND o.orderNo NOT LIKE 'HX%' AND o.orderNo NOT LIKE 'SH-%' AND o.orderNo NOT LIKE 'DG-%' " +
            "AND (:qLike IS NULL OR " +
            "  o.orderNo LIKE :qLike OR " +
            "  (o.transitTrackingNo IS NOT NULL AND o.transitTrackingNo LIKE :qLike) OR " +
@@ -50,10 +52,12 @@ public interface OrderRepository extends JpaRepository<OrderEntity, Long> {
 
     @Query(value = "SELECT DISTINCT o FROM OrderEntity o " +
            "WHERE (:userId IS NULL OR o.user.id = :userId) " +
-           "AND o.status IN :statuses",
+           "AND o.status IN :statuses " +
+           "AND o.orderNo NOT LIKE 'HX%' AND o.orderNo NOT LIKE 'SH-%' AND o.orderNo NOT LIKE 'DG-%'",
            countQuery = "SELECT COUNT(DISTINCT o) FROM OrderEntity o " +
            "WHERE (:userId IS NULL OR o.user.id = :userId) " +
-           "AND o.status IN :statuses")
+           "AND o.status IN :statuses " +
+           "AND o.orderNo NOT LIKE 'HX%' AND o.orderNo NOT LIKE 'SH-%' AND o.orderNo NOT LIKE 'DG-%'")
     Page<OrderEntity> findByFiltersWithStatusIn(
             @Param("userId") Long userId,
             @Param("statuses") List<OrderEntity.OrderStatus> statuses,
