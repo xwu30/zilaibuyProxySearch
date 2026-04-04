@@ -255,11 +255,26 @@ public class OrderService {
             }
         }
         if (req.itemStatus() != null) item.setItemStatus(req.itemStatus());
-        if (req.itemTrackingNo() != null) item.setItemTrackingNo(req.itemTrackingNo());
+        if (req.itemTrackingNo() != null) {
+            String newTracking = req.itemTrackingNo().trim();
+            if (!newTracking.isBlank()) {
+                // Reject if tracking already used by another item
+                orderItemRepository.findByItemTrackingNo(newTracking).ifPresent(existing -> {
+                    if (!existing.getId().equals(itemId)) {
+                        throw new AppException(HttpStatus.CONFLICT, "运单号 " + newTracking + " 已被其他商品使用");
+                    }
+                });
+                // Reject if tracking already registered as a parcel inbound tracking
+                parcelRepository.findByInboundTrackingNo(newTracking).ifPresent(parcel -> {
+                    throw new AppException(HttpStatus.CONFLICT, "运单号 " + newTracking + " 已在包裹系统中登记");
+                });
+            }
+            item.setItemTrackingNo(newTracking.isBlank() ? null : newTracking);
+        }
         if (req.itemCarrier() != null) item.setItemCarrier(req.itemCarrier());
         orderItemRepository.save(item);
 
-        // Auto-advance order to IN_WAREHOUSE if all items are now in warehouse
+        // Auto-advance order to IN_WAREHOUSE only when all items are physically checked in
         if ("IN_WAREHOUSE".equals(item.getItemStatus())) {
             long total = orderItemRepository.countByOrderId(orderId);
             long inWarehouse = orderItemRepository.countByOrderIdAndItemStatus(orderId, "IN_WAREHOUSE");
