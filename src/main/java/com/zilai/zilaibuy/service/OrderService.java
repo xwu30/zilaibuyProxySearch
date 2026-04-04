@@ -300,6 +300,17 @@ public class OrderService {
                     item.setItemStatus("IN_WAREHOUSE");
                     orderItemRepository.save(item);
 
+                    // Auto-advance order to IN_WAREHOUSE if all items are now checked in
+                    OrderEntity order = item.getOrder();
+                    if (order.getStatus() == OrderEntity.OrderStatus.PURCHASING) {
+                        long total = orderItemRepository.countByOrderId(order.getId());
+                        long inWarehouse = orderItemRepository.countByOrderIdAndItemStatus(order.getId(), "IN_WAREHOUSE");
+                        if (total > 0 && total == inWarehouse) {
+                            order.setStatus(OrderEntity.OrderStatus.IN_WAREHOUSE);
+                            orderRepository.save(order);
+                        }
+                    }
+
                     return new CheckinResult(true, "商品入库成功: " + item.getProductTitle(),
                             no, "IN_WAREHOUSE", displayName(item.getOrder().getUser()), null, null);
                 })
