@@ -693,7 +693,7 @@ public class OrderService {
     private String generatePackingNo() {
         String dateStr = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
         String prefix = "HX-" + dateStr + "-";
-        long count = orderRepository.countByOrderNoPrefix(prefix);
+        long count = orderRepository.countByPackingNoPrefix(prefix);
         return prefix + String.format("%04d", count + 1);
     }
 
