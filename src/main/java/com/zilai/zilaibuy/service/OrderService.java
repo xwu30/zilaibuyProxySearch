@@ -623,25 +623,20 @@ public class OrderService {
                     .orElse(orders.get(0));
             for (OrderEntity order : orders) {
                 if (order.getId().equals(primaryOrder.getId())) continue;
-                // Move all items from secondary order to primary order
-                List<OrderItemEntity> itemsToMove = new ArrayList<>(order.getItems());
-                order.getItems().clear();
-                orderRepository.save(order); // flush empty items first to avoid orphan conflicts
-                for (OrderItemEntity item : itemsToMove) {
-                    item.setOrder(primaryOrder);
-                    primaryOrder.getItems().add(item);
-                    orderItemRepository.save(item);
-                }
+                // Move items via direct JPQL update to avoid orphanRemoval deleting them
+                orderItemRepository.moveItemsToOrder(order.getId(), primaryOrder.getId());
                 // Add secondary order's total to primary
                 if (order.getTotalCny() != null) {
                     primaryOrder.setTotalCny(primaryOrder.getTotalCny() == null
                             ? order.getTotalCny()
                             : primaryOrder.getTotalCny().add(order.getTotalCny()));
                 }
-                // Cancel secondary order
+                // Cancel secondary order (mark notes, zero out total)
                 order.setStatus(OrderEntity.OrderStatus.CANCELLED);
                 order.setNotes("已合并到 " + primaryOrder.getOrderNo());
                 order.setTotalCny(BigDecimal.ZERO);
+                // Clear in-memory items so orphanRemoval doesn't delete them on save
+                order.getItems().clear();
                 orderRepository.save(order);
             }
             orderRepository.save(primaryOrder);
