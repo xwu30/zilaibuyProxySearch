@@ -37,6 +37,7 @@ public class OrderService {
     private final OrderItemRepository orderItemRepository;
     private final UserRepository userRepository;
     private final ForwardingParcelRepository parcelRepository;
+    private final HbrService hbrService;
 
     @Transactional
     public OrderDto createOrder(CreateOrderRequest req, Long userId) {
@@ -152,8 +153,23 @@ public class OrderService {
         OrderEntity order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "订单不存在"));
         if (status != null) order.setStatus(status);
-        if (transitTrackingNo != null)
-            order.setTransitTrackingNo(transitTrackingNo.isBlank() ? null : transitTrackingNo.trim());
+        if (transitTrackingNo != null) {
+            String newTracking = transitTrackingNo.isBlank() ? null : transitTrackingNo.trim();
+            if (newTracking != null) {
+                orderItemRepository.findByItemTrackingNo(newTracking).ifPresent(i -> {
+                    throw new AppException(HttpStatus.CONFLICT, "单号 " + newTracking + " 已被商品运单号使用");
+                });
+                parcelRepository.findByInboundTrackingNo(newTracking).ifPresent(p -> {
+                    throw new AppException(HttpStatus.CONFLICT, "单号 " + newTracking + " 已在包裹系统中登记");
+                });
+                orderRepository.findByTransitTrackingNo(newTracking).ifPresent(existing -> {
+                    if (!existing.getId().equals(orderId)) {
+                        throw new AppException(HttpStatus.CONFLICT, "单号 " + newTracking + " 已被订单 " + existing.getOrderNo() + " 使用");
+                    }
+                });
+            }
+            order.setTransitTrackingNo(newTracking);
+        }
         if (transitCarrier != null)
             order.setTransitCarrier(transitCarrier.isBlank() ? null : transitCarrier.trim());
         orderRepository.save(order);
@@ -179,6 +195,17 @@ public class OrderService {
         order.setServiceFeeJpy(serviceFeeJpy != null ? serviceFeeJpy : 0);
         order.setServiceFeeMemo(serviceFeeMemo);
         order.setStatus(OrderEntity.OrderStatus.FEE_QUOTED);
+        orderRepository.save(order);
+        List<ForwardingParcelEntity> linkedParcels = parcelRepository.findByLinkedOrderId(orderId);
+        return OrderDetailDto.from(order, linkedParcels);
+    }
+
+    @Transactional
+    public OrderDetailDto saveShippingQuote(Long orderId, String quotedRoute, Integer quotedFeeJpy) {
+        OrderEntity order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "订单不存在"));
+        order.setQuotedRoute(quotedRoute != null && !quotedRoute.isBlank() ? quotedRoute.trim() : null);
+        order.setQuotedFeeJpy(quotedFeeJpy);
         orderRepository.save(order);
         List<ForwardingParcelEntity> linkedParcels = parcelRepository.findByLinkedOrderId(orderId);
         return OrderDetailDto.from(order, linkedParcels);
@@ -273,6 +300,11 @@ public class OrderService {
         }
         if (req.itemCarrier() != null) item.setItemCarrier(req.itemCarrier());
         orderItemRepository.save(item);
+
+        // Register tracking number with HBR
+        if (req.itemTrackingNo() != null && !req.itemTrackingNo().isBlank()) {
+            hbrService.createConsolidatedOrderForItem(req.itemTrackingNo().trim(), req.itemCarrier(), item);
+        }
 
         // Auto-advance order to IN_WAREHOUSE only when all items are physically checked in
         if ("IN_WAREHOUSE".equals(item.getItemStatus())) {
