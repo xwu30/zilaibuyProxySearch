@@ -23,6 +23,7 @@ public class ForwardingParcelService {
 
     private final ForwardingParcelRepository parcelRepository;
     private final UserRepository userRepository;
+    private final HbrService hbrService;
 
     @Transactional
     public ParcelDto createParcel(CreateParcelRequest req, Long userId) {
@@ -37,6 +38,9 @@ public class ForwardingParcelService {
         parcel.setDeclaredValue(req.declaredValue());
         parcel.setProcessingOption(req.processingOption() != null ? req.processingOption() : "direct");
         parcelRepository.save(parcel);
+        if (req.inboundTrackingNo() != null && !req.inboundTrackingNo().isBlank()) {
+            hbrService.createConsolidatedOrder(req.inboundTrackingNo());
+        }
         return ParcelDto.from(parcel);
     }
 
