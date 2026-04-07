@@ -24,9 +24,14 @@ public record ParcelDto(
         String warehouseLocation,
         String inboundCode,
         LocalDateTime createdAt,
-        LocalDateTime updatedAt
+        LocalDateTime updatedAt,
+        String hbrMessage
 ) {
     public static ParcelDto from(ForwardingParcelEntity e) {
+        return from(e, null);
+    }
+
+    public static ParcelDto from(ForwardingParcelEntity e, String hbrMessage) {
         return new ParcelDto(
                 e.getId(),
                 e.getUser().getId(),
@@ -46,7 +51,8 @@ public record ParcelDto(
                 e.getWarehouseLocation(),
                 e.getInboundCode(),
                 e.getCreatedAt(),
-                e.getUpdatedAt()
+                e.getUpdatedAt(),
+                hbrMessage
         );
     }
 }

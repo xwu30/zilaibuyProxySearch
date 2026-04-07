@@ -38,10 +38,11 @@ public class ForwardingParcelService {
         parcel.setDeclaredValue(req.declaredValue());
         parcel.setProcessingOption(req.processingOption() != null ? req.processingOption() : "direct");
         parcelRepository.save(parcel);
+        String hbrMessage = null;
         if (req.inboundTrackingNo() != null && !req.inboundTrackingNo().isBlank()) {
-            hbrService.createConsolidatedOrder(req.inboundTrackingNo());
+            hbrMessage = hbrService.createConsolidatedOrder(req.inboundTrackingNo());
         }
-        return ParcelDto.from(parcel);
+        return ParcelDto.from(parcel, hbrMessage);
     }
 
     @Transactional(readOnly = true)

@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.net.URI;
@@ -34,12 +33,11 @@ public class HbrService {
             .build();
 
     /**
-     * Calls HBR createconsolidatedorder API asynchronously (fire-and-forget).
-     * Failure is logged but does not affect the caller.
+     * Calls HBR createconsolidatedorder API synchronously.
+     * Returns null on success, or an error message string on failure.
      */
-    @Async
-    public void createConsolidatedOrder(String orderTrackingNumber) {
-        if (orderTrackingNumber == null || orderTrackingNumber.isBlank()) return;
+    public String createConsolidatedOrder(String orderTrackingNumber) {
+        if (orderTrackingNumber == null || orderTrackingNumber.isBlank()) return null;
         try {
             String paramsJson = "{\"order_tracking_number\":\"" + orderTrackingNumber.trim() + "\"}";
             String body = "appToken=" + encode(appToken)
@@ -58,11 +56,15 @@ public class HbrService {
             JsonNode root = mapper.readTree(response.body());
             if (root.has("success") && root.get("success").asInt() == 1) {
                 log.info("HBR createconsolidatedorder OK for tracking={}", orderTrackingNumber);
+                return null;
             } else {
-                log.warn("HBR createconsolidatedorder failed for tracking={}: {}", orderTrackingNumber, response.body());
+                String msg = root.has("cnmessage") ? root.get("cnmessage").asText() : response.body();
+                log.warn("HBR createconsolidatedorder failed for tracking={}: {}", orderTrackingNumber, msg);
+                return msg;
             }
         } catch (Exception e) {
             log.error("HBR createconsolidatedorder error for tracking={}: {}", orderTrackingNumber, e.getMessage());
+            return "HBR连接失败: " + e.getMessage();
         }
     }
 
