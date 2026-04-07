@@ -81,6 +81,9 @@ hbr:
   app-token: ${HBR_APP_TOKEN:7167b176259095554243338a1784aa17}
   app-key: ${HBR_APP_KEY:5590bc680843cc3fecde3135bb89cd8e5590bc680843cc3fecde3135bb89cd8e}
   url: ${HBR_URL:http://hbrserver.jp/webservice/PublicService.asmx/ServiceInterfaceUTF8}
+  user-id: ${HBR_USER_ID:1001}
+  user-code: ${HBR_USER_CODE:zy001}
+  user-name: ${HBR_USER_NAME:王子天}
 
 management:
   health:
