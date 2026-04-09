@@ -71,6 +71,7 @@ public class GeminiService {
                 严格返回如下 JSON 格式，不要包含任何额外文字：
                 {
                   "title": "商品名称（中文）",
+                  "titleJa": "商品原始日文名称",
                   "priceJpy": 价格数字（日元整数）,
                   "priceCny": 价格数字（人民币，按汇率0.048换算）,
                   "exchangeRate": 0.048,
