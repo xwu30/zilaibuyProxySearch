@@ -30,7 +30,7 @@ public class RakutenSyncService {
     private final RakutenMapper mapper;
     private final GoogleTranslateService translateService;
 
-    public int syncKeyword(String keyword, int pages, int hitsPerPage) {
+    public int syncKeyword(String keyword, int pages, int hitsPerPage) throws InterruptedException {
         if (pages <= 0) pages = 1;
         if (hitsPerPage <= 0) hitsPerPage = 30;
 
@@ -43,7 +43,10 @@ public class RakutenSyncService {
 
         try {
             for (int page = 1; page <= pages; page++) {
-                RakutenIchibaSearchResponse resp = rakutenClient.search(keyword, page, hitsPerPage);
+                if (page > 1) {
+                    Thread.sleep(2000); // 页间间隔，避免限流
+                }
+                RakutenIchibaSearchResponse resp = searchWithRetry(keyword, page, hitsPerPage);
                 List<RakutenIchibaSearchResponse.ItemWrapper> items = resp.items();
                 if (items == null || items.isEmpty()) {
                     log.info("[RakutenSyncService] keyword={}, page={} no items", keyword, page);
@@ -141,6 +144,25 @@ public class RakutenSyncService {
         }
 
         return totalNew + totalUpdated;
+    }
+
+    /**
+     * Calls RakutenClient with up to 2 retries on 429 Too Many Requests.
+     * Waits 30s before first retry, 60s before second.
+     */
+    private RakutenIchibaSearchResponse searchWithRetry(String keyword, int page, int hits) throws InterruptedException {
+        int[] retryDelaysMs = {30_000, 60_000};
+        for (int attempt = 0; ; attempt++) {
+            try {
+                return rakutenClient.search(keyword, page, hits);
+            } catch (Exception e) {
+                boolean is429 = e.getMessage() != null && e.getMessage().contains("429");
+                if (!is429 || attempt >= retryDelaysMs.length) throw e;
+                log.warn("[RakutenSyncService] 429 for keyword={} page={}, waiting {}s before retry {}",
+                        keyword, page, retryDelaysMs[attempt] / 1000, attempt + 1);
+                Thread.sleep(retryDelaysMs[attempt]);
+            }
+        }
     }
 
     // Fix #4: deactivate items not seen in the current sync run

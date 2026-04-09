@@ -86,10 +86,12 @@ public class PaymentController {
         Stripe.apiKey = stripeSecretKey;
 
         try {
-            String desc = "采购费+服务费 " + order.getOrderNo();
+            long serviceFeeJpy = 200L;
+            String desc = order.getOrderNo() + " | 商品¥" + totalJpy + " 服务费¥" + serviceFeeJpy;
             if (pointsToUse > 0 && discountJpy > 0) {
-                desc += " | 积分抵扣 -¥" + discountJpy + " JPY (" + pointsToUse + "分)";
+                desc += " 积分-¥" + discountJpy + "(" + pointsToUse + "分)";
             }
+            desc += " 合计¥" + chargeJpy;
             PaymentIntentCreateParams params = PaymentIntentCreateParams.builder()
                     .setAmount(chargeJpy)
                     .setCurrency("jpy")
@@ -106,6 +108,7 @@ public class PaymentController {
 
             order.setStripePaymentIntentId(intent.getId());
             order.setPointsUsed(pointsToUse);
+            order.setServiceFeeJpy((int) serviceFeeJpy);
             orderRepository.save(order);
 
             log.info("PaymentIntent created: {} for order {}", intent.getId(), order.getOrderNo());
@@ -290,12 +293,13 @@ public class PaymentController {
             int used = order.getPointsUsed();
             int afterDeduct = Math.max(0, user.getPoints() - used);
 
-            // Award earned points: 1 point per JPY paid (after points discount)
+            // Award earned points: 1 point per JPY actually paid (items + service fee - discount)
             long totalJpy = order.getTotalCny()
                     .divide(JPY_TO_CNY, 0, java.math.RoundingMode.HALF_UP)
                     .longValue();
             long discountJpy = used / 10; // 10 points = 1 JPY
-            int earned = (int) Math.max(0, totalJpy - discountJpy);
+            long serviceFeJpy = order.getServiceFeeJpy() != null ? order.getServiceFeeJpy().longValue() : 200L;
+            int earned = (int) Math.max(0, totalJpy + serviceFeJpy - discountJpy);
 
             user.setPoints(afterDeduct + earned);
             userRepository.save(user);

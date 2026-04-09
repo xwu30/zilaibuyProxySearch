@@ -66,6 +66,34 @@ public class EmailService {
         }
     }
 
+    public void sendParcelCheckinEmail(String toEmail, String displayName,
+                                       String trackingNo, String inboundCode, String location) {
+        if (!StringUtils.hasText(toEmail)) return;
+        if (!StringUtils.hasText(fromEmail)) {
+            log.info("[DEV] Parcel checkin email for {} tracking={} code={}", toEmail, trackingNo, inboundCode);
+            return;
+        }
+        try {
+            SimpleMailMessage msg = new SimpleMailMessage();
+            msg.setFrom(fromEmail);
+            msg.setTo(toEmail);
+            msg.setSubject("【ZilaiBuy】您的包裹已入库 " + inboundCode);
+            msg.setText(
+                "您好，" + displayName + "！\n\n" +
+                "您的包裹已成功入库，详情如下：\n\n" +
+                "  快递单号：" + trackingNo + "\n" +
+                "  入库编号：" + inboundCode + "\n" +
+                "  存放位置：" + location + "\n\n" +
+                "您可以登录 ZilaiBuy 查看包裹状态，并提交转运申请。\n\n" +
+                "— ZilaiBuy 团队"
+            );
+            mailSender.send(msg);
+            log.info("Parcel checkin email sent to {} for tracking={}", toEmail, trackingNo);
+        } catch (Exception e) {
+            log.warn("Failed to send parcel checkin email to {} ({})", toEmail, e.getMessage());
+        }
+    }
+
     public void sendConfirmationEmail(String toEmail, String token) {
         String link = baseUrl + "/api/auth/confirm-email?token=" + token;
         if (!StringUtils.hasText(fromEmail)) {

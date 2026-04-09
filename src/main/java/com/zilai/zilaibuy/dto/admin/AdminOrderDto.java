@@ -17,9 +17,12 @@ public record AdminOrderDto(
         int itemCount,
         int linkedParcelCount,
         LocalDateTime createdAt,
+        LocalDateTime updatedAt,
         Integer serviceFeeJpy,
         String serviceFeeMemo,
-        String shippingRoute
+        String shippingRoute,
+        String transitTrackingNo,
+        String transitCarrier
 ) {
     public static AdminOrderDto from(OrderEntity o) {
         return new AdminOrderDto(
@@ -34,9 +37,12 @@ public record AdminOrderDto(
                 o.getItems() != null ? o.getItems().size() : 0,
                 o.getLinkedParcels() != null ? o.getLinkedParcels().size() : 0,
                 o.getCreatedAt(),
+                o.getUpdatedAt(),
                 o.getServiceFeeJpy(),
                 o.getServiceFeeMemo(),
-                o.getShippingRoute()
+                o.getShippingRoute(),
+                o.getTransitTrackingNo(),
+                o.getTransitCarrier()
         );
     }
 }

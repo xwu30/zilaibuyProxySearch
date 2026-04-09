@@ -163,9 +163,10 @@ public class HbrService {
     private String mapCarrierToTrackingType(String carrier) {
         if (carrier == null) return "Other";
         String lower = carrier.toLowerCase();
-        if (lower.contains("jp post") || lower.contains("日本郵便") || lower.contains("日本邮政")) return "JPPost";
-        if (lower.contains("yamato") || lower.contains("黑猫") || lower.contains("雅玛多")) return "Yamato";
-        if (lower.contains("sagawa") || lower.contains("佐川")) return "Sagawa";
+        if (lower.equals("japan-post") || lower.contains("jp post") || lower.contains("日本邮政")) return "JPPost";
+        if (lower.equals("seino") || lower.contains("西浓")) return "Seino";
+        if (lower.equals("yamato") || lower.contains("yamato") || lower.contains("黑猫")) return "Yamato";
+        if (lower.equals("sagawa") || lower.contains("sagawa") || lower.contains("佐川")) return "Sagawa";
         return "Other";
     }
 

@@ -2,11 +2,13 @@ package com.zilai.zilaibuy.controller;
 
 import com.zilai.zilaibuy.dto.order.*;
 import com.zilai.zilaibuy.dto.parcel.ParcelDto;
+import com.zilai.zilaibuy.service.AuditLogService;
 import org.springframework.security.access.prepost.PreAuthorize;
 import com.zilai.zilaibuy.entity.OrderEntity;
 import com.zilai.zilaibuy.dto.order.UpdateOrderItemRequest;
 import com.zilai.zilaibuy.security.AuthenticatedUser;
 import com.zilai.zilaibuy.service.OrderService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -23,6 +25,7 @@ import org.springframework.web.bind.annotation.*;
 public class OrderController {
 
     private final OrderService orderService;
+    private final AuditLogService auditLogService;
 
     @PostMapping
     public ResponseEntity<OrderDto> createOrder(
@@ -89,9 +92,18 @@ public class OrderController {
             @PathVariable Long orderId,
             @PathVariable Long itemId,
             @RequestBody UpdateItemTrackingRequest req,
-            @AuthenticationPrincipal AuthenticatedUser currentUser) {
+            @AuthenticationPrincipal AuthenticatedUser currentUser,
+            HttpServletRequest httpReq) {
         boolean privileged = "ADMIN".equals(currentUser.role()) || "WAREHOUSE".equals(currentUser.role()) || "SUPPORT".equals(currentUser.role());
-        return ResponseEntity.ok(orderService.updateItemTracking(orderId, itemId, req, privileged));
+        OrderItemDto result = orderService.updateItemTracking(orderId, itemId, req, privileged);
+        if (req.itemTrackingNo() != null && !req.itemTrackingNo().isBlank()) {
+            String detail = String.format("{\"carrier\":\"%s\",\"trackingNo\":\"%s\"}",
+                    req.itemCarrier() != null ? req.itemCarrier() : "",
+                    req.itemTrackingNo().trim());
+            auditLogService.log(currentUser.id(), "ITEM_TRACKING_SET", "ORDER_ITEM",
+                    orderId + "-" + itemId, detail, httpReq.getRemoteAddr());
+        }
+        return ResponseEntity.ok(result);
     }
 
     @PutMapping("/{orderId}/items/{itemId}")

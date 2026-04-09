@@ -66,13 +66,13 @@ public interface OrderRepository extends JpaRepository<OrderEntity, Long> {
     @Query(value = "SELECT DISTINCT o FROM OrderEntity o " +
            "WHERE (:userId IS NULL OR o.user.id = :userId) " +
            "AND (:status IS NULL OR o.status = :status) " +
-           "AND (:qLike IS NOT NULL OR o.orderNo LIKE 'HX%' OR o.orderNo LIKE 'SH-%' OR o.orderNo LIKE 'DG-%') " +
+           "AND (:qLike IS NOT NULL OR o.orderNo LIKE 'HX%' OR o.orderNo LIKE 'SH-%' OR o.orderNo LIKE 'DG-%' OR o.orderNo LIKE 'CG-%') " +
            "AND (:qLike IS NULL OR o.orderNo LIKE :qLike OR " +
            "  EXISTS (SELECT p FROM ForwardingParcelEntity p WHERE p.linkedOrder = o AND p.inboundTrackingNo IS NOT NULL AND p.inboundTrackingNo LIKE :qLike))",
            countQuery = "SELECT COUNT(DISTINCT o) FROM OrderEntity o " +
            "WHERE (:userId IS NULL OR o.user.id = :userId) " +
            "AND (:status IS NULL OR o.status = :status) " +
-           "AND (:qLike IS NOT NULL OR o.orderNo LIKE 'HX%' OR o.orderNo LIKE 'SH-%' OR o.orderNo LIKE 'DG-%') " +
+           "AND (:qLike IS NOT NULL OR o.orderNo LIKE 'HX%' OR o.orderNo LIKE 'SH-%' OR o.orderNo LIKE 'DG-%' OR o.orderNo LIKE 'CG-%') " +
            "AND (:qLike IS NULL OR o.orderNo LIKE :qLike OR " +
            "  EXISTS (SELECT p FROM ForwardingParcelEntity p WHERE p.linkedOrder = o AND p.inboundTrackingNo IS NOT NULL AND p.inboundTrackingNo LIKE :qLike))")
     Page<OrderEntity> findConsolidatedOrders(
@@ -87,7 +87,7 @@ public interface OrderRepository extends JpaRepository<OrderEntity, Long> {
            "AND o.shippingRoute IS NOT NULL " +
            "AND o.status IN (com.zilai.zilaibuy.entity.OrderEntity.OrderStatus.PACKING, " +
            "                 com.zilai.zilaibuy.entity.OrderEntity.OrderStatus.PURCHASING) " +
-           "AND (o.orderNo LIKE 'HX%' OR o.orderNo LIKE 'SH-%' OR o.orderNo LIKE 'DG-%') " +
+           "AND (o.orderNo LIKE 'HX%' OR o.orderNo LIKE 'SH-%' OR o.orderNo LIKE 'DG-%' OR o.orderNo LIKE 'CG-%') " +
            "AND (:qLike IS NULL OR o.orderNo LIKE :qLike OR " +
            "  EXISTS (SELECT p FROM ForwardingParcelEntity p WHERE p.linkedOrder = o AND p.inboundTrackingNo IS NOT NULL AND p.inboundTrackingNo LIKE :qLike))",
            countQuery = "SELECT COUNT(DISTINCT o) FROM OrderEntity o " +
@@ -95,7 +95,7 @@ public interface OrderRepository extends JpaRepository<OrderEntity, Long> {
            "AND o.shippingRoute IS NOT NULL " +
            "AND o.status IN (com.zilai.zilaibuy.entity.OrderEntity.OrderStatus.PACKING, " +
            "                 com.zilai.zilaibuy.entity.OrderEntity.OrderStatus.PURCHASING) " +
-           "AND (o.orderNo LIKE 'HX%' OR o.orderNo LIKE 'SH-%' OR o.orderNo LIKE 'DG-%') " +
+           "AND (o.orderNo LIKE 'HX%' OR o.orderNo LIKE 'SH-%' OR o.orderNo LIKE 'DG-%' OR o.orderNo LIKE 'CG-%') " +
            "AND (:qLike IS NULL OR o.orderNo LIKE :qLike OR " +
            "  EXISTS (SELECT p FROM ForwardingParcelEntity p WHERE p.linkedOrder = o AND p.inboundTrackingNo IS NOT NULL AND p.inboundTrackingNo LIKE :qLike))")
     Page<OrderEntity> findConsolidatedPaidOrders(
@@ -112,6 +112,12 @@ public interface OrderRepository extends JpaRepository<OrderEntity, Long> {
     @Query("SELECT COUNT(o) FROM OrderEntity o WHERE o.orderNo LIKE :prefix%")
     long countByOrderNoPrefix(@Param("prefix") String prefix);
 
+    @Query("SELECT COUNT(o) FROM OrderEntity o WHERE o.status = :status AND (o.orderNo LIKE 'HX%' OR o.orderNo LIKE 'SH-%' OR o.orderNo LIKE 'DG-%' OR o.orderNo LIKE 'CG-%')")
+    long countConsolidatedByStatus(@Param("status") OrderEntity.OrderStatus status);
+
+    @Query("SELECT COUNT(o) FROM OrderEntity o WHERE o.status = 'PACKING' AND o.shippingRoute IS NOT NULL AND (o.orderNo LIKE 'HX%' OR o.orderNo LIKE 'SH-%' OR o.orderNo LIKE 'DG-%' OR o.orderNo LIKE 'CG-%')")
+    long countConsolidatedShippingPaid();
+
     @Query("SELECT COUNT(o) FROM OrderEntity o WHERE o.packingNo LIKE :prefix%")
     long countByPackingNoPrefix(@Param("prefix") String prefix);
 
@@ -125,6 +131,8 @@ public interface OrderRepository extends JpaRepository<OrderEntity, Long> {
     Optional<OrderEntity> findFirstByUserIdAndStatusOrderByCreatedAtDesc(Long userId, OrderEntity.OrderStatus status);
 
     Optional<OrderEntity> findByOrderNo(String orderNo);
+
+    Optional<OrderEntity> findByTransitTrackingNo(String transitTrackingNo);
 
     List<OrderEntity> findByUserIdAndStatusOrderByCreatedAtAsc(Long userId, OrderEntity.OrderStatus status);
 }

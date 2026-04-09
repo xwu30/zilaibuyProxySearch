@@ -12,5 +12,6 @@ public record AdminStatsDto(
         long inWarehouseOrders,
         long shippedOrders,
         long packingOrders,
-        long awaitingPaymentOrders
+        long awaitingPaymentOrders,
+        long shippingPaidOrders
 ) {}

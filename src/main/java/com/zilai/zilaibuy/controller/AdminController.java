@@ -262,14 +262,29 @@ public class AdminController {
         return ResponseEntity.ok(orderService.setServiceFee(id, req.serviceFeeJpy(), req.serviceFeeMemo()));
     }
 
+    record AdminSaveShippingQuoteRequest(String quotedRoute, Integer quotedFeeJpy) {}
+
+    @PreAuthorize("hasAnyRole('ADMIN', 'WAREHOUSE', 'SUPPORT')")
+    @PutMapping("/orders/{id}/shipping-quote")
+    public ResponseEntity<OrderDetailDto> saveShippingQuote(
+            @PathVariable Long id,
+            @RequestBody AdminSaveShippingQuoteRequest req) {
+        return ResponseEntity.ok(orderService.saveShippingQuote(id, req.quotedRoute(), req.quotedFeeJpy()));
+    }
+
     record AdminSavePhotoRequest(String packingPhotoUrl) {}
 
     @PreAuthorize("hasAnyRole('ADMIN', 'WAREHOUSE', 'SUPPORT')")
     @PutMapping("/orders/{id}/packing-photo")
     public ResponseEntity<OrderDetailDto> savePackingPhoto(
             @PathVariable Long id,
-            @RequestBody AdminSavePhotoRequest req) {
-        return ResponseEntity.ok(orderService.savePackingPhotoOnly(id, req.packingPhotoUrl()));
+            @RequestBody AdminSavePhotoRequest req,
+            @AuthenticationPrincipal AuthenticatedUser currentUser,
+            HttpServletRequest httpReq) {
+        OrderDetailDto result = orderService.savePackingPhotoOnly(id, req.packingPhotoUrl());
+        auditLogService.log(currentUser.id(), "PACKING_PHOTO_UPLOADED", "ORDER",
+                String.valueOf(id), null, httpReq.getRemoteAddr());
+        return ResponseEntity.ok(result);
     }
 
     @PreAuthorize("hasAnyRole('ADMIN', 'WAREHOUSE', 'SUPPORT')")
@@ -329,8 +344,9 @@ public class AdminController {
                 orderRepository.countByStatus(OrderEntity.OrderStatus.PURCHASING),
                 orderRepository.countByStatus(OrderEntity.OrderStatus.IN_WAREHOUSE),
                 orderRepository.countByStatus(OrderEntity.OrderStatus.SHIPPED),
-                orderRepository.countByStatus(OrderEntity.OrderStatus.PACKING),
-                orderRepository.countByStatus(OrderEntity.OrderStatus.AWAITING_PAYMENT)
+                orderRepository.countConsolidatedByStatus(OrderEntity.OrderStatus.PACKING),
+                orderRepository.countConsolidatedByStatus(OrderEntity.OrderStatus.AWAITING_PAYMENT),
+                orderRepository.countConsolidatedShippingPaid()
         ));
     }
 

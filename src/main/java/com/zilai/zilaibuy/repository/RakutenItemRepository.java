@@ -24,7 +24,13 @@ public interface RakutenItemRepository extends JpaRepository<RakutenItemEntity, 
     @Query("UPDATE RakutenItemEntity r SET r.isActive = false WHERE r.lastFetchedAt < :threshold AND r.isActive = true")
     int deactivateStaleItems(@Param("threshold") LocalDateTime threshold);
 
-    // 查询带有关键字的商品，按更新时间排序
+    // 关键词搜索，按更新时间排序
     @Query("SELECT r FROM RakutenItemEntity r WHERE r.isActive = true AND (:kw IS NULL OR LOWER(r.keyword) LIKE CONCAT('%', LOWER(:kw), '%') OR r.itemName LIKE CONCAT('%', :kw, '%') OR r.itemNameZh LIKE CONCAT('%', :kw, '%')) ORDER BY r.lastFetchedAt DESC")
     Page<RakutenItemEntity> search(String kw, Pageable pageable);
+
+    // 无关键词浏览时，用每日种子随机排序（每天顺序不同，同一天内顺序稳定）
+    @Query(value = "SELECT * FROM rakuten_item WHERE is_active = 1 ORDER BY RAND(TO_DAYS(NOW()))",
+           countQuery = "SELECT COUNT(*) FROM rakuten_item WHERE is_active = 1",
+           nativeQuery = true)
+    Page<RakutenItemEntity> searchRandom(Pageable pageable);
 }

@@ -30,7 +30,9 @@ public record OrderDto(
         String shippingRoute,
         Integer serviceFeeJpy,
         String serviceFeeMemo,
-        Integer pointsUsed
+        Integer pointsUsed,
+        String quotedRoute,
+        Integer quotedFeeJpy
 ) {
     public static OrderDto from(OrderEntity e) {
         List<OrderItemDto> items = e.getItems() != null
@@ -44,6 +46,7 @@ public record OrderDto(
                 e.getUser().getId(), items, parcels, e.getCreatedAt(), e.getUpdatedAt(),
                 e.getWeightG(), e.getLengthCm(), e.getWidthCm(), e.getHeightCm(),
                 e.getPackingPhotoUrl(), e.getShippingFeeCny(), e.getShippingRoute(),
-                e.getServiceFeeJpy(), e.getServiceFeeMemo(), e.getPointsUsed());
+                e.getServiceFeeJpy(), e.getServiceFeeMemo(), e.getPointsUsed(),
+                e.getQuotedRoute(), e.getQuotedFeeJpy());
     }
 }

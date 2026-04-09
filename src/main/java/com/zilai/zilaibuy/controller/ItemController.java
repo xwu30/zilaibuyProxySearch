@@ -29,7 +29,10 @@ public class ItemController {
             @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "60") int size) {
-        Page<RakutenItemEntity> result = itemRepo.search(keyword, PageRequest.of(page, size));
+        boolean hasKeyword = keyword != null && !keyword.isBlank();
+        Page<RakutenItemEntity> result = hasKeyword
+                ? itemRepo.search(keyword, PageRequest.of(page, size))
+                : itemRepo.searchRandom(PageRequest.of(page, size));
         log.info("[ItemController] search keyword={}, page={}, size={}, totalElements={}, totalPages={}, returnedItems={}",
                 keyword, page, size, result.getTotalElements(), result.getTotalPages(), result.getNumberOfElements());
         result.getContent().forEach(item ->

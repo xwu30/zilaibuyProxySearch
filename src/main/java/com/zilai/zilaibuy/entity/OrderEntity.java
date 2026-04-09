@@ -91,6 +91,12 @@ public class OrderEntity {
     @Column(name = "shipping_route", length = 50)
     private String shippingRoute;
 
+    @Column(name = "quoted_route", length = 100)
+    private String quotedRoute;
+
+    @Column(name = "quoted_fee_jpy")
+    private Integer quotedFeeJpy;
+
     @Column(name = "service_fee_jpy")
     private Integer serviceFeeJpy;
 

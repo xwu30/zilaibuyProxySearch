@@ -30,7 +30,9 @@ public record OrderDetailDto(
         BigDecimal shippingFeeCny,
         String shippingRoute,
         Integer serviceFeeJpy,
-        String serviceFeeMemo
+        String serviceFeeMemo,
+        String quotedRoute,
+        Integer quotedFeeJpy
 ) {
     public static OrderDetailDto from(OrderEntity e) {
         return from(e, Collections.emptyList());
@@ -45,6 +47,7 @@ public record OrderDetailDto(
                 e.getTransitTrackingNo(), e.getTransitCarrier(), linkedParcels,
                 e.getWeightG(), e.getLengthCm(), e.getWidthCm(), e.getHeightCm(),
                 e.getPackingPhotoUrl(), e.getShippingFeeCny(), e.getShippingRoute(),
-                e.getServiceFeeJpy(), e.getServiceFeeMemo());
+                e.getServiceFeeJpy(), e.getServiceFeeMemo(),
+                e.getQuotedRoute(), e.getQuotedFeeJpy());
     }
 }

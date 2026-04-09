@@ -24,6 +24,7 @@ public class ForwardingParcelService {
     private final ForwardingParcelRepository parcelRepository;
     private final UserRepository userRepository;
     private final HbrService hbrService;
+    private final EmailService emailService;
 
     @Transactional
     public ParcelDto createParcel(CreateParcelRequest req, Long userId) {
@@ -140,6 +141,12 @@ public class ForwardingParcelService {
                     parcel.setWarehouseLocation(loc);
                     parcel.setInboundCode(code);
                     parcelRepository.save(parcel);
+                    // 入库邮件通知
+                    String userEmail = parcel.getUser().getEmail();
+                    if (userEmail != null && !userEmail.isBlank()) {
+                        emailService.sendParcelCheckinEmail(
+                                userEmail, displayName(parcel.getUser()), no, code, loc);
+                    }
                     return new OrderService.CheckinResult(true, "转运包裹入库成功",
                             no, "IN_WAREHOUSE", displayName(parcel.getUser()), code, parcel.getId());
                 })

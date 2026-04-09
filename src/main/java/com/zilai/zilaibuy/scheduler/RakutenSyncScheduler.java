@@ -15,7 +15,7 @@ public class RakutenSyncScheduler {
 
     private final RakutenSyncService syncService;
 
-    @Scheduled(cron = "0 0 22 * * *", zone = "America/Toronto")
+    @Scheduled(cron = "0 0 3 * * *", zone = "America/Toronto")
     public void nightlySync() {
         log.info("[RakutenSyncScheduler] Starting daily sync...");
 
@@ -34,7 +34,7 @@ public class RakutenSyncScheduler {
             try {
                 int count = syncService.syncKeyword(keyword, pages, hitsPerPage);
                 log.info("[RakutenSyncScheduler] Synced {} items for keyword '{}'", count, keyword);
-                Thread.sleep(3000);
+                Thread.sleep(10_000); // 关键词间间隔10秒，避免触发429
             } catch (InterruptedException ie) {
                 Thread.currentThread().interrupt();
                 log.warn("[RakutenSyncScheduler] Sync interrupted");
