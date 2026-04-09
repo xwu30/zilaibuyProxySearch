@@ -262,7 +262,8 @@
       "Bash(JAVA_HOME=/Library/Java/JavaVirtualMachines/temurin-17.jdk/Contents/Home mvn package -q -DskipTests 2>&1 | tail -5)",
       "Bash(find /Users/xwu30/Projects/zilaibuyProxySearch/src/main/java -name \"*WebClient*\" -o -name \"*Config*\" | grep -E \"\\\\.\\(java\\)$\")",
       "Bash(JAVA_HOME=/Library/Java/JavaVirtualMachines/temurin-17.jdk/Contents/Home mvn package -q -DskipTests 2>&1 | tail -3)",
-      "Bash(cd /Users/xwu30/Projects/zilaibuyProxySearch && JAVA_HOME=/Library/Java/JavaVirtualMachines/temurin-17.jdk/Contents/Home mvn package -q -DskipTests 2>&1 | tail -5)"
+      "Bash(cd /Users/xwu30/Projects/zilaibuyProxySearch && JAVA_HOME=/Library/Java/JavaVirtualMachines/temurin-17.jdk/Contents/Home mvn package -q -DskipTests 2>&1 | tail -5)",
+      "Bash(cd /Users/xwu30/Projects/zilaibuyProxySearch && JAVA_HOME=/Library/Java/JavaVirtualMachines/temurin-17.jdk/Contents/Home mvn package -q -DskipTests 2>&1 | tail -3)"
     ]
   }
 }

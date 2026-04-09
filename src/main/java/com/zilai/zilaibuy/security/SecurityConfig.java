@@ -51,6 +51,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/shipping-rates").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/announcements").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/banners").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/leads").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/new-products").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/image-proxy").permitAll()
                 .requestMatchers("/api/payments/**").authenticated()
