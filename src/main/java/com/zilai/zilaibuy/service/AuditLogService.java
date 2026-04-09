@@ -52,6 +52,7 @@ public class AuditLogService {
     public record AuditLogDto(
             Long id,
             Long operatorId,
+            String operatorName,
             String action,
             String resourceType,
             String resourceId,
@@ -61,7 +62,14 @@ public class AuditLogService {
     ) {
         public static AuditLogDto from(AuditLogEntity e) {
             Long opId = e.getOperator() != null ? e.getOperator().getId() : null;
-            return new AuditLogDto(e.getId(), opId, e.getAction(), e.getResourceType(),
+            String opName = null;
+            if (e.getOperator() != null) {
+                UserEntity op = e.getOperator();
+                opName = op.getUsername() != null && !op.getUsername().isBlank() ? op.getUsername()
+                        : op.getDisplayName() != null && !op.getDisplayName().isBlank() ? op.getDisplayName()
+                        : op.getPhone();
+            }
+            return new AuditLogDto(e.getId(), opId, opName, e.getAction(), e.getResourceType(),
                     e.getResourceId(), e.getDetail(), e.getIpAddress(), e.getCreatedAt());
         }
     }
