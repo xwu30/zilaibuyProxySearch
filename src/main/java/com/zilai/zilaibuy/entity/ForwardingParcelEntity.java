@@ -69,6 +69,14 @@ public class ForwardingParcelEntity {
     @Column(length = 500)
     private String notes;
 
+    /** 实际入库时间，由仓库扫码入库时设置 */
+    @Column(name = "checkin_date")
+    private LocalDateTime checkinDate;
+
+    /** 是否已发送60天仓储费提醒邮件 */
+    @Column(name = "storage_fee_reminder_sent", nullable = false)
+    private boolean storageFeeReminderSent = false;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

@@ -140,6 +140,7 @@ public class ForwardingParcelService {
                     parcel.setStatus(ForwardingParcelEntity.ParcelStatus.IN_WAREHOUSE);
                     parcel.setWarehouseLocation(loc);
                     parcel.setInboundCode(code);
+                    parcel.setCheckinDate(LocalDateTime.now());
                     parcelRepository.save(parcel);
                     // 入库邮件通知
                     String userEmail = parcel.getUser().getEmail();

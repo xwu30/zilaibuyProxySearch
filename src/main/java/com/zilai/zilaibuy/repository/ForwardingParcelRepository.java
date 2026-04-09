@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -58,6 +59,9 @@ public interface ForwardingParcelRepository extends JpaRepository<ForwardingParc
            "  (p.inboundTrackingNo IS NOT NULL AND p.inboundTrackingNo LIKE :qLike) OR " +
            "  (p.inboundCode IS NOT NULL AND p.inboundCode LIKE :qLike) OR " +
            "  p.content LIKE :qLike)")
+    @Query("SELECT p FROM ForwardingParcelEntity p WHERE p.status = com.zilai.zilaibuy.entity.ForwardingParcelEntity.ParcelStatus.IN_WAREHOUSE AND p.storageFeeReminderSent = false AND p.checkinDate IS NOT NULL AND p.checkinDate < :cutoff")
+    List<ForwardingParcelEntity> findParcelsNeedingStorageReminder(@Param("cutoff") LocalDateTime cutoff);
+
     Page<ForwardingParcelEntity> findByFilters(
             @Param("userId") Long userId,
             @Param("status") ForwardingParcelEntity.ParcelStatus status,

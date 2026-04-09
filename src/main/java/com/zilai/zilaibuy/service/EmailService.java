@@ -94,6 +94,89 @@ public class EmailService {
         }
     }
 
+    public void sendStorageReminderEmail(String toEmail, String displayName,
+                                         String inboundCode, long daysStored) {
+        if (!StringUtils.hasText(toEmail)) return;
+        if (!StringUtils.hasText(fromEmail)) {
+            log.info("[DEV] Storage reminder email for {} inboundCode={} days={}", toEmail, inboundCode, daysStored);
+            return;
+        }
+        try {
+            SimpleMailMessage msg = new SimpleMailMessage();
+            msg.setFrom(fromEmail);
+            msg.setTo(toEmail);
+            msg.setSubject("【ZilaiBuy】您的包裹已在仓库超过60天，请尽快安排发货");
+            msg.setText(
+                "您好，" + displayName + "！\n\n" +
+                "您的包裹（入库编号：" + inboundCode + "）已在我们仓库存放超过 " + daysStored + " 天。\n\n" +
+                "根据我们的收费政策，超出免费存储期后将产生仓储费用：\n" +
+                "  • 第1-60天：免费\n" +
+                "  • 第61-90天：¥50/件/天\n" +
+                "  • 第91-180天：¥100/件/天\n" +
+                "  • 第181天起：¥100/件/天\n\n" +
+                "请尽快登录 ZilaiBuy 提交转运申请，以避免产生额外费用。\n\n" +
+                "— ZilaiBuy 团队"
+            );
+            mailSender.send(msg);
+            log.info("Storage reminder email sent to {} for inboundCode={}", toEmail, inboundCode);
+        } catch (Exception e) {
+            log.warn("Failed to send storage reminder email to {} ({})", toEmail, e.getMessage());
+        }
+    }
+
+    public void sendPaymentReminderEmail(String toEmail, String displayName,
+                                         String orderNo, String feeDetails) {
+        if (!StringUtils.hasText(toEmail)) return;
+        if (!StringUtils.hasText(fromEmail)) {
+            log.info("[DEV] Payment reminder email for {} orderNo={}", toEmail, orderNo);
+            return;
+        }
+        try {
+            SimpleMailMessage msg = new SimpleMailMessage();
+            msg.setFrom(fromEmail);
+            msg.setTo(toEmail);
+            msg.setSubject("【ZilaiBuy】您的包裹等待付款 " + orderNo);
+            msg.setText(
+                "您好，" + displayName + "！\n\n" +
+                "您的订单（" + orderNo + "）已完成称重打包，请登录 ZilaiBuy 完成付款。\n\n" +
+                (feeDetails != null && !feeDetails.isBlank() ? feeDetails + "\n\n" : "") +
+                "请及时完成付款，以便我们尽快为您安排发货。\n\n" +
+                "— ZilaiBuy 团队"
+            );
+            mailSender.send(msg);
+            log.info("Payment reminder email sent to {} for orderNo={}", toEmail, orderNo);
+        } catch (Exception e) {
+            log.warn("Failed to send payment reminder email to {} ({})", toEmail, e.getMessage());
+        }
+    }
+
+    public void sendShippedEmail(String toEmail, String displayName,
+                                  String orderNo, String trackingNo, String carrier) {
+        if (!StringUtils.hasText(toEmail)) return;
+        if (!StringUtils.hasText(fromEmail)) {
+            log.info("[DEV] Shipped email for {} orderNo={} tracking={}", toEmail, orderNo, trackingNo);
+            return;
+        }
+        try {
+            SimpleMailMessage msg = new SimpleMailMessage();
+            msg.setFrom(fromEmail);
+            msg.setTo(toEmail);
+            msg.setSubject("【ZilaiBuy】您的包裹已发出 " + orderNo);
+            msg.setText(
+                "您好，" + displayName + "！\n\n" +
+                "您的订单（" + orderNo + "）已从我们仓库发出，请使用以下信息查询物流：\n\n" +
+                "  末端单号：" + (trackingNo != null ? trackingNo : "—") + "\n" +
+                (carrier != null && !carrier.isBlank() ? "  物流商：" + carrier + "\n" : "") +
+                "\n请登录 ZilaiBuy 查看最新物流状态。\n\n" +
+                "— ZilaiBuy 团队"
+            );
+            mailSender.send(msg);
+            log.info("Shipped email sent to {} for orderNo={} tracking={}", toEmail, orderNo, trackingNo);
+        } catch (Exception e) {
+            log.warn("Failed to send shipped email to {} ({})", toEmail, e.getMessage());
+        }
+    }
+
     public void sendConfirmationEmail(String toEmail, String token) {
         String link = baseUrl + "/api/auth/confirm-email?token=" + token;
         if (!StringUtils.hasText(fromEmail)) {

@@ -38,6 +38,7 @@ public class OrderService {
     private final UserRepository userRepository;
     private final ForwardingParcelRepository parcelRepository;
     private final HbrService hbrService;
+    private final EmailService emailService;
 
     @Transactional
     public OrderDto createOrder(CreateOrderRequest req, Long userId) {
@@ -142,6 +143,12 @@ public class OrderService {
                 }
             }
             parcelRepository.saveAll(linked);
+            // 发货邮件通知
+            String userEmail = order.getUser().getEmail();
+            if (userEmail != null && !userEmail.isBlank()) {
+                emailService.sendShippedEmail(userEmail, displayName(order.getUser()),
+                        order.getOrderNo(), order.getTransitTrackingNo(), order.getTransitCarrier());
+            }
         }
 
         return OrderDto.from(order);
@@ -183,6 +190,12 @@ public class OrderService {
                 }
             }
             parcelRepository.saveAll(linked);
+            // 发货邮件通知
+            String userEmail = order.getUser().getEmail();
+            if (userEmail != null && !userEmail.isBlank()) {
+                emailService.sendShippedEmail(userEmail, displayName(order.getUser()),
+                        order.getOrderNo(), order.getTransitTrackingNo(), order.getTransitCarrier());
+            }
         }
         List<ForwardingParcelEntity> linkedParcels = parcelRepository.findByLinkedOrderId(orderId);
         return OrderDetailDto.from(order, linkedParcels);
@@ -196,6 +209,17 @@ public class OrderService {
         order.setServiceFeeMemo(serviceFeeMemo);
         order.setStatus(OrderEntity.OrderStatus.FEE_QUOTED);
         orderRepository.save(order);
+        // 待付款邮件通知（代购费报价）
+        String userEmail = order.getUser().getEmail();
+        if (userEmail != null && !userEmail.isBlank()) {
+            String feeDetails = null;
+            if (serviceFeeJpy != null && serviceFeeJpy > 0) {
+                feeDetails = "  代购服务费：¥" + serviceFeeJpy + " JPY"
+                        + (serviceFeeMemo != null && !serviceFeeMemo.isBlank() ? "（" + serviceFeeMemo + "）" : "");
+            }
+            emailService.sendPaymentReminderEmail(userEmail, displayName(order.getUser()),
+                    order.getOrderNo(), feeDetails);
+        }
         List<ForwardingParcelEntity> linkedParcels = parcelRepository.findByLinkedOrderId(orderId);
         return OrderDetailDto.from(order, linkedParcels);
     }
@@ -236,6 +260,17 @@ public class OrderService {
         if (packingPhotoUrl != null) order.setPackingPhotoUrl(packingPhotoUrl.isBlank() ? null : packingPhotoUrl.trim());
         order.setStatus(OrderEntity.OrderStatus.AWAITING_PAYMENT);
         orderRepository.save(order);
+        // 待付款邮件通知
+        String userEmail = order.getUser().getEmail();
+        if (userEmail != null && !userEmail.isBlank()) {
+            String feeDetails = null;
+            if (order.getQuotedFeeJpy() != null && order.getQuotedFeeJpy() > 0) {
+                feeDetails = "  运费：¥" + order.getQuotedFeeJpy() + " JPY"
+                        + (order.getQuotedRoute() != null ? "（" + order.getQuotedRoute() + "）" : "");
+            }
+            emailService.sendPaymentReminderEmail(userEmail, displayName(order.getUser()),
+                    order.getOrderNo(), feeDetails);
+        }
         List<ForwardingParcelEntity> linkedParcels = parcelRepository.findByLinkedOrderId(orderId);
         return OrderDetailDto.from(order, linkedParcels);
     }
