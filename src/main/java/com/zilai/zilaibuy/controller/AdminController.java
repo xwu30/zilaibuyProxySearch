@@ -250,8 +250,16 @@ public class AdminController {
     @PutMapping("/orders/{id}")
     public ResponseEntity<OrderDetailDto> adminUpdateOrder(
             @PathVariable Long id,
-            @RequestBody AdminUpdateOrderRequest req) {
-        return ResponseEntity.ok(orderService.adminUpdateOrder(id, req.status(), req.transitTrackingNo(), req.transitCarrier()));
+            @RequestBody AdminUpdateOrderRequest req,
+            @AuthenticationPrincipal AuthenticatedUser currentUser,
+            HttpServletRequest httpReq) {
+        OrderDetailDto result = orderService.adminUpdateOrder(id, req.status(), req.transitTrackingNo(), req.transitCarrier());
+        String detail = req.status() != null ? "{\"status\":\"" + req.status().name() + "\""
+                + (req.transitTrackingNo() != null ? ",\"tracking\":\"" + req.transitTrackingNo() + "\"" : "")
+                + "}" : null;
+        auditLogService.log(currentUser.id(), "ORDER_STATUS_CHANGED", "ORDER", String.valueOf(id),
+                detail, httpReq.getRemoteAddr());
+        return ResponseEntity.ok(result);
     }
 
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPPORT')")
@@ -291,8 +299,14 @@ public class AdminController {
     @PutMapping("/orders/{id}/packing-info")
     public ResponseEntity<OrderDetailDto> savePackingInfo(
             @PathVariable Long id,
-            @RequestBody AdminSavePackingInfoRequest req) {
-        return ResponseEntity.ok(orderService.savePackingInfo(id, req.weightG(), req.lengthCm(), req.widthCm(), req.heightCm(), req.packingPhotoUrl()));
+            @RequestBody AdminSavePackingInfoRequest req,
+            @AuthenticationPrincipal AuthenticatedUser currentUser,
+            HttpServletRequest httpReq) {
+        OrderDetailDto result = orderService.savePackingInfo(id, req.weightG(), req.lengthCm(), req.widthCm(), req.heightCm(), req.packingPhotoUrl());
+        String detail = "{\"weightG\":" + req.weightG() + ",\"size\":\"" + req.lengthCm() + "x" + req.widthCm() + "x" + req.heightCm() + "\"}";
+        auditLogService.log(currentUser.id(), "ORDER_PACKING_INFO_SAVED", "ORDER", String.valueOf(id),
+                detail, httpReq.getRemoteAddr());
+        return ResponseEntity.ok(result);
     }
 
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPPORT')")
@@ -308,10 +322,16 @@ public class AdminController {
     @PutMapping("/parcels/{id}")
     public ResponseEntity<ParcelDto> adminUpdateParcel(
             @PathVariable Long id,
-            @RequestBody AdminUpdateParcelRequest req) {
+            @RequestBody AdminUpdateParcelRequest req,
+            @AuthenticationPrincipal AuthenticatedUser currentUser,
+            HttpServletRequest httpReq) {
         Integer weightGrams = req.weightKg() != null ? (int) Math.round(req.weightKg() * 1000) : null;
-        return ResponseEntity.ok(parcelService.adminUpdateParcel(id, req.status(), weightGrams,
-                req.outboundTrackingNo(), req.notes(), req.content(), req.inboundTrackingNo(), req.carrier()));
+        ParcelDto result = parcelService.adminUpdateParcel(id, req.status(), weightGrams,
+                req.outboundTrackingNo(), req.notes(), req.content(), req.inboundTrackingNo(), req.carrier());
+        String detail = req.status() != null ? "{\"status\":\"" + req.status().name() + "\"}" : null;
+        auditLogService.log(currentUser.id(), "PARCEL_UPDATED", "PARCEL", String.valueOf(id),
+                detail, httpReq.getRemoteAddr());
+        return ResponseEntity.ok(result);
     }
 
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPPORT')")

@@ -3,11 +3,13 @@ package com.zilai.zilaibuy.controller;
 import com.zilai.zilaibuy.dto.parcel.ParcelDto;
 import com.zilai.zilaibuy.dto.warehouse.*;
 import com.zilai.zilaibuy.security.AuthenticatedUser;
+import com.zilai.zilaibuy.service.AuditLogService;
 import com.zilai.zilaibuy.service.ForwardingParcelService;
 import com.zilai.zilaibuy.service.InventoryService;
 import com.zilai.zilaibuy.service.NewProductService;
 import com.zilai.zilaibuy.service.OrderService;
 import com.zilai.zilaibuy.service.ProductService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -29,6 +31,7 @@ public class WarehouseController {
     private final InventoryService inventoryService;
     private final OrderService orderService;
     private final ForwardingParcelService parcelService;
+    private final AuditLogService auditLogService;
 
     record CheckinRequest(String orderNo, String location) {}
 
@@ -42,14 +45,34 @@ public class WarehouseController {
     }
 
     @PostMapping("/checkin")
-    public ResponseEntity<OrderService.CheckinResult> checkin(@RequestBody CheckinRequest req) {
-        return ResponseEntity.ok(checkinAny(req.orderNo(), req.location()));
+    public ResponseEntity<OrderService.CheckinResult> checkin(
+            @RequestBody CheckinRequest req,
+            @AuthenticationPrincipal AuthenticatedUser currentUser,
+            HttpServletRequest httpReq) {
+        OrderService.CheckinResult result = checkinAny(req.orderNo(), req.location());
+        if (result.success()) {
+            auditLogService.log(currentUser.id(), "CHECKIN", result.parcelId() != null ? "PARCEL" : "ORDER",
+                    result.parcelId() != null ? String.valueOf(result.parcelId()) : result.orderNo(),
+                    "{\"no\":\"" + req.orderNo() + "\",\"user\":\"" + result.userDisplay() + "\"}",
+                    httpReq.getRemoteAddr());
+        }
+        return ResponseEntity.ok(result);
     }
 
     @PostMapping("/checkin/batch")
     public ResponseEntity<java.util.List<OrderService.CheckinResult>> checkinBatch(
-            @RequestBody java.util.List<CheckinRequest> reqs) {
-        return ResponseEntity.ok(reqs.stream().map(r -> checkinAny(r.orderNo(), r.location())).toList());
+            @RequestBody java.util.List<CheckinRequest> reqs,
+            @AuthenticationPrincipal AuthenticatedUser currentUser,
+            HttpServletRequest httpReq) {
+        java.util.List<OrderService.CheckinResult> results = reqs.stream()
+                .map(r -> checkinAny(r.orderNo(), r.location())).toList();
+        results.stream().filter(OrderService.CheckinResult::success).forEach(result ->
+            auditLogService.log(currentUser.id(), "CHECKIN", result.parcelId() != null ? "PARCEL" : "ORDER",
+                    result.parcelId() != null ? String.valueOf(result.parcelId()) : result.orderNo(),
+                    "{\"user\":\"" + result.userDisplay() + "\"}",
+                    httpReq.getRemoteAddr())
+        );
+        return ResponseEntity.ok(results);
     }
 
     @GetMapping("/parcels")
@@ -84,13 +107,25 @@ public class WarehouseController {
     @PutMapping("/parcels/{id}/ship")
     public ResponseEntity<ParcelDto> shipParcel(
             @PathVariable Long id,
-            @RequestBody ShipParcelRequest req) {
-        return ResponseEntity.ok(parcelService.shipParcel(id, req.outboundTrackingNo(), req.notes()));
+            @RequestBody ShipParcelRequest req,
+            @AuthenticationPrincipal AuthenticatedUser currentUser,
+            HttpServletRequest httpReq) {
+        ParcelDto result = parcelService.shipParcel(id, req.outboundTrackingNo(), req.notes());
+        auditLogService.log(currentUser.id(), "PARCEL_SHIPPED", "PARCEL", String.valueOf(id),
+                "{\"tracking\":\"" + (req.outboundTrackingNo() != null ? req.outboundTrackingNo() : "") + "\"}",
+                httpReq.getRemoteAddr());
+        return ResponseEntity.ok(result);
     }
 
     @PutMapping("/parcels/{id}/deliver")
-    public ResponseEntity<ParcelDto> deliverParcel(@PathVariable Long id) {
-        return ResponseEntity.ok(parcelService.deliverParcel(id));
+    public ResponseEntity<ParcelDto> deliverParcel(
+            @PathVariable Long id,
+            @AuthenticationPrincipal AuthenticatedUser currentUser,
+            HttpServletRequest httpReq) {
+        ParcelDto result = parcelService.deliverParcel(id);
+        auditLogService.log(currentUser.id(), "PARCEL_DELIVERED", "PARCEL", String.valueOf(id),
+                null, httpReq.getRemoteAddr());
+        return ResponseEntity.ok(result);
     }
 
     @PostMapping("/products")

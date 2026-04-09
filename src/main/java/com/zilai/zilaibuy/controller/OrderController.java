@@ -66,8 +66,16 @@ public class OrderController {
     @PutMapping("/{id}/status")
     public ResponseEntity<OrderDto> updateStatus(
             @PathVariable Long id,
-            @Valid @RequestBody UpdateOrderStatusRequest req) {
-        return ResponseEntity.ok(orderService.updateStatus(id, req));
+            @Valid @RequestBody UpdateOrderStatusRequest req,
+            @AuthenticationPrincipal AuthenticatedUser currentUser,
+            HttpServletRequest httpReq) {
+        OrderDto result = orderService.updateStatus(id, req);
+        String detail = "{\"status\":\"" + req.status().name() + "\""
+                + (req.transitTrackingNo() != null ? ",\"tracking\":\"" + req.transitTrackingNo() + "\"" : "")
+                + "}";
+        auditLogService.log(currentUser.id(), "ORDER_STATUS_CHANGED", "ORDER", String.valueOf(id),
+                detail, httpReq.getRemoteAddr());
+        return ResponseEntity.ok(result);
     }
 
     @PostMapping("/{orderId}/advance-packing")
@@ -148,8 +156,12 @@ public class OrderController {
     @PostMapping("/{id}/cancel-packing")
     public ResponseEntity<OrderDto> cancelPacking(
             @PathVariable Long id,
-            @AuthenticationPrincipal AuthenticatedUser currentUser) {
-        return ResponseEntity.ok(orderService.cancelPacking(id, currentUser));
+            @AuthenticationPrincipal AuthenticatedUser currentUser,
+            HttpServletRequest httpReq) {
+        OrderDto result = orderService.cancelPacking(id, currentUser);
+        auditLogService.log(currentUser.id(), "ORDER_PACKING_CANCELLED", "ORDER", String.valueOf(id),
+                null, httpReq.getRemoteAddr());
+        return ResponseEntity.ok(result);
     }
 
     @DeleteMapping("/{id}")
