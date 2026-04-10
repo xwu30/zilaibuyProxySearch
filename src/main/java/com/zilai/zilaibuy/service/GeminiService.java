@@ -66,12 +66,12 @@ public class GeminiService {
 
         String prompt = """
                 分析此商品链接的信息: %s
-                请将所有日文内容翻译为简体中文。
+                商品名称（title）必须保留原始日文，不要翻译。
+                description 和 material 请翻译为简体中文。
                 判断商品是否包含液体、电池或易燃物，若有请将 isRestricted 设为 true 并说明原因。
                 严格返回如下 JSON 格式，不要包含任何额外文字：
                 {
-                  "title": "商品名称（中文）",
-                  "titleJa": "商品原始日文名称",
+                  "title": "商品原始日文名称（保留日文）",
                   "priceJpy": 价格数字（日元整数）,
                   "priceCny": 价格数字（人民币，按汇率0.048换算）,
                   "exchangeRate": 0.048,
