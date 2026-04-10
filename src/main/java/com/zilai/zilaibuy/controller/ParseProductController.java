@@ -30,15 +30,23 @@ public class ParseProductController {
             return ResponseEntity.badRequest().body(Map.of("error", "url is required"));
         }
         try {
-            // Fetch real image URL from OG tags before calling AI
-            String realImageUrl = fetchOgImage(url);
+            // Fetch og:title and og:image from the real page HTML
+            PageMeta meta = fetchPageMeta(url);
 
             String json = geminiService.parseProductUrl(url);
             JsonNode node = objectMapper.readTree(json);
 
-            // Override Gemini's hallucinated imageUrl with the real one
-            if (realImageUrl != null && node instanceof ObjectNode obj) {
-                obj.put("imageUrl", cleanAmazonImageUrl(realImageUrl));
+            if (node instanceof ObjectNode obj) {
+                // Always use the real og:title (Japanese) over Gemini's translation
+                if (meta.title != null && !meta.title.isBlank()) {
+                    obj.put("title", meta.title);
+                }
+                // Use real og:image; wrap non-Amazon images through proxy to bypass hotlink protection
+                if (meta.imageUrl != null) {
+                    String cleaned = cleanAmazonImageUrl(meta.imageUrl);
+                    String proxied = needsProxy(cleaned) ? "/api/image-proxy?url=" + java.net.URLEncoder.encode(cleaned, "UTF-8") : cleaned;
+                    obj.put("imageUrl", proxied);
+                }
             }
 
             return ResponseEntity.ok()
@@ -48,6 +56,12 @@ public class ParseProductController {
             return ResponseEntity.internalServerError()
                     .body(Map.of("error", e.getMessage()));
         }
+    }
+
+    private boolean needsProxy(String imageUrl) {
+        if (imageUrl == null) return false;
+        return !imageUrl.contains("amazon.com") && !imageUrl.contains("media-amazon.com")
+                && !imageUrl.contains("rakuten.co.jp") && !imageUrl.contains("r10s.jp");
     }
 
     /** Strip Amazon image size modifiers, e.g. ._SY466_ ._SL1500_ ._AC_SX425_ */
@@ -61,7 +75,11 @@ public class ParseProductController {
         return url;
     }
 
-    private String fetchOgImage(String pageUrl) {
+    record PageMeta(String title, String imageUrl) {}
+
+    private PageMeta fetchPageMeta(String pageUrl) {
+        String title = null;
+        String imageUrl = null;
         try {
             HttpURLConnection conn = (HttpURLConnection) new URL(pageUrl).openConnection();
             conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
@@ -71,24 +89,47 @@ public class ParseProductController {
             conn.setInstanceFollowRedirects(true);
 
             try (InputStream is = conn.getInputStream()) {
-                // Read only first 50KB — OG tags are always in <head>
-                byte[] buf = new byte[51200];
+                byte[] buf = new byte[65536];
                 int read = is.read(buf);
                 String html = new String(buf, 0, read > 0 ? read : 0, "UTF-8");
 
-                // Try og:image first
-                Pattern ogImage = Pattern.compile("<meta[^>]+property=[\"']og:image[\"'][^>]+content=[\"']([^\"']+)[\"']", Pattern.CASE_INSENSITIVE);
-                Matcher m = ogImage.matcher(html);
-                if (m.find()) return m.group(1);
+                // og:title — property before content
+                Pattern p1 = Pattern.compile("<meta[^>]+property=[\"']og:title[\"'][^>]+content=[\"']([^\"']+)[\"']", Pattern.CASE_INSENSITIVE);
+                Matcher m = p1.matcher(html);
+                if (m.find()) title = decodeHtmlEntities(m.group(1));
+                // og:title — content before property
+                if (title == null) {
+                    Pattern p2 = Pattern.compile("<meta[^>]+content=[\"']([^\"']+)[\"'][^>]+property=[\"']og:title[\"']", Pattern.CASE_INSENSITIVE);
+                    m = p2.matcher(html);
+                    if (m.find()) title = decodeHtmlEntities(m.group(1));
+                }
+                // <title> tag fallback
+                if (title == null) {
+                    Pattern p3 = Pattern.compile("<title[^>]*>([^<]+)</title>", Pattern.CASE_INSENSITIVE);
+                    m = p3.matcher(html);
+                    if (m.find()) title = decodeHtmlEntities(m.group(1).trim());
+                }
 
-                // Fallback: content before property
-                Pattern ogImage2 = Pattern.compile("<meta[^>]+content=[\"']([^\"']+)[\"'][^>]+property=[\"']og:image[\"']", Pattern.CASE_INSENSITIVE);
-                m = ogImage2.matcher(html);
-                if (m.find()) return m.group(1);
+                // og:image — property before content
+                Pattern pi1 = Pattern.compile("<meta[^>]+property=[\"']og:image[\"'][^>]+content=[\"']([^\"']+)[\"']", Pattern.CASE_INSENSITIVE);
+                m = pi1.matcher(html);
+                if (m.find()) imageUrl = m.group(1);
+                // og:image — content before property
+                if (imageUrl == null) {
+                    Pattern pi2 = Pattern.compile("<meta[^>]+content=[\"']([^\"']+)[\"'][^>]+property=[\"']og:image[\"']", Pattern.CASE_INSENSITIVE);
+                    m = pi2.matcher(html);
+                    if (m.find()) imageUrl = m.group(1);
+                }
             }
         } catch (Exception e) {
-            // Silently fall through — Gemini's imageUrl will be used as fallback
+            // Fall through — Gemini values used as fallback
         }
-        return null;
+        return new PageMeta(title, imageUrl);
+    }
+
+    private String decodeHtmlEntities(String s) {
+        if (s == null) return null;
+        return s.replace("&amp;", "&").replace("&lt;", "<").replace("&gt;", ">")
+                .replace("&quot;", "\"").replace("&#039;", "'").replace("&nbsp;", " ");
     }
 }

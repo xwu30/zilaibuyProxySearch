@@ -17,7 +17,13 @@ public class ImageProxyController {
     public ResponseEntity<byte[]> proxy(@RequestParam String url) {
         try {
             HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
-            conn.setRequestProperty("Referer", "https://www.amazon.co.jp/");
+            // Use the target domain as referer to bypass hotlink protection
+            try {
+                java.net.URL parsed = new java.net.URL(url);
+                conn.setRequestProperty("Referer", parsed.getProtocol() + "://" + parsed.getHost() + "/");
+            } catch (Exception ignored) {
+                conn.setRequestProperty("Referer", "https://www.amazon.co.jp/");
+            }
             conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
             conn.setRequestProperty("Accept", "image/webp,image/apng,image/*,*/*;q=0.8");
             conn.setConnectTimeout(8000);
