@@ -17,9 +17,9 @@ public class RakutenBooksClient {
     private final WebClient webClient;
     private final RakutenProperties props;
 
-    // 使用独立 WebClient（无 baseUrl），避免与 Ichiba client 的 baseUrl 冲突
+    // 无 baseUrl 的独立 WebClient，使用完整绝对 URL 避免编码问题
     public RakutenBooksClient(WebClient.Builder webClientBuilder, RakutenProperties props) {
-        this.webClient = webClientBuilder.baseUrl("https://app.rakuten.co.jp").build();
+        this.webClient = webClientBuilder.build();
         this.props = props;
     }
 
@@ -30,15 +30,17 @@ public class RakutenBooksClient {
         if (page <= 0) page = 1;
         if (hits <= 0 || hits > 30) hits = 20;
 
-        String uri = UriComponentsBuilder
-                .fromPath("/services/api/BooksBook/Search/20170404")
+        // 用 encode() 显式 UTF-8 编码，正确处理中文/日文关键词
+        java.net.URI uri = UriComponentsBuilder
+                .fromHttpUrl(BOOKS_API_URL)
                 .queryParam("format", "json")
                 .queryParam("keyword", keyword)
                 .queryParam("page", page)
                 .queryParam("hits", hits)
                 .queryParam("applicationId", props.getApplicationId())
+                .encode()
                 .build()
-                .toUriString();
+                .toUri();
 
         log.info("[RakutenBooksClient] GET keyword={} page={} hits={}", keyword, page, hits);
 
