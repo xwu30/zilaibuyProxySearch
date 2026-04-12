@@ -13,6 +13,7 @@ public class RakutenProperties {
     private String accessKey;
 
     private String booksApplicationId;
+    private String booksAccessKey;
 
     private String referer;
     private Integer timeoutMs = 8000;
@@ -44,6 +45,9 @@ public class RakutenProperties {
 
     public String getBooksApplicationId() { return booksApplicationId; }
     public void setBooksApplicationId(String booksApplicationId) { this.booksApplicationId = booksApplicationId; }
+
+    public String getBooksAccessKey() { return booksAccessKey; }
+    public void setBooksAccessKey(String booksAccessKey) { this.booksAccessKey = booksAccessKey; }
 
     public Integer getDefaultHits() { return defaultHits; }
     public void setDefaultHits(Integer defaultHits) { this.defaultHits = defaultHits; }
