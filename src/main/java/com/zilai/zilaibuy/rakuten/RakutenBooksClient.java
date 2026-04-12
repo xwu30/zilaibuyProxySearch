@@ -3,10 +3,12 @@ package com.zilai.zilaibuy.rakuten;
 import com.zilai.zilaibuy.rakuten.dto.RakutenBooksSearchResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.util.UriComponentsBuilder;
+import reactor.core.publisher.Mono;
 
 @Slf4j
 @Component
@@ -49,8 +51,14 @@ public class RakutenBooksClient {
                 .header(HttpHeaders.REFERER, props.getReferer())
                 .accept(MediaType.APPLICATION_JSON)
                 .retrieve()
+                .onStatus(HttpStatusCode::isError, resp ->
+                    resp.bodyToMono(String.class).flatMap(body -> {
+                        log.error("[RakutenBooksClient] error {} body: {}", resp.statusCode(), body);
+                        return Mono.error(new RuntimeException("Rakuten Books API error " + resp.statusCode() + ": " + body));
+                    })
+                )
                 .bodyToMono(RakutenBooksSearchResponse.class)
-                .doOnError(e -> log.error("[RakutenBooksClient] request failed", e))
+                .doOnError(e -> log.error("[RakutenBooksClient] request failed: {}", e.getMessage()))
                 .block();
     }
 }
