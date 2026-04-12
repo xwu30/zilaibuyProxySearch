@@ -57,6 +57,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/new-products").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/image-proxy").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/rakuten/search").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/rakuten/books/search").permitAll()
                 .requestMatchers("/api/payments/**").authenticated()
                 .requestMatchers(HttpMethod.GET, "/api/admin/orders", "/api/admin/orders/**").hasAnyRole("ADMIN", "SUPPORT")
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")

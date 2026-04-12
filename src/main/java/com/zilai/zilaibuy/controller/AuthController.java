@@ -5,6 +5,7 @@ import com.zilai.zilaibuy.entity.OtpEntity;
 import com.zilai.zilaibuy.security.AuthenticatedUser;
 import com.zilai.zilaibuy.service.AuthService;
 import com.zilai.zilaibuy.service.OtpService;
+import com.zilai.zilaibuy.service.WechatService;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +25,7 @@ public class AuthController {
 
     private final OtpService otpService;
     private final AuthService authService;
+    private final WechatService wechatService;
 
     @Value("${app.frontend-url}")
     private String frontendUrl;
@@ -120,5 +122,10 @@ public class AuthController {
     public ResponseEntity<Map<String, String>> resetPassword(@Valid @RequestBody PasswordResetDto req) {
         authService.resetPassword(req.token(), req.newPassword(), req.confirmPassword());
         return ResponseEntity.ok(Map.of("message", "密码已重置，请重新登录"));
+    }
+
+    @PostMapping("/wechat-login")
+    public ResponseEntity<AuthResponse> wechatLogin(@Valid @RequestBody WechatLoginRequest req) {
+        return ResponseEntity.ok(wechatService.login(req.code()));
     }
 }

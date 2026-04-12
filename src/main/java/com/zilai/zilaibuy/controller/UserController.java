@@ -106,6 +106,52 @@ public class UserController {
         return toDto(user);
     }
 
+    @PostMapping("/email/send-otp")
+    public Map<String, Object> sendEmailBindOtp(
+            @AuthenticationPrincipal AuthenticatedUser principal,
+            @RequestBody Map<String, String> body
+    ) {
+        String email = body.get("email");
+        if (!StringUtils.hasText(email) || !email.contains("@")) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "请输入有效的邮箱地址");
+        }
+        UserEntity user = userRepository.findById(principal.id())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+        if (StringUtils.hasText(user.getEmail()) && user.isEmailVerified()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "邮箱已绑定");
+        }
+        if (userRepository.findByEmail(email).filter(u -> !u.getId().equals(user.getId())).isPresent()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "该邮箱已被其他账号使用");
+        }
+        String devCode = otpService.sendEmailOtp(email, OtpEntity.Purpose.BIND_EMAIL);
+        Map<String, Object> res = new HashMap<>();
+        res.put("message", "验证码已发送至 " + email);
+        if (devCode != null) res.put("devCode", devCode);
+        return res;
+    }
+
+    @PostMapping("/email/verify")
+    public ProfileDto verifyEmailBind(
+            @AuthenticationPrincipal AuthenticatedUser principal,
+            @RequestBody Map<String, String> body
+    ) {
+        String email = body.get("email");
+        String code  = body.get("code");
+        if (!StringUtils.hasText(email) || !StringUtils.hasText(code)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "参数缺失");
+        }
+        UserEntity user = userRepository.findById(principal.id())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+        if (userRepository.findByEmail(email).filter(u -> !u.getId().equals(user.getId())).isPresent()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "该邮箱已被其他账号使用");
+        }
+        otpService.verifyOtp(email, code, OtpEntity.Purpose.BIND_EMAIL);
+        user.setEmail(email);
+        user.setEmailVerified(true);
+        userRepository.save(user);
+        return toDto(user);
+    }
+
     @PostMapping("/setup-credentials")
     public ResponseEntity<Map<String, String>> setupCredentials(
             @AuthenticationPrincipal AuthenticatedUser principal,

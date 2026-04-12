@@ -82,6 +82,9 @@ public class UserEntity {
     @Column(name = "shipping_country", length = 10)
     private String shippingCountry;
 
+    @Column(name = "wechat_open_id", unique = true, length = 100)
+    private String wechatOpenId;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

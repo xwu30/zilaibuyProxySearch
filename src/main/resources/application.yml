@@ -50,6 +50,10 @@ rakuten:
   default-image-flag: 1
   timeout-ms: 8000
 
+wechat:
+  appid: ${WECHAT_APPID:}
+  secret: ${WECHAT_SECRET:}
+
 google:
   translate:
     api-key: ${GOOGLE_TRANSLATE_API_KEY}
