@@ -46,6 +46,7 @@ rakuten:
   application-id: ${RAKUTEN_APPLICATION_ID}
   access-key: ${RAKUTEN_ACCESS_KEY}
   affiliate-id: ${RAKUTEN_AFFILIATE_ID:}
+  books-application-id: ${RAKUTEN_BOOKS_APPLICATION_ID:${RAKUTEN_APPLICATION_ID}}
   default-hits: 5
   default-image-flag: 1
   timeout-ms: 8000

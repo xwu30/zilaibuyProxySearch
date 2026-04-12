@@ -39,7 +39,7 @@ public class RakutenBooksClient {
                 .queryParam("keyword", keyword)
                 .queryParam("page", page)
                 .queryParam("hits", hits)
-                .queryParam("applicationId", props.getApplicationId())
+                .queryParam("applicationId", props.getBooksApplicationId())
                 .encode()
                 .build()
                 .toUri();
