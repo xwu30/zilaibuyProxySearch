@@ -14,7 +14,7 @@ import reactor.core.publisher.Mono;
 @Component
 public class RakutenBooksClient {
 
-    private static final String BOOKS_API_URL = "https://openapi.rakuten.co.jp/booksms/api/BooksBook/Search/20170404";
+    private static final String BOOKS_API_URL = "https://openapi.rakuten.co.jp/services/api/BooksBook/Search/20170404";
 
     private final WebClient webClient;
     private final RakutenProperties props;
