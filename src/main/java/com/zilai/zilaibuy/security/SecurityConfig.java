@@ -58,6 +58,8 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/image-proxy").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/rakuten/search").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/rakuten/books/search").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/books/search").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/books/sync").hasRole("ADMIN")
                 .requestMatchers("/api/payments/**").authenticated()
                 .requestMatchers(HttpMethod.GET, "/api/admin/orders", "/api/admin/orders/**").hasAnyRole("ADMIN", "SUPPORT")
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")

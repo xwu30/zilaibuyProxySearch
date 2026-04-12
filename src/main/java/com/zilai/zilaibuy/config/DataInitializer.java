@@ -1,11 +1,14 @@
 package com.zilai.zilaibuy.config;
 
 import com.zilai.zilaibuy.entity.UserEntity;
+import com.zilai.zilaibuy.repository.RakutenBookRepository;
 import com.zilai.zilaibuy.repository.UserRepository;
+import com.zilai.zilaibuy.service.RakutenBookSyncService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
@@ -16,6 +19,8 @@ public class DataInitializer {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final RakutenBookRepository bookRepository;
+    private final RakutenBookSyncService bookSyncService;
 
     private static final String ADMIN_PHONE = "+16479852487";
     private static final String ADMIN_PASSWORD = "qwer1234";
@@ -59,5 +64,38 @@ public class DataInitializer {
         xwu30.setLoginFailCount(0);
         userRepository.save(xwu30);
         log.info("xwu30 user ready");
+
+        // Pre-warm Books data if table is empty
+        long bookCount = bookRepository.count();
+        if (bookCount == 0) {
+            log.info("[DataInitializer] Books table empty, triggering initial sync in background...");
+            initialBooksSync();
+        } else {
+            log.info("[DataInitializer] Books table has {} records, skipping initial sync", bookCount);
+        }
+    }
+
+    @Async
+    public void initialBooksSync() {
+        String[] keywords = {
+            "ワンピース", "鬼滅の刃", "進撃の巨人", "ドラゴンボール", "NARUTO",
+            "名探偵コナン", "呪術廻戦", "チェンソーマン",
+            "村上春樹", "東野圭吾",
+            "ビジネス 入門", "プログラミング Python",
+            "料理 レシピ", "絵本 人気"
+        };
+        for (String keyword : keywords) {
+            try {
+                int count = bookSyncService.syncKeyword(keyword, 2, 30);
+                log.info("[DataInitializer] Initial books sync: {} books for '{}'", count, keyword);
+                Thread.sleep(8_000);
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
+                break;
+            } catch (Exception e) {
+                log.error("[DataInitializer] Failed to sync books keyword '{}': {}", keyword, e.getMessage());
+            }
+        }
+        log.info("[DataInitializer] Initial books sync complete. Total: {} books", bookRepository.count());
     }
 }
