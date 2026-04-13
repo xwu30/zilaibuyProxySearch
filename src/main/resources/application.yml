@@ -39,6 +39,10 @@ gemini:
   api:
     key: ${GEMINI_API_KEY:}
 
+yahoo:
+  shopping:
+    app-id: ${YAHOO_SHOPPING_APP_ID:}
+
 rakuten:
   base-url: https://openapi.rakuten.co.jp
   path: /ichibams/api/IchibaItem/Search/20170706
