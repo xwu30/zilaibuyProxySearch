@@ -57,12 +57,23 @@ public class HbrService {
             int quantity = 1;
             int unitCharge = parcel.getDeclaredValue() != null ? parcel.getDeclaredValue().intValue() : 1;
 
+            com.zilai.zilaibuy.entity.UserEntity user = parcel.getUser();
+            String userId = user.getCloudId() != null && !user.getCloudId().isBlank()
+                    ? user.getCloudId()
+                    : String.valueOf(user.getId());
+            String userCode = userId;
+            String userName = user.getUsername() != null && !user.getUsername().isBlank()
+                    ? user.getUsername()
+                    : (user.getDisplayName() != null && !user.getDisplayName().isBlank()
+                        ? user.getDisplayName()
+                        : userId);
+
             String paramsJson = mapper.writeValueAsString(new java.util.LinkedHashMap<String, Object>() {{
                 put("order_tracking_number", trackingNo.trim());
                 put("tracking_type", trackingType);
-                put("user_id", hbrUserId);
-                put("user_code", hbrUserCode);
-                put("user_name", hbrUserName);
+                put("user_id", userId);
+                put("user_code", userCode);
+                put("user_name", userName);
                 put("invoice", java.util.List.of(new java.util.LinkedHashMap<String, Object>() {{
                     put("invoice_enname", enName);
                     put("invoice_cnname", cnName);
@@ -113,12 +124,23 @@ public class HbrService {
             int quantity = item.getQuantity();
             int unitCharge = item.getPriceJpy() > 0 ? item.getPriceJpy() : 1;
 
+            com.zilai.zilaibuy.entity.UserEntity user = item.getOrder().getUser();
+            String userId = user.getCloudId() != null && !user.getCloudId().isBlank()
+                    ? user.getCloudId()
+                    : String.valueOf(user.getId());
+            String userCode = userId;
+            String userName = user.getUsername() != null && !user.getUsername().isBlank()
+                    ? user.getUsername()
+                    : (user.getDisplayName() != null && !user.getDisplayName().isBlank()
+                        ? user.getDisplayName()
+                        : userId);
+
             String paramsJson = mapper.writeValueAsString(new java.util.LinkedHashMap<String, Object>() {{
                 put("order_tracking_number", trackingNo);
                 put("tracking_type", trackingType);
-                put("user_id", hbrUserId);
-                put("user_code", hbrUserCode);
-                put("user_name", hbrUserName);
+                put("user_id", userId);
+                put("user_code", userCode);
+                put("user_name", userName);
                 put("invoice", java.util.List.of(new java.util.LinkedHashMap<String, Object>() {{
                     put("invoice_enname", enName);
                     put("invoice_cnname", cnName);
