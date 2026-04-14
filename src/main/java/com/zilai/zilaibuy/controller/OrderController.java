@@ -55,6 +55,15 @@ public class OrderController {
         return ResponseEntity.ok(orderService.getOrder(id, currentUser));
     }
 
+    @PostMapping("/{id}/reference-images")
+    public ResponseEntity<Void> uploadReferenceImages(
+            @PathVariable Long id,
+            @RequestBody java.util.Map<String, Object> body,
+            @AuthenticationPrincipal AuthenticatedUser currentUser) {
+        orderService.saveReferenceImages(id, body, currentUser.id());
+        return ResponseEntity.ok().build();
+    }
+
     @PatchMapping("/{id}/notes")
     public ResponseEntity<OrderDto> updateNotes(
             @PathVariable Long id,

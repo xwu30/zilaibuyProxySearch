@@ -73,6 +73,31 @@ public class OrderService {
         return OrderDto.from(order);
     }
 
+    @Transactional
+    public void saveReferenceImages(Long orderId, java.util.Map<String, Object> body, Long userId) {
+        OrderEntity order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "订单不存在"));
+        if (!order.getUser().getId().equals(userId))
+            throw new AppException(HttpStatus.FORBIDDEN, "无权操作此订单");
+
+        @SuppressWarnings("unchecked")
+        List<java.util.Map<String, Object>> imagesList = (List<java.util.Map<String, Object>>) body.get("images");
+        if (imagesList == null) return;
+
+        for (java.util.Map<String, Object> entry : imagesList) {
+            String originalUrl = (String) entry.get("originalUrl");
+            @SuppressWarnings("unchecked")
+            List<String> refs = (List<String>) entry.get("referenceImages");
+            if (originalUrl == null || refs == null || refs.isEmpty()) continue;
+
+            order.getItems().stream()
+                    .filter(i -> originalUrl.equals(i.getOriginalUrl()))
+                    .findFirst()
+                    .ifPresent(i -> i.setReferenceImages(serializeReferenceImages(refs)));
+        }
+        orderRepository.save(order);
+    }
+
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     private String serializeReferenceImages(List<String> images) {
