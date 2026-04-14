@@ -1,8 +1,11 @@
 package com.zilai.zilaibuy.dto.order;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zilai.zilaibuy.entity.OrderItemEntity;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 public record OrderItemDto(
         Long id,
@@ -18,12 +21,21 @@ public record OrderItemDto(
         String imageUrl,
         String itemStatus,
         String itemTrackingNo,
-        String itemCarrier
+        String itemCarrier,
+        List<String> referenceImages
 ) {
+    private static final ObjectMapper MAPPER = new ObjectMapper();
+
     public static OrderItemDto from(OrderItemEntity e) {
+        List<String> refs = null;
+        if (e.getReferenceImages() != null) {
+            try {
+                refs = MAPPER.readValue(e.getReferenceImages(), new TypeReference<List<String>>() {});
+            } catch (Exception ignored) {}
+        }
         return new OrderItemDto(e.getId(), e.getProductTitle(), e.getOriginalUrl(),
                 e.getPriceJpy(), e.getPriceCny(), e.getQuantity(), e.getRemarks(),
                 e.getDomesticShipping(), e.getExchangeRate(), e.getPlatform(), e.getImageUrl(),
-                e.getItemStatus(), e.getItemTrackingNo(), e.getItemCarrier());
+                e.getItemStatus(), e.getItemTrackingNo(), e.getItemCarrier(), refs);
     }
 }

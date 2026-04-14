@@ -22,6 +22,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -64,11 +65,23 @@ public class OrderService {
             item.setExchangeRate(itemReq.exchangeRate());
             item.setPlatform(itemReq.platform());
             item.setImageUrl(itemReq.imageUrl());
+            item.setReferenceImages(serializeReferenceImages(itemReq.referenceImages()));
             order.getItems().add(item);
         }
 
         orderRepository.save(order);
         return OrderDto.from(order);
+    }
+
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+
+    private String serializeReferenceImages(List<String> images) {
+        if (images == null || images.isEmpty()) return null;
+        try {
+            return OBJECT_MAPPER.writeValueAsString(images);
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     @Transactional(readOnly = true)
@@ -568,6 +581,7 @@ public class OrderService {
                 item.setExchangeRate(itemReq.exchangeRate());
                 item.setPlatform(itemReq.platform());
                 item.setImageUrl(itemReq.imageUrl());
+                item.setReferenceImages(serializeReferenceImages(itemReq.referenceImages()));
                 order.getItems().add(item);
             }
         }

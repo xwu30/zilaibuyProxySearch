@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 public record OrderItemRequest(
         @NotBlank String productTitle,
@@ -16,5 +17,6 @@ public record OrderItemRequest(
         BigDecimal domesticShipping,
         @NotNull BigDecimal exchangeRate,
         String platform,
-        String imageUrl
+        String imageUrl,
+        List<String> referenceImages
 ) {}

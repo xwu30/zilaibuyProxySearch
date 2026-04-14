@@ -50,6 +50,9 @@ public class OrderItemEntity {
     @Column(name = "image_url", length = 1024)
     private String imageUrl;
 
+    @Column(name = "reference_images", columnDefinition = "TEXT")
+    private String referenceImages; // JSON array of base64 strings
+
     @Column(name = "item_tracking_no", length = 100)
     private String itemTrackingNo;
 
