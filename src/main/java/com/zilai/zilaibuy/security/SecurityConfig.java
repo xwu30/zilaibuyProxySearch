@@ -80,6 +80,12 @@ public class SecurityConfig {
                     res.setCharacterEncoding("UTF-8");
                     res.getWriter().write("{\"error\":\"Unauthorized\"}");
                 })
+                .accessDeniedHandler((req, res, e) -> {
+                    res.setStatus(403);
+                    res.setContentType("application/json");
+                    res.setCharacterEncoding("UTF-8");
+                    res.getWriter().write("{\"error\":\"Forbidden\"}");
+                })
             )
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
