@@ -8,5 +8,6 @@ public record UpdateProfileRequest(
         String shippingCity,
         String shippingProvince,
         String shippingPostalCode,
-        String shippingCountry
+        String shippingCountry,
+        String addressesJson
 ) {}

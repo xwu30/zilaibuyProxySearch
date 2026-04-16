@@ -19,7 +19,9 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 @RestController
@@ -30,6 +32,7 @@ public class UserController {
     private final UserRepository userRepository;
     private final OtpService otpService;
     private final PasswordEncoder passwordEncoder;
+    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     @GetMapping("/profile")
     public ProfileDto getProfile(@AuthenticationPrincipal AuthenticatedUser principal) {
@@ -54,6 +57,7 @@ public class UserController {
         if (req.shippingProvince() != null)  user.setShippingProvince(req.shippingProvince());
         if (req.shippingPostalCode() != null) user.setShippingPostalCode(req.shippingPostalCode());
         if (req.shippingCountry() != null)   user.setShippingCountry(req.shippingCountry());
+        if (req.addressesJson() != null)     user.setAddressesJson(req.addressesJson());
 
         userRepository.save(user);
         return toDto(user);
@@ -185,6 +189,25 @@ public class UserController {
         String displayName = u.getShippingFullName();
         if (displayName == null || displayName.isBlank()) displayName = u.getDisplayName();
         if (displayName == null || displayName.isBlank()) displayName = "紫来淘客" + String.format("%06d", u.getId());
+
+        // If no addressesJson yet but flat columns exist, auto-migrate to JSON
+        String addressesJson = u.getAddressesJson();
+        if (addressesJson == null && u.getShippingCountry() != null && !u.getShippingCountry().isBlank()) {
+            try {
+                Map<String, Object> addr = new LinkedHashMap<>();
+                addr.put("fullName",   u.getShippingFullName()   != null ? u.getShippingFullName()   : "");
+                addr.put("phone",      u.getShippingPhone()      != null ? u.getShippingPhone()      : "");
+                addr.put("street",     u.getShippingStreet()     != null ? u.getShippingStreet()     : "");
+                addr.put("city",       u.getShippingCity()       != null ? u.getShippingCity()       : "");
+                addr.put("province",   u.getShippingProvince()   != null ? u.getShippingProvince()   : "");
+                addr.put("postalCode", u.getShippingPostalCode() != null ? u.getShippingPostalCode() : "");
+                addr.put("country",    u.getShippingCountry());
+                addressesJson = MAPPER.writeValueAsString(Map.of(u.getShippingCountry(), addr));
+                u.setAddressesJson(addressesJson);
+                userRepository.save(u);
+            } catch (Exception ignored) {}
+        }
+
         return new ProfileDto(
                 u.getId(),
                 u.getUsername(),
@@ -199,7 +222,8 @@ public class UserController {
                 u.getShippingPostalCode(),
                 u.getShippingCountry(),
                 u.getCloudId(),
-                u.getPoints()
+                u.getPoints(),
+                addressesJson
         );
     }
 }

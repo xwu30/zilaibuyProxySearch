@@ -82,6 +82,9 @@ public class UserEntity {
     @Column(name = "shipping_country", length = 10)
     private String shippingCountry;
 
+    @Column(name = "addresses_json", columnDefinition = "TEXT")
+    private String addressesJson;
+
     @Column(name = "wechat_open_id", unique = true, length = 100)
     private String wechatOpenId;
 

@@ -74,6 +74,29 @@ public class OrderService {
     }
 
     @Transactional
+    public void saveReferenceImageDirect(Long orderId, String originalUrl, String imageData, Long userId) {
+        OrderEntity order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "订单不存在"));
+        if (!order.getUser().getId().equals(userId))
+            throw new AppException(HttpStatus.FORBIDDEN, "无权操作此订单");
+        order.getItems().stream()
+                .filter(i -> originalUrl.equals(i.getOriginalUrl()))
+                .findFirst()
+                .ifPresent(i -> {
+                    // Append to existing images or create new list
+                    List<String> existing = new java.util.ArrayList<>();
+                    if (i.getReferenceImages() != null) {
+                        try {
+                            List<String> parsed = OBJECT_MAPPER.readValue(i.getReferenceImages(), new com.fasterxml.jackson.core.type.TypeReference<List<String>>() {});
+                            existing.addAll(parsed);
+                        } catch (Exception ignored) {}
+                    }
+                    existing.add(imageData);
+                    i.setReferenceImages(serializeReferenceImages(existing));
+                });
+        orderRepository.save(order);
+    }
+
     public void saveReferenceImages(Long orderId, java.util.Map<String, Object> body, Long userId) {
         OrderEntity order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "订单不存在"));
@@ -354,30 +377,32 @@ public class OrderService {
                 throw new AppException(HttpStatus.FORBIDDEN, "已绑定物流单号的商品不可修改");
             }
         }
-        if (req.itemStatus() != null) item.setItemStatus(req.itemStatus());
-        if (req.itemTrackingNo() != null) {
+        // If a new tracking number is being set, call HBR FIRST — only save if HBR succeeds
+        if (req.itemTrackingNo() != null && !req.itemTrackingNo().isBlank()) {
             String newTracking = req.itemTrackingNo().trim();
-            if (!newTracking.isBlank()) {
-                // Reject if tracking already used by another item
-                orderItemRepository.findByItemTrackingNo(newTracking).ifPresent(existing -> {
-                    if (!existing.getId().equals(itemId)) {
-                        throw new AppException(HttpStatus.CONFLICT, "运单号 " + newTracking + " 已被其他商品使用");
-                    }
-                });
-                // Reject if tracking already registered as a parcel inbound tracking
-                parcelRepository.findByInboundTrackingNo(newTracking).ifPresent(parcel -> {
-                    throw new AppException(HttpStatus.CONFLICT, "运单号 " + newTracking + " 已在包裹系统中登记");
-                });
+            // Duplicate checks before touching HBR
+            orderItemRepository.findByItemTrackingNo(newTracking).ifPresent(existing -> {
+                if (!existing.getId().equals(itemId)) {
+                    throw new AppException(HttpStatus.CONFLICT, "运单号 " + newTracking + " 已被其他商品使用");
+                }
+            });
+            parcelRepository.findByInboundTrackingNo(newTracking).ifPresent(parcel -> {
+                throw new AppException(HttpStatus.CONFLICT, "运单号 " + newTracking + " 已在包裹系统中登记");
+            });
+            // Call HBR — if it fails, return error without modifying DB
+            String hbrError = hbrService.createConsolidatedOrderForItem(newTracking, req.itemCarrier(), item);
+            if (hbrError != null) {
+                return OrderItemDto.from(item).withHbrError(hbrError);
             }
-            item.setItemTrackingNo(newTracking.isBlank() ? null : newTracking);
+            item.setItemTrackingNo(newTracking);
+        } else if (req.itemTrackingNo() != null) {
+            // Explicit blank — clear tracking
+            item.setItemTrackingNo(null);
         }
+
+        if (req.itemStatus() != null) item.setItemStatus(req.itemStatus());
         if (req.itemCarrier() != null) item.setItemCarrier(req.itemCarrier());
         orderItemRepository.save(item);
-
-        // Register tracking number with HBR
-        if (req.itemTrackingNo() != null && !req.itemTrackingNo().isBlank()) {
-            hbrService.createConsolidatedOrderForItem(req.itemTrackingNo().trim(), req.itemCarrier(), item);
-        }
 
         // Auto-advance order to IN_WAREHOUSE only when all items are physically checked in
         if ("IN_WAREHOUSE".equals(item.getItemStatus())) {

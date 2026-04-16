@@ -11,13 +11,22 @@ import com.zilai.zilaibuy.service.OrderService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.s3.presigner.S3Presigner;
+import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequest;
+import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
+import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import java.time.Duration;
 
 @RestController
 @RequestMapping("/api/orders")
@@ -26,6 +35,12 @@ public class OrderController {
 
     private final OrderService orderService;
     private final AuditLogService auditLogService;
+
+    @Value("${app.s3.bucket:zilaibuy-media}")
+    private String s3Bucket;
+
+    @Value("${app.s3.region:us-east-1}")
+    private String s3Region;
 
     @PostMapping
     public ResponseEntity<OrderDto> createOrder(
@@ -55,12 +70,35 @@ public class OrderController {
         return ResponseEntity.ok(orderService.getOrder(id, currentUser));
     }
 
-    @PostMapping("/{id}/reference-images")
-    public ResponseEntity<Void> uploadReferenceImages(
+    /** Step 1: get a presigned S3 PUT URL for direct browser→S3 upload (bypasses WAF) */
+    @GetMapping("/{id}/reference-images/presign")
+    public ResponseEntity<Map<String, String>> presignReferenceImage(
             @PathVariable Long id,
-            @RequestBody java.util.Map<String, Object> body,
             @AuthenticationPrincipal AuthenticatedUser currentUser) {
-        orderService.saveReferenceImages(id, body, currentUser.id());
+        String key = "reference-images/" + currentUser.id() + "/" + id + "/" + UUID.randomUUID() + ".jpg";
+        try (S3Presigner presigner = S3Presigner.builder().region(Region.of(s3Region)).build()) {
+            PresignedPutObjectRequest presigned = presigner.presignPutObject(
+                    PutObjectPresignRequest.builder()
+                            .signatureDuration(Duration.ofMinutes(15))
+                            .putObjectRequest(PutObjectRequest.builder()
+                                    .bucket(s3Bucket).key(key).contentType("image/jpeg").build())
+                            .build());
+            String publicUrl = "https://" + s3Bucket + ".s3." + s3Region + ".amazonaws.com/" + key;
+            return ResponseEntity.ok(Map.of("uploadUrl", presigned.url().toString(), "publicUrl", publicUrl));
+        }
+    }
+
+    /** Step 2: after S3 upload succeeds, save the public URL into the order item */
+    @PostMapping(value = "/{id}/reference-images", consumes = org.springframework.http.MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Void> saveReferenceImageUrl(
+            @PathVariable Long id,
+            @RequestBody Map<String, String> body,
+            @AuthenticationPrincipal AuthenticatedUser currentUser) {
+        String originalUrl = body.get("originalUrl");
+        String imageUrl = body.get("imageUrl");
+        if (originalUrl != null && imageUrl != null) {
+            orderService.saveReferenceImageDirect(id, originalUrl, imageUrl, currentUser.id());
+        }
         return ResponseEntity.ok().build();
     }
 

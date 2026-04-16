@@ -120,6 +120,47 @@ public class PaymentController {
         }
     }
 
+    record PayWithPointsRequest(Long orderId, Integer pointsToUse) {}
+
+    @PostMapping("/pay-with-points")
+    public ResponseEntity<ConfirmPaymentResponse> payWithPoints(
+            @RequestBody PayWithPointsRequest req,
+            @AuthenticationPrincipal AuthenticatedUser currentUser) {
+
+        OrderEntity order = orderRepository.findById(req.orderId())
+                .orElseThrow(() -> new IllegalArgumentException("订单不存在"));
+        if (!order.getUser().getId().equals(currentUser.id()))
+            return ResponseEntity.status(403).build();
+        if (order.getStatus() != OrderEntity.OrderStatus.PENDING_PAYMENT)
+            return ResponseEntity.badRequest().build();
+
+        int pointsToUse = req.pointsToUse() != null ? req.pointsToUse() : 0;
+        UserEntity user = userRepository.findById(currentUser.id())
+                .orElseThrow(() -> new IllegalArgumentException("用户不存在"));
+        if (pointsToUse > user.getPoints())
+            return ResponseEntity.badRequest().build();
+
+        long totalJpy = order.getTotalCny()
+                .divide(JPY_TO_CNY, 0, java.math.RoundingMode.HALF_UP).longValue();
+        long discountJpy = pointsToUse / 10L;
+        long serviceFeeJpy = 200L;
+        if (discountJpy < totalJpy + serviceFeeJpy)
+            return ResponseEntity.badRequest().build(); // points don't fully cover — use Stripe
+
+        order.setPointsUsed(pointsToUse);
+        order.setServiceFeeJpy((int) serviceFeeJpy);
+        order.setStatus(OrderEntity.OrderStatus.PURCHASING);
+        orderRepository.save(order);
+
+        // Deduct points (no earned points since no cash paid)
+        int afterDeduct = Math.max(0, user.getPoints() - pointsToUse);
+        user.setPoints(afterDeduct);
+        userRepository.save(user);
+
+        log.info("Order {} paid fully with {} points, status → PURCHASING", order.getOrderNo(), pointsToUse);
+        return ResponseEntity.ok(new ConfirmPaymentResponse("PURCHASING"));
+    }
+
     @PostMapping("/create-shipping-intent")
     public ResponseEntity<CreateIntentResponse> createShippingIntent(
             @RequestBody CreateShippingIntentRequest req,
@@ -206,13 +247,15 @@ public class PaymentController {
             if ("succeeded".equals(intent.getStatus())) {
                 if (isShippingPayment) {
                     order.setStatus(OrderEntity.OrderStatus.PACKING);
+                    orderRepository.save(order);
+                    processShippingPaymentPoints(order);
                     log.info("Order {} shipping paid, status → PACKING", order.getOrderNo());
                 } else {
                     order.setStatus(OrderEntity.OrderStatus.PURCHASING);
-                    deductPoints(order);
+                    orderRepository.save(order);
+                    processProxyPaymentPoints(order);
                     log.info("Order {} confirmed as PURCHASING via client-side confirmation", order.getOrderNo());
                 }
-                orderRepository.save(order);
             }
             return ResponseEntity.ok(new ConfirmPaymentResponse(order.getStatus().name()));
         } catch (Exception e) {
@@ -270,12 +313,13 @@ public class PaymentController {
                     // Shipping payment: confirm hasn't run yet
                     order.setStatus(OrderEntity.OrderStatus.PACKING);
                     orderRepository.save(order);
+                    processShippingPaymentPoints(order);
                     log.info("Order {} shipping paid (webhook), status → PACKING", order.getOrderNo());
                 } else if (order.getStatus() == OrderEntity.OrderStatus.PENDING_PAYMENT) {
                     // Proxy payment: confirm hasn't run yet
                     order.setStatus(OrderEntity.OrderStatus.PURCHASING);
                     orderRepository.save(order);
-                    deductPoints(order);
+                    processProxyPaymentPoints(order);
                     log.info("Order {} status updated to PURCHASING (webhook)", order.getOrderNo());
                 }
                 // PACKING or PURCHASING: confirm already ran — skip to avoid double-processing
@@ -287,24 +331,41 @@ public class PaymentController {
         return ResponseEntity.ok().build();
     }
 
-    private void deductPoints(OrderEntity order) {
+    /**
+     * Called after proxy order payment succeeds.
+     * Deducts used points; awards points ONLY for the service fee (not item price).
+     */
+    private void processProxyPaymentPoints(OrderEntity order) {
         userRepository.findById(order.getUser().getId()).ifPresent(user -> {
-            // Deduct used points
             int used = order.getPointsUsed();
             int afterDeduct = Math.max(0, user.getPoints() - used);
 
-            // Award earned points: 1 point per JPY actually paid (items + service fee - discount)
-            long totalJpy = order.getTotalCny()
-                    .divide(JPY_TO_CNY, 0, java.math.RoundingMode.HALF_UP)
-                    .longValue();
-            long discountJpy = used / 10; // 10 points = 1 JPY
-            long serviceFeJpy = order.getServiceFeeJpy() != null ? order.getServiceFeeJpy().longValue() : 200L;
-            int earned = (int) Math.max(0, totalJpy + serviceFeJpy - discountJpy);
+            // Only service fee earns points — item purchase price does NOT
+            long serviceFeeJpy = order.getServiceFeeJpy() != null ? order.getServiceFeeJpy().longValue() : 200L;
+            int earned = (int) Math.max(0, serviceFeeJpy);
 
             user.setPoints(afterDeduct + earned);
             userRepository.save(user);
-            log.info("Order {}: deducted {} points, awarded {} points. User {} now has {} points",
+            log.info("Order {} (proxy): deducted {} points, awarded {} points (service fee only). User {} → {} points",
                     order.getOrderNo(), used, earned, user.getId(), user.getPoints());
+        });
+    }
+
+    /**
+     * Called after shipping payment succeeds.
+     * Awards points for the full shipping fee in JPY.
+     */
+    private void processShippingPaymentPoints(OrderEntity order) {
+        if (order.getShippingFeeCny() == null) return;
+        userRepository.findById(order.getUser().getId()).ifPresent(user -> {
+            long shippingJpy = order.getShippingFeeCny()
+                    .divide(JPY_TO_CNY, 0, java.math.RoundingMode.HALF_UP)
+                    .longValue();
+            int earned = (int) Math.max(0, shippingJpy);
+            user.setPoints(user.getPoints() + earned);
+            userRepository.save(user);
+            log.info("Order {} (shipping): awarded {} points for shipping fee. User {} → {} points",
+                    order.getOrderNo(), earned, user.getId(), user.getPoints());
         });
     }
 }

@@ -114,9 +114,10 @@ public class HbrService {
     }
 
     /**
-     * Called when admin fills in item tracking number. Fire-and-forget (logs errors only).
+     * Called when admin fills in item tracking number.
+     * Returns null on success, or an error message string on failure.
      */
-    public void createConsolidatedOrderForItem(String trackingNo, String carrier, OrderItemEntity item) {
+    public String createConsolidatedOrderForItem(String trackingNo, String carrier, OrderItemEntity item) {
         try {
             String trackingType = mapCarrierToTrackingType(carrier);
             String cnName = item.getProductTitle() != null ? item.getProductTitle() : "商品";
@@ -168,12 +169,15 @@ public class HbrService {
             JsonNode root = mapper.readTree(response.body());
             if (root.has("success") && root.get("success").asInt() == 1) {
                 log.info("HBR createconsolidatedorder OK for item tracking={}", trackingNo);
+                return null;
             } else {
                 String msg = root.has("cnmessage") ? root.get("cnmessage").asText() : response.body();
                 log.warn("HBR createconsolidatedorder failed for item tracking={}: {}", trackingNo, msg);
+                return msg;
             }
         } catch (Exception e) {
             log.error("HBR createconsolidatedorder error for item tracking={}: {}", trackingNo, e.getMessage());
+            return "HBR连接失败: " + e.getMessage();
         }
     }
 
@@ -183,13 +187,13 @@ public class HbrService {
     }
 
     private String mapCarrierToTrackingType(String carrier) {
-        if (carrier == null) return "Other";
+        if (carrier == null) return "other";
         String lower = carrier.toLowerCase();
-        if (lower.equals("japan-post") || lower.contains("jp post") || lower.contains("日本邮政")) return "JPPost";
-        if (lower.equals("seino") || lower.contains("西浓")) return "Seino";
-        if (lower.equals("yamato") || lower.contains("yamato") || lower.contains("黑猫")) return "Yamato";
-        if (lower.equals("sagawa") || lower.contains("sagawa") || lower.contains("佐川")) return "Sagawa";
-        return "Other";
+        if (lower.contains("japan-post") || lower.contains("jp post") || lower.contains("日本邮政")) return "japan-post";
+        if (lower.contains("seino") || lower.contains("西浓")) return "seino";
+        if (lower.contains("yamato") || lower.contains("雅玛多") || lower.contains("黑猫")) return "yamato";
+        if (lower.contains("sagawa") || lower.contains("佐川")) return "sagawa";
+        return "other";
     }
 
     private String encode(String value) {

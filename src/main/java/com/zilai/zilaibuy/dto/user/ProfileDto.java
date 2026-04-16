@@ -14,5 +14,6 @@ public record ProfileDto(
         String shippingPostalCode,
         String shippingCountry,
         String cloudId,
-        int points
+        int points,
+        String addressesJson
 ) {}
