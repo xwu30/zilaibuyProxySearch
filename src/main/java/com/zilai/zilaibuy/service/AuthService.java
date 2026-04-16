@@ -100,7 +100,7 @@ public class AuthService {
             if (StringUtils.hasText(password)) {
                 user.setPasswordHash(passwordEncoder.encode(password));
             }
-            user.setPhone("email:" + email);
+            // phone 留 null，该用户通过邮箱注册，后续可在个人中心绑定手机号
             userRepository.save(user);
         }
 

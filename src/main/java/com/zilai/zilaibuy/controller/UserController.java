@@ -71,7 +71,7 @@ public class UserController {
         UserEntity user = userRepository.findById(principal.id())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
 
-        if (user.getPhone() != null && !user.getPhone().startsWith("email:")) {
+        if (user.getPhone() != null) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "手机号已绑定，不可修改");
         }
         if (!StringUtils.hasText(req.phone())) {
@@ -96,7 +96,7 @@ public class UserController {
         UserEntity user = userRepository.findById(principal.id())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
 
-        if (user.getPhone() != null && !user.getPhone().startsWith("email:")) {
+        if (user.getPhone() != null) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "手机号已绑定，不可修改");
         }
         if (userRepository.existsByPhone(req.phone())) {

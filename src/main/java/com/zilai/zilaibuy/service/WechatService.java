@@ -59,7 +59,7 @@ public class WechatService {
         UserEntity user = userRepository.findByWechatOpenId(session.openId()).orElseGet(() -> {
             UserEntity u = new UserEntity();
             u.setWechatOpenId(session.openId());
-            u.setPhone("wx:" + session.openId());
+            // phone 留 null，该用户通过微信登录，后续可在个人中心绑定手机号
             u.setCloudId(generateCloudId());
             return u;
         });
