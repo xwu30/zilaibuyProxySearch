@@ -46,21 +46,30 @@ public class WechatService {
 
     private static final SecureRandom SECURE_RNG = new SecureRandom();
 
+    private record WxSession(String openId, String unionId) {}
+
     @Transactional
     public AuthResponse login(String code) {
         if (appId.isBlank() || appSecret.isBlank()) {
             throw new AppException(HttpStatus.SERVICE_UNAVAILABLE, "微信登录暂未配置");
         }
 
-        String openId = fetchOpenId(code);
+        WxSession session = fetchSession(code);
 
-        UserEntity user = userRepository.findByWechatOpenId(openId).orElseGet(() -> {
+        UserEntity user = userRepository.findByWechatOpenId(session.openId()).orElseGet(() -> {
             UserEntity u = new UserEntity();
-            u.setWechatOpenId(openId);
-            u.setPhone("wx:" + openId);
+            u.setWechatOpenId(session.openId());
+            u.setPhone("wx:" + session.openId());
             u.setCloudId(generateCloudId());
-            return userRepository.save(u);
+            return u;
         });
+
+        // 补存 unionId（开放平台绑定后才能拿到，可能首次登录没有但后续有）
+        if (session.unionId() != null && user.getWechatUnionId() == null) {
+            user.setWechatUnionId(session.unionId());
+        }
+
+        user = userRepository.save(user);
 
         if (!user.isActive()) {
             throw new AppException(HttpStatus.FORBIDDEN, "账户已被禁用，请联系客服");
@@ -69,7 +78,7 @@ public class WechatService {
         return buildAuthResponse(user);
     }
 
-    private String fetchOpenId(String code) {
+    private WxSession fetchSession(String code) {
         try {
             String url = "https://api.weixin.qq.com/sns/jscode2session"
                     + "?appid=" + appId
@@ -90,7 +99,9 @@ public class WechatService {
                 throw new AppException(HttpStatus.UNAUTHORIZED, "微信登录失败，code 无效或已过期");
             }
 
-            return node.get("openid").asText();
+            String openId  = node.get("openid").asText();
+            String unionId = node.has("unionid") ? node.get("unionid").asText(null) : null;
+            return new WxSession(openId, unionId);
         } catch (AppException e) {
             throw e;
         } catch (Exception e) {

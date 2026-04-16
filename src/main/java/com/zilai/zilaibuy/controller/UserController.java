@@ -213,6 +213,7 @@ public class UserController {
                 u.getUsername(),
                 displayName,
                 u.getEmail(),
+                u.isEmailVerified(),
                 u.getPhone(),
                 u.getShippingFullName(),
                 u.getShippingPhone(),

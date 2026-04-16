@@ -5,6 +5,7 @@ public record ProfileDto(
         String username,
         String displayName,
         String email,
+        boolean emailVerified,
         String phone,
         String shippingFullName,
         String shippingPhone,

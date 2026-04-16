@@ -88,6 +88,10 @@ public class UserEntity {
     @Column(name = "wechat_open_id", unique = true, length = 100)
     private String wechatOpenId;
 
+    /** 微信 unionid：跨小程序/公众号唯一，需在开放平台绑定后才能获取 */
+    @Column(name = "wechat_union_id", unique = true, length = 100)
+    private String wechatUnionId;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
