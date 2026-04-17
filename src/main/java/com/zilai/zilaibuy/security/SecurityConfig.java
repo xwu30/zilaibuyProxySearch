@@ -48,6 +48,8 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/shipping/debug-quote").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/shipping/quote").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/payments/webhook").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/hbr/callback/inbound").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/hbr/callback/shipment").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/shipping-rates").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/announcements").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/banners").permitAll()

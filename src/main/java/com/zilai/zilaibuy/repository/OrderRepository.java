@@ -132,6 +132,8 @@ public interface OrderRepository extends JpaRepository<OrderEntity, Long> {
 
     Optional<OrderEntity> findByOrderNo(String orderNo);
 
+    Optional<OrderEntity> findByPackingNo(String packingNo);
+
     Optional<OrderEntity> findByTransitTrackingNo(String transitTrackingNo);
 
     List<OrderEntity> findByUserIdAndStatusOrderByCreatedAtAsc(Long userId, OrderEntity.OrderStatus status);
