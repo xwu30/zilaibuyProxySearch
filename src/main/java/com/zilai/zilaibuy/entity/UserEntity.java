@@ -61,6 +61,9 @@ public class UserEntity {
     @Column(name = "points", nullable = false, columnDefinition = "INT DEFAULT 200")
     private int points = 200;
 
+    @Column(name = "balance_cny", nullable = false, columnDefinition = "DECIMAL(12,2) DEFAULT 0.00")
+    private java.math.BigDecimal balanceCny = java.math.BigDecimal.ZERO;
+
     @Column(name = "shipping_full_name", length = 100)
     private String shippingFullName;
 

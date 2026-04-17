@@ -62,6 +62,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/yahoo/shopping/search").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/books/sync").hasRole("ADMIN")
                 .requestMatchers("/api/payments/**").authenticated()
+                .requestMatchers("/api/wallet/**").authenticated()
                 .requestMatchers(HttpMethod.GET, "/api/admin/orders", "/api/admin/orders/**").hasAnyRole("ADMIN", "SUPPORT")
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.POST, "/api/items/sync").hasRole("ADMIN")

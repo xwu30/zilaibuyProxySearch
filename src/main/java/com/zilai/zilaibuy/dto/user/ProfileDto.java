@@ -16,5 +16,6 @@ public record ProfileDto(
         String shippingCountry,
         String cloudId,
         int points,
-        String addressesJson
+        String addressesJson,
+        java.math.BigDecimal balanceCny
 ) {}

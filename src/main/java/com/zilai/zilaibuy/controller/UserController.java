@@ -224,7 +224,8 @@ public class UserController {
                 u.getShippingCountry(),
                 u.getCloudId(),
                 u.getPoints(),
-                addressesJson
+                addressesJson,
+                u.getBalanceCny() != null ? u.getBalanceCny() : java.math.BigDecimal.ZERO
         );
     }
 }
