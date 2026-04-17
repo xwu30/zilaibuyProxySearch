@@ -41,6 +41,8 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class HbrCallbackController {
 
+    private static final java.math.BigDecimal JPY_TO_CNY = new java.math.BigDecimal("0.0467");
+
     private final ForwardingParcelRepository parcelRepository;
     private final OrderRepository orderRepository;
 
@@ -137,13 +139,16 @@ public class HbrCallbackController {
      *   "outboundTrackingNo":"1Z9999W99999999", // HBR outbound tracking (may be new)
      *   "carrier":           "UPS",             // outbound carrier (optional)
      *   "status":            "SHIPPED",         // see status map above
+     *   "feeJpy":            3200,              // actual shipping fee in JPY (optional)
      *   "weightG":           2500,              // actual packed weight in grams (optional)
      *   "remark":            "..."              // free-text note (optional)
      * }
      *
      * On SHIPPED: sets outboundTrackingNo + carrier on the order and all linked parcels.
-     * On PACKING: sets order status → PACKING, updates weight if provided.
+     * On PACKING: sets order status → PACKING, updates weight / fee if provided.
      * On DELIVERED: marks order and all linked parcels as DELIVERED.
+     * feeJpy: stored as shippingFeeCny (JPY → CNY converted) and quotedFeeJpy. Only written
+     *         when the order has no fee yet, or the new value differs.
      */
     @PostMapping("/shipment")
     public ResponseEntity<Map<String, Object>> shipmentCallback(@RequestBody Map<String, Object> body) {
@@ -156,6 +161,7 @@ public class HbrCallbackController {
         String outboundTrackingNo = getString(body, "outboundTrackingNo");
         String carrier            = getString(body, "carrier");
         String statusStr          = getString(body, "status");
+        Integer feeJpy            = getInt(body, "feeJpy");
         Integer weightG           = getInt(body, "weightG");
         String remark             = getString(body, "remark");
 
@@ -184,8 +190,19 @@ public class HbrCallbackController {
             return ResponseEntity.ok(Map.of("success", 0, "message", "unknown status: " + statusStr));
         }
 
-        log.info("HBR shipment callback: order {} ({}) → status={} outbound={} carrier={}",
-                order.getId(), packingNo, newOrderStatus, outboundTrackingNo, carrier);
+        log.info("HBR shipment callback: order {} ({}) → status={} outbound={} carrier={} feeJpy={}",
+                order.getId(), packingNo, newOrderStatus, outboundTrackingNo, carrier, feeJpy);
+
+        // Update shipping fee if HBR provides it
+        if (feeJpy != null && feeJpy > 0) {
+            java.math.BigDecimal feeCny = new java.math.BigDecimal(feeJpy)
+                    .multiply(JPY_TO_CNY)
+                    .setScale(2, java.math.RoundingMode.HALF_UP);
+            order.setShippingFeeCny(feeCny);
+            order.setQuotedFeeJpy(feeJpy);
+            log.info("HBR shipment callback: set shippingFee ¥{} JPY (≈¥{} CNY) on order {}",
+                    feeJpy, feeCny, order.getOrderNo());
+        }
 
         // Update weight if provided
         if (weightG != null && weightG > 0 && order.getWeightG() == null) {
