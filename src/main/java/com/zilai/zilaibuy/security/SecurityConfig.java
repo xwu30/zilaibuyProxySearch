@@ -47,6 +47,7 @@ public class SecurityConfig {
                 .requestMatchers("/actuator/health", "/api/actuator/health").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/shipping/debug-quote").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/shipping/quote").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/shipping/sync-parcel/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.POST, "/api/payments/webhook").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/hbr/callback/inbound").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/hbr/callback/shipment").permitAll()

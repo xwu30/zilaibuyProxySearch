@@ -94,6 +94,8 @@ hbr:
   user-id: ${HBR_USER_ID:1001}
   user-code: ${HBR_USER_CODE:zy001}
   user-name: ${HBR_USER_NAME:王子天}
+  tracking-app-token: ${HBR_TRACKING_APP_TOKEN:609afb949bce1654940aa8f402b65dbf}
+  tracking-app-key: ${HBR_TRACKING_APP_KEY:9cd9ffad68766e637047b973facac4a59cd9ffad68766e637047b973facac4a5}
 
 management:
   health:
