@@ -66,7 +66,7 @@ public class HbrCallbackController {
      *   "trackingNo":  "SF1234567890",  // inbound tracking number (our inboundTrackingNo)
      *   "status":      "RECEIVED",      // see status map above
      *   "location":    "A01",           // warehouse shelf/location (optional)
-     *   "weightG":     1500,            // actual weight in grams (optional)
+     *   "weightKg":    1.5,             // actual weight in kg (optional)
      *   "remark":      "..."            // free-text note (optional)
      * }
      *
@@ -83,7 +83,7 @@ public class HbrCallbackController {
         String trackingNo = getString(body, "trackingNo");
         String statusStr  = getString(body, "status");
         String location   = getString(body, "location");
-        Integer weightG   = getInt(body, "weightG");
+        Double weightKg   = getDouble(body, "weightKg");
         String remark     = getString(body, "remark");
 
         if (trackingNo == null || trackingNo.isBlank()) {
@@ -124,8 +124,8 @@ public class HbrCallbackController {
             if (location != null && !location.isBlank()) {
                 parcel.setWarehouseLocation(location.trim());
             }
-            if (weightG != null && weightG > 0) {
-                parcel.setWeight(weightG / 1000.0);
+            if (weightKg != null && weightKg > 0) {
+                parcel.setWeight(weightKg);
             }
             if (remark != null && !remark.isBlank()) {
                 String existing = parcel.getNotes() != null ? parcel.getNotes() : "";
@@ -154,7 +154,7 @@ public class HbrCallbackController {
      *   "carrier":           "UPS",             // outbound carrier (optional)
      *   "status":            "SHIPPED",         // see status map above
      *   "feeJpy":            3200,              // actual shipping fee in JPY (optional)
-     *   "weightG":           2500,              // actual packed weight in grams (optional)
+     *   "weightKg":          2.5,               // actual packed weight in kg (optional)
      *   "remark":            "..."              // free-text note (optional)
      * }
      *
@@ -176,7 +176,7 @@ public class HbrCallbackController {
         String carrier            = getString(body, "carrier");
         String statusStr          = getString(body, "status");
         Integer feeJpy            = getInt(body, "feeJpy");
-        Integer weightG           = getInt(body, "weightG");
+        Double weightKg           = getDouble(body, "weightKg");
         String remark             = getString(body, "remark");
 
         if (packingNo == null || packingNo.isBlank()) {
@@ -220,9 +220,9 @@ public class HbrCallbackController {
                     feeJpy, feeCny, order.getOrderNo());
         }
 
-        // Update weight if provided
-        if (weightG != null && weightG > 0 && order.getWeightG() == null) {
-            order.setWeightG(weightG);
+        // Update weight if provided (kg)
+        if (weightKg != null && weightKg > 0 && order.getWeightG() == null) {
+            order.setWeightG((int) Math.round(weightKg * 1000));
         }
 
         // Set outbound tracking + carrier when HBR provides them
@@ -282,6 +282,14 @@ public class HbrCallbackController {
         if (v instanceof Integer i) return i;
         if (v instanceof Number n) return n.intValue();
         if (v instanceof String s) { try { return Integer.parseInt(s); } catch (NumberFormatException ignored) {} }
+        return null;
+    }
+
+    private Double getDouble(Map<String, Object> body, String key) {
+        Object v = body.get(key);
+        if (v instanceof Double d) return d;
+        if (v instanceof Number n) return n.doubleValue();
+        if (v instanceof String s) { try { return Double.parseDouble(s); } catch (NumberFormatException ignored) {} }
         return null;
     }
 
