@@ -4,6 +4,7 @@ import com.zilai.zilaibuy.dto.admin.*;
 import com.zilai.zilaibuy.dto.order.OrderDetailDto;
 import com.zilai.zilaibuy.dto.order.OrderDto;
 import com.zilai.zilaibuy.dto.parcel.ParcelDto;
+import com.zilai.zilaibuy.entity.HbrCallbackLogEntity;
 import com.zilai.zilaibuy.entity.OrderEntity;
 import com.zilai.zilaibuy.entity.UserEntity;
 import com.zilai.zilaibuy.exception.AppException;
@@ -38,6 +39,7 @@ public class AdminController {
 
     private final UserRepository userRepository;
     private final OrderRepository orderRepository;
+    private final HbrCallbackLogRepository hbrCallbackLogRepository;
     private final AuditLogService auditLogService;
     private final ForwardingParcelService parcelService;
     private final OrderService orderService;
@@ -368,6 +370,18 @@ public class AdminController {
                 orderRepository.countConsolidatedByStatus(OrderEntity.OrderStatus.AWAITING_PAYMENT),
                 orderRepository.countConsolidatedShippingPaid()
         ));
+    }
+
+    @GetMapping("/hbr-callback-logs")
+    public ResponseEntity<Page<HbrCallbackLogEntity>> listHbrCallbackLogs(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "30") int size,
+            @RequestParam(required = false) String type) {
+        PageRequest pageable = PageRequest.of(page, size);
+        Page<HbrCallbackLogEntity> result = (type != null && !type.isBlank())
+                ? hbrCallbackLogRepository.findByCallbackTypeOrderByCreatedAtDesc(type, pageable)
+                : hbrCallbackLogRepository.findAllByOrderByCreatedAtDesc(pageable);
+        return ResponseEntity.ok(result);
     }
 
     @GetMapping("/audit-logs")

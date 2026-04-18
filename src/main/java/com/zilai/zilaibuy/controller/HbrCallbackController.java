@@ -1,10 +1,13 @@
 package com.zilai.zilaibuy.controller;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zilai.zilaibuy.entity.ForwardingParcelEntity;
 import com.zilai.zilaibuy.entity.ForwardingParcelEntity.ParcelStatus;
+import com.zilai.zilaibuy.entity.HbrCallbackLogEntity;
 import com.zilai.zilaibuy.entity.OrderEntity;
 import com.zilai.zilaibuy.entity.OrderEntity.OrderStatus;
 import com.zilai.zilaibuy.repository.ForwardingParcelRepository;
+import com.zilai.zilaibuy.repository.HbrCallbackLogRepository;
 import com.zilai.zilaibuy.repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -13,6 +16,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -45,6 +49,8 @@ public class HbrCallbackController {
 
     private final ForwardingParcelRepository parcelRepository;
     private final OrderRepository orderRepository;
+    private final HbrCallbackLogRepository logRepository;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Value("${hbr.app-token}")
     private String configuredAppToken;
@@ -82,13 +88,14 @@ public class HbrCallbackController {
 
         if (trackingNo == null || trackingNo.isBlank()) {
             log.warn("HBR inbound callback: missing trackingNo");
+            saveLog("inbound", null, statusStr, null, false, "missing trackingNo", body);
             return ResponseEntity.ok(Map.of("success", 0, "message", "trackingNo required"));
         }
 
         Optional<ForwardingParcelEntity> opt = parcelRepository.findByInboundTrackingNo(trackingNo.trim());
         if (opt.isEmpty()) {
             log.warn("HBR inbound callback: no parcel found for trackingNo={}", trackingNo);
-            // Return success so HBR doesn't retry indefinitely for unknown numbers
+            saveLog("inbound", trackingNo, statusStr, null, false, "parcel not found — ignored", body);
             return ResponseEntity.ok(Map.of("success", 1, "message", "parcel not found — ignored"));
         }
 
@@ -97,14 +104,19 @@ public class HbrCallbackController {
 
         if (newStatus == null) {
             log.warn("HBR inbound callback: unrecognised status '{}' for trackingNo={}", statusStr, trackingNo);
+            saveLog("inbound", trackingNo, statusStr, null, false, "unknown status: " + statusStr, body);
             return ResponseEntity.ok(Map.of("success", 0, "message", "unknown status: " + statusStr));
         }
 
+        boolean updated = false;
+        String msg;
         // Only advance status — never go backwards
         if (newStatus.ordinal() > parcel.getStatus().ordinal()) {
             log.info("HBR inbound callback: parcel {} ({}) {} → {}",
                     parcel.getId(), trackingNo, parcel.getStatus(), newStatus);
             parcel.setStatus(newStatus);
+            updated = true;
+            msg = parcel.getStatus().name() + " → " + newStatus.name();
 
             if (newStatus == ParcelStatus.IN_WAREHOUSE && parcel.getCheckinDate() == null) {
                 parcel.setCheckinDate(LocalDateTime.now());
@@ -121,9 +133,11 @@ public class HbrCallbackController {
             }
             parcelRepository.save(parcel);
         } else {
+            msg = "已是 " + parcel.getStatus().name() + "，跳过";
             log.info("HBR inbound callback: parcel {} already at {} — skipping status {}", parcel.getId(), parcel.getStatus(), newStatus);
         }
 
+        saveLog("inbound", trackingNo, statusStr, newStatus.name(), updated, msg, body);
         return ResponseEntity.ok(Map.of("success", 1));
     }
 
@@ -178,6 +192,7 @@ public class HbrCallbackController {
         }
         if (opt.isEmpty()) {
             log.warn("HBR shipment callback: no order found for packingNo={}", packingNo);
+            saveLog("shipment", packingNo, statusStr, null, false, "order not found — ignored", body);
             return ResponseEntity.ok(Map.of("success", 1, "message", "order not found — ignored"));
         }
 
@@ -187,6 +202,7 @@ public class HbrCallbackController {
 
         if (newOrderStatus == null) {
             log.warn("HBR shipment callback: unrecognised status '{}' for packingNo={}", statusStr, packingNo);
+            saveLog("shipment", packingNo, statusStr, null, false, "unknown status: " + statusStr, body);
             return ResponseEntity.ok(Map.of("success", 0, "message", "unknown status: " + statusStr));
         }
 
@@ -222,9 +238,9 @@ public class HbrCallbackController {
         }
 
         // Advance order status
-        if (shouldAdvanceOrderStatus(order.getStatus(), newOrderStatus)) {
-            order.setStatus(newOrderStatus);
-        }
+        boolean updated = shouldAdvanceOrderStatus(order.getStatus(), newOrderStatus);
+        String prevStatus = order.getStatus().name();
+        if (updated) order.setStatus(newOrderStatus);
         orderRepository.save(order);
 
         // Propagate status to all linked parcels
@@ -244,6 +260,8 @@ public class HbrCallbackController {
             }
         }
 
+        String msg = updated ? prevStatus + " → " + newOrderStatus.name() : "已是 " + prevStatus + "，跳过";
+        saveLog("shipment", packingNo, statusStr, newOrderStatus.name(), updated, msg, body);
         return ResponseEntity.ok(Map.of("success", 1));
     }
 
@@ -303,7 +321,6 @@ public class HbrCallbackController {
 
     /** Only advance status, never go backwards. */
     private boolean shouldAdvanceOrderStatus(OrderStatus current, OrderStatus next) {
-        // Define progression index
         List<OrderStatus> progression = List.of(
                 OrderStatus.PENDING_PAYMENT, OrderStatus.FEE_QUOTED, OrderStatus.PURCHASING,
                 OrderStatus.IN_TRANSIT, OrderStatus.IN_WAREHOUSE, OrderStatus.PACKING,
@@ -312,5 +329,30 @@ public class HbrCallbackController {
         int ci = progression.indexOf(current);
         int ni = progression.indexOf(next);
         return ni > ci;
+    }
+
+    /** Persist a callback log entry (strips appToken/appKey from body before saving). */
+    private void saveLog(String type, String trackingKey, String rawStatus,
+                         String internalStatus, boolean updated, String message,
+                         Map<String, Object> body) {
+        try {
+            // Remove sensitive credentials before storing
+            Map<String, Object> sanitized = new HashMap<>(body);
+            sanitized.remove("appToken");
+            sanitized.remove("appKey");
+            String rawBody = objectMapper.writeValueAsString(sanitized);
+
+            HbrCallbackLogEntity entry = new HbrCallbackLogEntity();
+            entry.setCallbackType(type);
+            entry.setTrackingKey(trackingKey);
+            entry.setRawStatus(rawStatus);
+            entry.setInternalStatus(internalStatus);
+            entry.setStatusUpdated(updated);
+            entry.setMessage(message);
+            entry.setRawBody(rawBody);
+            logRepository.save(entry);
+        } catch (Exception e) {
+            log.error("Failed to save HBR callback log", e);
+        }
     }
 }
