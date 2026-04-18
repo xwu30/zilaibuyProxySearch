@@ -197,11 +197,11 @@ public class HbrShippingController {
     private ParcelStatus mapHbrStatus(String s) {
         if (s == null) return null;
         return switch (s.toUpperCase().trim()) {
-            case "RECEIVED", "已收货", "IN_WAREHOUSE", "入库", "ARRIVED", "INWAREHOUSE" -> ParcelStatus.IN_WAREHOUSE;
-            case "PACKING", "打包中", "打包完成", "PACKED"                               -> ParcelStatus.PACKING;
-            case "SHIPPED", "已发货", "DISPATCHED", "SENT", "DELIVERED_TO_CARRIER"      -> ParcelStatus.SHIPPED;
-            case "DELIVERED", "已签收", "COMPLETED", "SIGNED"                           -> ParcelStatus.DELIVERED;
-            default -> null;
+            case "RECEIVED"  -> ParcelStatus.IN_WAREHOUSE;   // 包裹签入
+            case "PACKED"    -> ParcelStatus.PACKING;         // 运单打包完成
+            case "SHIPPED"   -> ParcelStatus.SHIPPED;         // 运单发货
+            case "DELIVERED" -> ParcelStatus.DELIVERED;       // 运单签收
+            default          -> null;
         };
     }
 

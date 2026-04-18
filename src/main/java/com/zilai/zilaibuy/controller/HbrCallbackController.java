@@ -271,11 +271,11 @@ public class HbrCallbackController {
     private ParcelStatus mapInboundStatus(String s) {
         if (s == null) return null;
         return switch (s.toUpperCase().trim()) {
-            case "RECEIVED", "已收货", "IN_WAREHOUSE", "入库", "ARRIVED" -> ParcelStatus.IN_WAREHOUSE;
-            case "PACKING", "打包中", "SORTING"                          -> ParcelStatus.PACKING;
-            case "SHIPPED", "已发货", "DISPATCHED", "SENT"               -> ParcelStatus.SHIPPED;
-            case "DELIVERED", "已签收", "COMPLETED"                      -> ParcelStatus.DELIVERED;
-            default -> null;
+            case "RECEIVED"  -> ParcelStatus.IN_WAREHOUSE;  // 包裹签入
+            case "PACKED"    -> ParcelStatus.PACKING;        // 运单打包完成
+            case "SHIPPED"   -> ParcelStatus.SHIPPED;        // 运单发货
+            case "DELIVERED" -> ParcelStatus.DELIVERED;      // 运单签收
+            default          -> null;
         };
     }
 
@@ -283,10 +283,10 @@ public class HbrCallbackController {
     private OrderStatus mapShipmentOrderStatus(String s) {
         if (s == null) return null;
         return switch (s.toUpperCase().trim()) {
-            case "PACKING", "打包中", "打包完成", "PACKED"                -> OrderStatus.PACKING;
-            case "SHIPPED", "已发货", "DISPATCHED", "SENT"               -> OrderStatus.SHIPPED;
-            case "DELIVERED", "已签收", "COMPLETED"                      -> OrderStatus.DELIVERED;
-            default -> null;
+            case "PACKED"    -> OrderStatus.PACKING;         // 运单打包完成
+            case "SHIPPED"   -> OrderStatus.SHIPPED;         // 运单发货
+            case "DELIVERED" -> OrderStatus.DELIVERED;       // 运单签收
+            default          -> null;
         };
     }
 
@@ -294,10 +294,10 @@ public class HbrCallbackController {
     private ParcelStatus mapShipmentParcelStatus(String s) {
         if (s == null) return null;
         return switch (s.toUpperCase().trim()) {
-            case "PACKING", "打包中", "打包完成", "PACKED"                -> ParcelStatus.PACKING;
-            case "SHIPPED", "已发货", "DISPATCHED", "SENT"               -> ParcelStatus.SHIPPED;
-            case "DELIVERED", "已签收", "COMPLETED"                      -> ParcelStatus.DELIVERED;
-            default -> null;
+            case "PACKED"    -> ParcelStatus.PACKING;        // 运单打包完成
+            case "SHIPPED"   -> ParcelStatus.SHIPPED;        // 运单发货
+            case "DELIVERED" -> ParcelStatus.DELIVERED;      // 运单签收
+            default          -> null;
         };
     }
 
