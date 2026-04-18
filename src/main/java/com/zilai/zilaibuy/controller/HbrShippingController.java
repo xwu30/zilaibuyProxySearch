@@ -137,7 +137,7 @@ public class HbrShippingController {
         }
 
         try {
-            String paramsJson = String.format("{\"order_tracking_number\":\"%s\"}", trackingNo.trim());
+            String paramsJson = String.format("{\"order_tracking_number\":[\"%s\"]}", trackingNo.trim());
             String body = "appToken=" + encode(trackingAppToken)
                     + "&appKey=" + encode(trackingAppKey)
                     + "&serviceMethod=consolidatedorderstatus"
