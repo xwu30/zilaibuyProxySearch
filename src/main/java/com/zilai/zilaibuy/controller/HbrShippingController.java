@@ -162,32 +162,49 @@ public class HbrShippingController {
                 return ResponseEntity.ok(Map.of("message", msg, "rawBody", rawBody));
             }
 
-            // Parse status — try common field names across all nesting levels
+            // Parse status and weight from response data
             JsonNode data = root.path("data");
             String hbrStatus = null;
+            String orderWeightStr = null;
             if (data.isArray() && data.size() > 0) {
                 JsonNode first = data.get(0);
                 hbrStatus = firstNonNull(first, "status", "Status", "order_status", "OrderStatus", "state", "State");
+                orderWeightStr = firstNonNull(first, "order_weight", "weight");
             } else if (data.isObject()) {
                 hbrStatus = firstNonNull(data, "status", "Status", "order_status", "OrderStatus", "state", "State");
+                orderWeightStr = firstNonNull(data, "order_weight", "weight");
             }
-            // Also check top-level if data had nothing useful
             if (hbrStatus == null) {
                 hbrStatus = firstNonNull(root, "status", "Status", "order_status", "OrderStatus");
             }
-            log.info("HBR sync parcel {} parsed hbrStatus='{}' from data={}", parcelId, hbrStatus, data);
+            log.info("HBR sync parcel {} parsed hbrStatus='{}' weight='{}' from data={}", parcelId, hbrStatus, orderWeightStr, data);
 
             ParcelStatus newStatus = mapHbrStatus(hbrStatus);
             String oldStatus = parcel.getStatus().name();
+            boolean changed = false;
 
             if (newStatus != null && newStatus.ordinal() > parcel.getStatus().ordinal()) {
                 parcel.setStatus(newStatus);
                 if (newStatus == ParcelStatus.IN_WAREHOUSE && parcel.getCheckinDate() == null) {
                     parcel.setCheckinDate(LocalDateTime.now());
                 }
-                parcelRepository.save(parcel);
+                changed = true;
                 log.info("Parcel {} status updated {} → {} via HBR query", parcelId, oldStatus, newStatus);
             }
+
+            // Update weight from HBR (order_weight is in kg, we store grams)
+            if (orderWeightStr != null) {
+                try {
+                    int weightG = (int) (Double.parseDouble(orderWeightStr) * 1000);
+                    if (weightG > 0) {
+                        parcel.setWeight(weightG);
+                        changed = true;
+                        log.info("Parcel {} weight updated to {}g from HBR", parcelId, weightG);
+                    }
+                } catch (NumberFormatException ignored) {}
+            }
+
+            if (changed) parcelRepository.save(parcel);
 
             return ResponseEntity.ok(Map.of(
                     "hbrStatus", hbrStatus != null ? hbrStatus : "unknown",
