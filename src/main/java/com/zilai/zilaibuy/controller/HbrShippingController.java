@@ -151,24 +151,29 @@ public class HbrShippingController {
                     .build();
 
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-            log.info("HBR sync parcel {} ({}): HTTP {} body={}", parcelId, trackingNo, response.statusCode(), response.body());
+            String rawBody = response.body();
+            log.info("HBR sync parcel {} ({}): HTTP {} rawBody={}", parcelId, trackingNo, response.statusCode(), rawBody);
 
-            JsonNode root = mapper.readTree(response.body());
+            JsonNode root = mapper.readTree(rawBody);
             if (!root.has("success") || root.get("success").asInt() != 1) {
                 String msg = root.has("msg") ? root.get("msg").asText() : "HBR 返回失败";
-                return ResponseEntity.ok(Map.of("message", msg));
+                return ResponseEntity.ok(Map.of("message", msg, "rawBody", rawBody));
             }
 
-            // Parse status from response data
+            // Parse status — try common field names across all nesting levels
             JsonNode data = root.path("data");
             String hbrStatus = null;
             if (data.isArray() && data.size() > 0) {
-                hbrStatus = data.get(0).path("status").asText(null);
-                if (hbrStatus == null) hbrStatus = data.get(0).path("Status").asText(null);
+                JsonNode first = data.get(0);
+                hbrStatus = firstNonNull(first, "status", "Status", "order_status", "OrderStatus", "state", "State");
             } else if (data.isObject()) {
-                hbrStatus = data.path("status").asText(null);
-                if (hbrStatus == null) hbrStatus = data.path("Status").asText(null);
+                hbrStatus = firstNonNull(data, "status", "Status", "order_status", "OrderStatus", "state", "State");
             }
+            // Also check top-level if data had nothing useful
+            if (hbrStatus == null) {
+                hbrStatus = firstNonNull(root, "status", "Status", "order_status", "OrderStatus");
+            }
+            log.info("HBR sync parcel {} parsed hbrStatus='{}' from data={}", parcelId, hbrStatus, data);
 
             ParcelStatus newStatus = mapHbrStatus(hbrStatus);
             String oldStatus = parcel.getStatus().name();
@@ -185,7 +190,8 @@ public class HbrShippingController {
             return ResponseEntity.ok(Map.of(
                     "hbrStatus", hbrStatus != null ? hbrStatus : "unknown",
                     "status", parcel.getStatus().name(),
-                    "updated", newStatus != null && !oldStatus.equals(parcel.getStatus().name())
+                    "updated", newStatus != null && !oldStatus.equals(parcel.getStatus().name()),
+                    "rawBody", rawBody
             ));
 
         } catch (Exception e) {
@@ -203,6 +209,17 @@ public class HbrShippingController {
             case "DELIVERED" -> ParcelStatus.DELIVERED;       // 运单签收
             default          -> null;
         };
+    }
+
+    /** Return the text value of the first key that exists and is non-null/non-empty in the given node. */
+    private String firstNonNull(JsonNode node, String... keys) {
+        for (String key : keys) {
+            JsonNode v = node.get(key);
+            if (v != null && !v.isNull() && !v.asText("").isBlank()) {
+                return v.asText();
+            }
+        }
+        return null;
     }
 
     private String encode(String value) {
