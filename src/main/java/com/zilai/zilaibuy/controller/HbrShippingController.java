@@ -156,7 +156,9 @@ public class HbrShippingController {
 
             JsonNode root = mapper.readTree(rawBody);
             if (!root.has("success") || root.get("success").asInt() != 1) {
-                String msg = root.has("msg") ? root.get("msg").asText() : "HBR 返回失败";
+                String msg = firstNonNull(root, "cnmessage", "enmessage", "msg");
+                if (msg == null) msg = "HBR 返回失败";
+                log.warn("HBR sync parcel {} failed: {}", parcelId, msg);
                 return ResponseEntity.ok(Map.of("message", msg, "rawBody", rawBody));
             }
 
