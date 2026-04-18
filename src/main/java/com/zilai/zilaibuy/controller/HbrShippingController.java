@@ -205,12 +205,12 @@ public class HbrShippingController {
     private ParcelStatus mapHbrStatus(String s) {
         if (s == null) return null;
         return switch (s.toUpperCase().trim()) {
-            // Single-letter codes from consolidatedorderstatus API
-            case "C"         -> ParcelStatus.IN_WAREHOUSE;   // Checked-in / 签入
-            case "P"         -> ParcelStatus.PACKING;         // Packed / 打包
-            case "S"         -> ParcelStatus.SHIPPED;         // Shipped / 已发货
-            case "D"         -> ParcelStatus.DELIVERED;       // Delivered / 已签收
-            // Full-word codes (callback / fallback)
+            // HBR single-letter codes (consonlidatedorderstatus API)
+            case "P"         -> null;                         // 预报 — no status change needed
+            case "V"         -> ParcelStatus.IN_WAREHOUSE;   // 入库
+            case "C"         -> ParcelStatus.SHIPPED;         // 发货
+            case "D"         -> ParcelStatus.DELIVERED;       // 签收（推测）
+            // Full-word codes (callback fallback)
             case "RECEIVED"  -> ParcelStatus.IN_WAREHOUSE;
             case "PACKED"    -> ParcelStatus.PACKING;
             case "SHIPPED"   -> ParcelStatus.SHIPPED;
