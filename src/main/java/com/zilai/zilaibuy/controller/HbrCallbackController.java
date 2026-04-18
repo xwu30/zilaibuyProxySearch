@@ -125,7 +125,7 @@ public class HbrCallbackController {
                 parcel.setWarehouseLocation(location.trim());
             }
             if (weightG != null && weightG > 0) {
-                parcel.setWeight(weightG);
+                parcel.setWeight(weightG / 1000.0);
             }
             if (remark != null && !remark.isBlank()) {
                 String existing = parcel.getNotes() != null ? parcel.getNotes() : "";

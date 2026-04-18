@@ -327,8 +327,7 @@ public class AdminController {
             @RequestBody AdminUpdateParcelRequest req,
             @AuthenticationPrincipal AuthenticatedUser currentUser,
             HttpServletRequest httpReq) {
-        Integer weightGrams = req.weightKg() != null ? (int) Math.round(req.weightKg() * 1000) : null;
-        ParcelDto result = parcelService.adminUpdateParcel(id, req.status(), weightGrams,
+        ParcelDto result = parcelService.adminUpdateParcel(id, req.status(), req.weightKg(),
                 req.outboundTrackingNo(), req.notes(), req.content(), req.inboundTrackingNo(), req.carrier());
         String detail = req.status() != null ? "{\"status\":\"" + req.status().name() + "\"}" : null;
         auditLogService.log(currentUser.id(), "PARCEL_UPDATED", "PARCEL", String.valueOf(id),

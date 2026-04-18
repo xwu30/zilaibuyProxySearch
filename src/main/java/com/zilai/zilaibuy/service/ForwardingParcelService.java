@@ -171,10 +171,10 @@ public class ForwardingParcelService {
     }
 
     @Transactional
-    public ParcelDto updateWeight(Long parcelId, Integer weightGrams) {
+    public ParcelDto updateWeight(Long parcelId, Double weightKg) {
         ForwardingParcelEntity parcel = parcelRepository.findById(parcelId)
                 .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "包裹不存在"));
-        parcel.setWeight(weightGrams);
+        parcel.setWeight(weightKg);
         parcelRepository.save(parcel);
         return ParcelDto.from(parcel);
     }
@@ -195,13 +195,13 @@ public class ForwardingParcelService {
 
     @Transactional
     public ParcelDto adminUpdateParcel(Long parcelId, ForwardingParcelEntity.ParcelStatus status,
-                                       Integer weightGrams, String outboundTrackingNo,
+                                       Double weightKg, String outboundTrackingNo,
                                        String notes, String content, String inboundTrackingNo,
                                        String carrier) {
         ForwardingParcelEntity parcel = parcelRepository.findById(parcelId)
                 .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "包裹不存在"));
         if (status != null) parcel.setStatus(status);
-        if (weightGrams != null) parcel.setWeight(weightGrams);
+        if (weightKg != null) parcel.setWeight(weightKg);
         if (outboundTrackingNo != null)
             parcel.setOutboundTrackingNo(outboundTrackingNo.isBlank() ? null : outboundTrackingNo.trim());
         if (notes != null) parcel.setNotes(notes.isBlank() ? null : notes.trim());

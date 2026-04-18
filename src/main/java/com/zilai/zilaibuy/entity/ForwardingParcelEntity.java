@@ -48,7 +48,7 @@ public class ForwardingParcelEntity {
     private String processingOption = "direct";
 
     @Column
-    private Integer weight;
+    private Double weight;  // kg
 
     @Column(name = "outbound_tracking_no", length = 100)
     private String outboundTrackingNo;

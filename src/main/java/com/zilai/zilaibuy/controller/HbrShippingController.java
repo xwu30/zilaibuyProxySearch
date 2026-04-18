@@ -195,11 +195,11 @@ public class HbrShippingController {
             // Update weight from HBR (order_weight is in kg, we store grams)
             if (orderWeightStr != null) {
                 try {
-                    int weightG = (int) (Double.parseDouble(orderWeightStr) * 1000);
-                    if (weightG > 0) {
-                        parcel.setWeight(weightG);
+                    double weightKg = Double.parseDouble(orderWeightStr);
+                    if (weightKg > 0) {
+                        parcel.setWeight(weightKg);
                         changed = true;
-                        log.info("Parcel {} weight updated to {}g from HBR", parcelId, weightG);
+                        log.info("Parcel {} weight updated to {}kg from HBR", parcelId, weightKg);
                     }
                 } catch (NumberFormatException ignored) {}
             }

@@ -16,7 +16,7 @@ public record ParcelDto(
         BigDecimal declaredValue,
         String status,
         String processingOption,
-        Integer weight,
+        Double weight,
         String outboundTrackingNo,
         String notes,
         Long linkedOrderId,

@@ -98,8 +98,7 @@ public class WarehouseController {
     public ResponseEntity<ParcelDto> updateWeight(
             @PathVariable Long id,
             @RequestBody UpdateWeightRequest req) {
-        int grams = (int) Math.round(req.weightKg() * 1000);
-        return ResponseEntity.ok(parcelService.updateWeight(id, grams));
+        return ResponseEntity.ok(parcelService.updateWeight(id, req.weightKg()));
     }
 
     record ShipParcelRequest(String outboundTrackingNo, String notes) {}
