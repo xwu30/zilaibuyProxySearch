@@ -203,10 +203,16 @@ public class HbrShippingController {
     private ParcelStatus mapHbrStatus(String s) {
         if (s == null) return null;
         return switch (s.toUpperCase().trim()) {
-            case "RECEIVED"  -> ParcelStatus.IN_WAREHOUSE;   // 包裹签入
-            case "PACKED"    -> ParcelStatus.PACKING;         // 运单打包完成
-            case "SHIPPED"   -> ParcelStatus.SHIPPED;         // 运单发货
-            case "DELIVERED" -> ParcelStatus.DELIVERED;       // 运单签收
+            // Single-letter codes from consolidatedorderstatus API
+            case "C"         -> ParcelStatus.IN_WAREHOUSE;   // Checked-in / 签入
+            case "P"         -> ParcelStatus.PACKING;         // Packed / 打包
+            case "S"         -> ParcelStatus.SHIPPED;         // Shipped / 已发货
+            case "D"         -> ParcelStatus.DELIVERED;       // Delivered / 已签收
+            // Full-word codes (callback / fallback)
+            case "RECEIVED"  -> ParcelStatus.IN_WAREHOUSE;
+            case "PACKED"    -> ParcelStatus.PACKING;
+            case "SHIPPED"   -> ParcelStatus.SHIPPED;
+            case "DELIVERED" -> ParcelStatus.DELIVERED;
             default          -> null;
         };
     }
