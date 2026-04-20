@@ -10,5 +10,6 @@ public record CreateParcelRequest(
         @NotBlank String content,
         BigDecimal declaredValue,
         String processingOption,
+        String serviceOptions,
         String notes
 ) {}

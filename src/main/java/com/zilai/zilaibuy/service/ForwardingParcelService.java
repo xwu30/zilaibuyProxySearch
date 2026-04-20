@@ -38,6 +38,9 @@ public class ForwardingParcelService {
         parcel.setContent(req.content());
         parcel.setDeclaredValue(req.declaredValue());
         parcel.setProcessingOption(req.processingOption() != null ? req.processingOption() : "direct");
+        if (req.serviceOptions() != null && !req.serviceOptions().isBlank()) {
+            parcel.setServiceOptions(req.serviceOptions());
+        }
         parcelRepository.save(parcel);
         String hbrMessage = hbrService.createConsolidatedOrder(parcel);
         return ParcelDto.from(parcel, hbrMessage);
@@ -87,6 +90,7 @@ public class ForwardingParcelService {
         parcel.setContent(req.content());
         parcel.setDeclaredValue(req.declaredValue());
         if (req.processingOption() != null) parcel.setProcessingOption(req.processingOption());
+        if (req.serviceOptions() != null) parcel.setServiceOptions(req.serviceOptions().isBlank() ? null : req.serviceOptions());
         if (req.notes() != null) parcel.setNotes(req.notes());
         parcelRepository.save(parcel);
         return ParcelDto.from(parcel);

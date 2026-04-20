@@ -47,6 +47,10 @@ public class ForwardingParcelEntity {
     @Column(name = "processing_option", length = 20)
     private String processingOption = "direct";
 
+    /** 增值服务，逗号分隔，如 "photo_label,item_check" */
+    @Column(name = "service_options", length = 200)
+    private String serviceOptions;
+
     @Column
     private Double weight;  // kg
 
