@@ -139,7 +139,7 @@ public class ParcelController {
         return ResponseEntity.ok(new ShippingRequestResponse(saved.getId(), saved.getOrderNo()));
     }
 
-    record VasRequestBody(List<Long> parcelIds, List<Long> orderIds, List<String> services) {}
+    record VasRequestBody(List<Long> parcelIds, List<Long> orderIds, List<String> services, String contactInfo) {}
 
     @PostMapping("/vas-request")
     public ResponseEntity<Map<String, String>> submitVasRequest(
@@ -223,7 +223,7 @@ public class ParcelController {
         String notifyEmail = appSettingService.get("vas.notify.email", vasAdminEmail);
         String fullItemsDetail = emailDetailSb.isEmpty() ? itemsSb.toString() : emailDetailSb.toString();
         emailService.sendVasRequestNotification(notifyEmail, customerName, customerPhone,
-                customerEmail, fullItemsDetail, serviceLabel);
+                customerEmail, req.contactInfo(), fullItemsDetail, serviceLabel);
 
         return ResponseEntity.ok(Map.of("message", "增值服务申请已提交，仓库将尽快处理"));
     }

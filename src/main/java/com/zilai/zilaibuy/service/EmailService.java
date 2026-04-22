@@ -229,7 +229,7 @@ public class EmailService {
     }
 
     public void sendVasRequestNotification(String adminEmail, String customerName, String customerPhone,
-                                           String customerEmail, String items, String services) {
+                                           String customerEmail, String contactInfo, String items, String services) {
         if (!StringUtils.hasText(fromEmail)) {
             log.info("[DEV] VAS request from {} services={}", customerName, services);
             return;
@@ -247,6 +247,7 @@ public class EmailService {
                 "姓名：" + customerName + "\n" +
                 "手机：" + customerPhone + "\n" +
                 (StringUtils.hasText(customerEmail) ? "邮箱：" + customerEmail + "\n" : "") +
+                (StringUtils.hasText(contactInfo) ? "联系方式：" + contactInfo + "\n" : "") +
                 "\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n" +
                 "申请服务\n" +
                 "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n" +
