@@ -10,8 +10,10 @@ import com.stripe.net.Webhook;
 import com.stripe.param.PaymentIntentCreateParams;
 import com.zilai.zilaibuy.entity.OrderEntity;
 import com.zilai.zilaibuy.entity.UserEntity;
+import com.zilai.zilaibuy.entity.VasRequestEntity;
 import com.zilai.zilaibuy.repository.OrderRepository;
 import com.zilai.zilaibuy.repository.UserRepository;
+import com.zilai.zilaibuy.repository.VasRequestRepository;
 import com.zilai.zilaibuy.security.AuthenticatedUser;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -36,6 +38,7 @@ public class PaymentController {
 
     private final OrderRepository orderRepository;
     private final UserRepository userRepository;
+    private final VasRequestRepository vasRequestRepository;
 
     @Value("${stripe.secret-key}")
     private String stripeSecretKey;
@@ -337,6 +340,87 @@ public class PaymentController {
         }
     }
 
+    // ── VAS Payment ─────────────────────────────────────────────────────────────
+
+    private static final java.util.Map<String, Long> VAS_FEE_JPY = java.util.Map.of(
+            "item_inspect", 4300L,   // ≈ ¥200 CNY
+            "photo",        6400L,   // ≈ ¥300 CNY
+            "special_pack", 6400L
+    );
+
+    record CreateVasIntentRequest(Long vasRequestId) {}
+
+    @PostMapping("/vas/create-intent")
+    public ResponseEntity<CreateIntentResponse> createVasIntent(
+            @RequestBody CreateVasIntentRequest req,
+            @AuthenticationPrincipal AuthenticatedUser currentUser) {
+
+        VasRequestEntity vas = vasRequestRepository.findById(req.vasRequestId())
+                .orElseThrow(() -> new IllegalArgumentException("增值服务申请不存在"));
+        if (!vas.getUser().getId().equals(currentUser.id()))
+            return ResponseEntity.status(403).build();
+        if (vas.getStatus() != VasRequestEntity.VasStatus.DONE)
+            return ResponseEntity.badRequest().build();
+
+        long amountJpy = 0;
+        for (String svc : vas.getServices().split(",")) {
+            amountJpy += VAS_FEE_JPY.getOrDefault(svc.trim(), 0L);
+        }
+        if (amountJpy < 50) amountJpy = 50;
+
+        Stripe.apiKey = stripeSecretKey;
+        try {
+            PaymentIntentCreateParams params = PaymentIntentCreateParams.builder()
+                    .setAmount(amountJpy)
+                    .setCurrency("jpy")
+                    .setDescription("增值服务费 " + vas.getServices() + " (vasId=" + vas.getId() + ")")
+                    .putMetadata("vasRequestId", String.valueOf(vas.getId()))
+                    .putMetadata("userId", String.valueOf(currentUser.id()))
+                    .putMetadata("type", "vas")
+                    .build();
+            PaymentIntent intent = PaymentIntent.create(params);
+            vas.setStripePaymentIntentId(intent.getId());
+            vasRequestRepository.save(vas);
+            log.info("VAS PaymentIntent created: {} for vasId={}", intent.getId(), vas.getId());
+            return ResponseEntity.ok(new CreateIntentResponse(intent.getClientSecret()));
+        } catch (Exception e) {
+            log.error("Failed to create VAS PaymentIntent for vasId={}", vas.getId(), e);
+            throw new RuntimeException("支付初始化失败，请重试");
+        }
+    }
+
+    record ConfirmVasRequest(Long vasRequestId) {}
+
+    @PostMapping("/vas/confirm")
+    public ResponseEntity<java.util.Map<String, String>> confirmVasPayment(
+            @RequestBody ConfirmVasRequest req,
+            @AuthenticationPrincipal AuthenticatedUser currentUser) {
+
+        VasRequestEntity vas = vasRequestRepository.findById(req.vasRequestId())
+                .orElseThrow(() -> new IllegalArgumentException("增值服务申请不存在"));
+        if (!vas.getUser().getId().equals(currentUser.id()))
+            return ResponseEntity.status(403).build();
+        if (vas.getStripePaymentIntentId() == null)
+            return ResponseEntity.badRequest().build();
+
+        Stripe.apiKey = stripeSecretKey;
+        try {
+            PaymentIntent intent = PaymentIntent.retrieve(vas.getStripePaymentIntentId());
+            if ("succeeded".equals(intent.getStatus())) {
+                if (vas.getStatus() == VasRequestEntity.VasStatus.DONE) {
+                    vas.setStatus(VasRequestEntity.VasStatus.PAID);
+                    vasRequestRepository.save(vas);
+                    log.info("VAS request {} marked as PAID", vas.getId());
+                }
+                return ResponseEntity.ok(java.util.Map.of("status", vas.getStatus().name()));
+            }
+            return ResponseEntity.ok(java.util.Map.of("status", vas.getStatus().name()));
+        } catch (Exception e) {
+            log.error("Failed to confirm VAS payment for vasId={}", vas.getId(), e);
+            throw new RuntimeException("确认支付状态失败，请刷新页面");
+        }
+    }
+
     @PostMapping("/webhook")
     public ResponseEntity<Void> handleWebhook(
             HttpServletRequest request,
@@ -409,6 +493,15 @@ public class PaymentController {
             } catch (Exception e) {
                 log.error("Webhook: failed to check wallet_topup type for {}", piId, e);
             }
+
+            // Handle VAS payment
+            vasRequestRepository.findByStripePaymentIntentId(piId).ifPresent(vas -> {
+                if (vas.getStatus() == VasRequestEntity.VasStatus.DONE) {
+                    vas.setStatus(VasRequestEntity.VasStatus.PAID);
+                    vasRequestRepository.save(vas);
+                    log.info("VAS request {} marked as PAID (webhook)", vas.getId());
+                }
+            });
 
             orderRepository.findByStripePaymentIntentId(piId).ifPresent(order -> {
                 if (order.getStatus() == OrderEntity.OrderStatus.AWAITING_PAYMENT) {

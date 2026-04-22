@@ -5,13 +5,17 @@ import com.zilai.zilaibuy.dto.parcel.ParcelDto;
 import com.zilai.zilaibuy.entity.ForwardingParcelEntity;
 import com.zilai.zilaibuy.entity.OrderEntity;
 import com.zilai.zilaibuy.entity.UserEntity;
+import com.zilai.zilaibuy.entity.VasRequestEntity;
 import com.zilai.zilaibuy.repository.ForwardingParcelRepository;
 import com.zilai.zilaibuy.repository.OrderRepository;
 import com.zilai.zilaibuy.repository.UserRepository;
+import com.zilai.zilaibuy.repository.VasRequestRepository;
 import com.zilai.zilaibuy.security.AuthenticatedUser;
+import com.zilai.zilaibuy.service.EmailService;
 import com.zilai.zilaibuy.service.ForwardingParcelService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -32,6 +36,15 @@ public class ParcelController {
     private final OrderRepository orderRepository;
     private final UserRepository userRepository;
     private final ForwardingParcelRepository forwardingParcelRepository;
+    private final VasRequestRepository vasRequestRepository;
+    private final EmailService emailService;
+    private final com.zilai.zilaibuy.service.AppSettingService appSettingService;
+
+    @Value("${app.admin-email:stellahtor@gmail.com}")
+    private String adminEmail;
+
+    @Value("${app.vas-admin-email:rogerxjwu@outlook.com}")
+    private String vasAdminEmail;
 
     @PostMapping
     public ResponseEntity<ParcelDto> create(
@@ -68,6 +81,16 @@ public class ParcelController {
             @AuthenticationPrincipal AuthenticatedUser currentUser) {
         parcelService.deleteParcel(id, currentUser.id());
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/vas-requests")
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    public ResponseEntity<List<com.zilai.zilaibuy.dto.VasRequestDto>> listMyVasRequests(
+            @AuthenticationPrincipal AuthenticatedUser currentUser) {
+        return ResponseEntity.ok(
+            vasRequestRepository.findByUserIdOrderByCreatedAtDesc(currentUser.id())
+                .stream().map(com.zilai.zilaibuy.dto.VasRequestDto::from).toList()
+        );
     }
 
     @GetMapping("/check-tracking")
@@ -114,5 +137,94 @@ public class ParcelController {
         forwardingParcelRepository.saveAll(parcels);
 
         return ResponseEntity.ok(new ShippingRequestResponse(saved.getId(), saved.getOrderNo()));
+    }
+
+    record VasRequestBody(List<Long> parcelIds, List<Long> orderIds, List<String> services) {}
+
+    @PostMapping("/vas-request")
+    public ResponseEntity<Map<String, String>> submitVasRequest(
+            @RequestBody VasRequestBody req,
+            @AuthenticationPrincipal AuthenticatedUser currentUser) {
+
+        UserEntity user = userRepository.findById(currentUser.id())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        String serviceLabel = req.services() == null ? "" : String.join("、", req.services().stream().map(s -> switch (s) {
+            case "item_inspect" -> "商品验货费 ¥200/件";
+            case "photo"        -> "商品拍照费 ¥300/件";
+            case "special_pack" -> "特殊商品处理包装费 ¥300/件";
+            default             -> s;
+        }).toList());
+
+        StringBuilder itemsSb = new StringBuilder();
+
+        // Update parcel notes and collect descriptions
+        if (req.parcelIds() != null && !req.parcelIds().isEmpty()) {
+            List<ForwardingParcelEntity> parcels = forwardingParcelRepository.findAllById(req.parcelIds());
+            for (ForwardingParcelEntity parcel : parcels) {
+                if (!parcel.getUser().getId().equals(currentUser.id())) continue;
+                String note = "【增值服务申请】" + serviceLabel;
+                parcel.setNotes(note);
+                itemsSb.append("  [转运包裹] ").append(parcel.getInboundTrackingNo())
+                       .append(" - ").append(parcel.getContent()).append("\n");
+            }
+            forwardingParcelRepository.saveAll(parcels);
+        }
+
+        // Collect order descriptions with full item details
+        StringBuilder orderDetailSb = new StringBuilder();
+        if (req.orderIds() != null && !req.orderIds().isEmpty()) {
+            List<OrderEntity> orders = orderRepository.findAllById(req.orderIds());
+            for (OrderEntity order : orders) {
+                if (!order.getUser().getId().equals(currentUser.id())) continue;
+                itemsSb.append("  [采购订单] ").append(order.getOrderNo()).append("\n");
+                orderDetailSb.append("[采购订单] ").append(order.getOrderNo()).append("\n");
+                if (order.getItems() != null) {
+                    for (var item : order.getItems()) {
+                        orderDetailSb.append("  · ").append(item.getProductTitle())
+                                .append(" x").append(item.getQuantity())
+                                .append(" ¥").append(item.getPriceCny()).append(" CNY");
+                        if (item.getPlatform() != null && !item.getPlatform().isBlank())
+                            orderDetailSb.append(" [").append(item.getPlatform()).append("]");
+                        orderDetailSb.append("\n");
+                    }
+                }
+                orderDetailSb.append("  订单合计: ¥").append(order.getTotalCny()).append(" CNY\n\n");
+            }
+        }
+
+        // Build full detail for email (parcels + orders with items)
+        StringBuilder emailDetailSb = new StringBuilder();
+        if (!itemsSb.isEmpty()) {
+            String parcelSection = itemsSb.toString();
+            if (parcelSection.contains("[转运包裹]")) {
+                emailDetailSb.append(parcelSection.lines()
+                        .filter(l -> l.contains("[转运包裹]"))
+                        .collect(java.util.stream.Collectors.joining("\n"))).append("\n\n");
+            }
+        }
+        if (!orderDetailSb.isEmpty()) emailDetailSb.append(orderDetailSb);
+
+        String customerName = user.getUsername() != null && !user.getUsername().isBlank()
+                ? user.getUsername() : user.getPhone();
+        String customerPhone = user.getPhone() != null ? user.getPhone() : "";
+        String customerEmail = user.getEmail() != null ? user.getEmail() : "";
+
+        // Persist VAS request to DB
+        VasRequestEntity vasReq = new VasRequestEntity();
+        vasReq.setUser(user);
+        vasReq.setParcelIds(req.parcelIds() == null ? null : req.parcelIds().stream().map(String::valueOf).collect(java.util.stream.Collectors.joining(",")));
+        vasReq.setOrderIds(req.orderIds() == null ? null : req.orderIds().stream().map(String::valueOf).collect(java.util.stream.Collectors.joining(",")));
+        vasReq.setServices(String.join(",", req.services()));
+        vasReq.setItemsSummary(itemsSb.toString().trim());
+        vasRequestRepository.save(vasReq);
+
+        // Read notification email from DB settings (admin-configurable), fall back to app property
+        String notifyEmail = appSettingService.get("vas.notify.email", vasAdminEmail);
+        String fullItemsDetail = emailDetailSb.isEmpty() ? itemsSb.toString() : emailDetailSb.toString();
+        emailService.sendVasRequestNotification(notifyEmail, customerName, customerPhone,
+                customerEmail, fullItemsDetail, serviceLabel);
+
+        return ResponseEntity.ok(Map.of("message", "增值服务申请已提交，仓库将尽快处理"));
     }
 }

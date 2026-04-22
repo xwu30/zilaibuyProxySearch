@@ -177,6 +177,120 @@ public class EmailService {
         }
     }
 
+    public void sendProxyOrderNotification(String adminEmail, String customerName, String customerPhone,
+                                           String customerEmail, com.zilai.zilaibuy.entity.OrderEntity order) {
+        if (!StringUtils.hasText(fromEmail)) {
+            log.info("[DEV] Proxy order notification for order {}", order.getOrderNo());
+            return;
+        }
+        try {
+            StringBuilder sb = new StringBuilder();
+            sb.append("收到新的采购订单：\n\n");
+            sb.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+            sb.append("客户信息\n");
+            sb.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+            sb.append("姓名：").append(customerName).append("\n");
+            sb.append("手机：").append(customerPhone).append("\n");
+            if (StringUtils.hasText(customerEmail)) sb.append("邮箱：").append(customerEmail).append("\n");
+            sb.append("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+            sb.append("订单信息\n");
+            sb.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+            sb.append("订单号：").append(order.getOrderNo()).append("\n");
+            sb.append("订单合计：¥").append(order.getTotalCny()).append(" CNY\n");
+            if (order.getNotes() != null && !order.getNotes().isBlank())
+                sb.append("备注：").append(order.getNotes()).append("\n");
+            sb.append("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+            sb.append("商品明细\n");
+            sb.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+            for (com.zilai.zilaibuy.entity.OrderItemEntity item : order.getItems()) {
+                sb.append("· ").append(item.getProductTitle())
+                  .append(" x").append(item.getQuantity())
+                  .append(" ¥").append(item.getPriceCny()).append(" CNY");
+                if (item.getPlatform() != null && !item.getPlatform().isBlank())
+                    sb.append(" [").append(item.getPlatform()).append("]");
+                sb.append("\n");
+                if (item.getOriginalUrl() != null && !item.getOriginalUrl().isBlank())
+                    sb.append("  链接：").append(item.getOriginalUrl()).append("\n");
+                if (item.getRemarks() != null && !item.getRemarks().isBlank())
+                    sb.append("  备注：").append(item.getRemarks()).append("\n");
+            }
+            sb.append("\n— ZilaiBuy 系统通知");
+
+            SimpleMailMessage msg = new SimpleMailMessage();
+            msg.setFrom(fromEmail);
+            msg.setTo(adminEmail);
+            msg.setSubject("【ZilaiBuy】新采购订单 " + order.getOrderNo() + " - " + customerName);
+            msg.setText(sb.toString());
+            mailSender.send(msg);
+            log.info("Proxy order notification sent to {} for order {}", adminEmail, order.getOrderNo());
+        } catch (Exception e) {
+            log.warn("Failed to send proxy order notification for {} ({})", order.getOrderNo(), e.getMessage());
+        }
+    }
+
+    public void sendVasRequestNotification(String adminEmail, String customerName, String customerPhone,
+                                           String customerEmail, String items, String services) {
+        if (!StringUtils.hasText(fromEmail)) {
+            log.info("[DEV] VAS request from {} services={}", customerName, services);
+            return;
+        }
+        try {
+            SimpleMailMessage msg = new SimpleMailMessage();
+            msg.setFrom(fromEmail);
+            msg.setTo(adminEmail);
+            msg.setSubject("【ZilaiBuy】增值服务申请 - " + customerName);
+            msg.setText(
+                "收到新的增值服务申请：\n\n" +
+                "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n" +
+                "客户信息\n" +
+                "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n" +
+                "姓名：" + customerName + "\n" +
+                "手机：" + customerPhone + "\n" +
+                (StringUtils.hasText(customerEmail) ? "邮箱：" + customerEmail + "\n" : "") +
+                "\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n" +
+                "申请服务\n" +
+                "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n" +
+                services + "\n\n" +
+                "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n" +
+                "涉及包裹 / 订单\n" +
+                "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n" +
+                items + "\n" +
+                "— ZilaiBuy 系统通知"
+            );
+            mailSender.send(msg);
+            log.info("VAS request email sent to {}", adminEmail);
+        } catch (Exception e) {
+            log.warn("Failed to send VAS request email ({})", e.getMessage());
+        }
+    }
+
+    public void sendVasCompletionEmail(String toEmail, String displayName, String services, String itemsSummary, String adminNotes) {
+        if (!StringUtils.hasText(toEmail)) return;
+        if (!StringUtils.hasText(fromEmail)) {
+            log.info("[DEV] VAS completion email for {} services={}", displayName, services);
+            return;
+        }
+        try {
+            SimpleMailMessage msg = new SimpleMailMessage();
+            msg.setFrom(fromEmail);
+            msg.setTo(toEmail);
+            msg.setSubject("【ZilaiBuy】您的增值服务已完成");
+            msg.setText(
+                "您好，" + displayName + "！\n\n" +
+                "您申请的增值服务已处理完成：\n\n" +
+                "  服务项目：" + services + "\n" +
+                (itemsSummary != null && !itemsSummary.isBlank() ? "  涉及包裹/订单：\n" + itemsSummary + "\n" : "") +
+                (adminNotes != null && !adminNotes.isBlank() ? "\n  仓库备注：" + adminNotes + "\n" : "") +
+                "\n请登录 ZilaiBuy 个人中心查看详情和照片。\n\n" +
+                "— ZilaiBuy 团队"
+            );
+            mailSender.send(msg);
+            log.info("VAS completion email sent to {}", toEmail);
+        } catch (Exception e) {
+            log.warn("Failed to send VAS completion email to {} ({})", toEmail, e.getMessage());
+        }
+    }
+
     public void sendConfirmationEmail(String toEmail, String token) {
         String link = baseUrl + "/api/auth/confirm-email?token=" + token;
         if (!StringUtils.hasText(fromEmail)) {

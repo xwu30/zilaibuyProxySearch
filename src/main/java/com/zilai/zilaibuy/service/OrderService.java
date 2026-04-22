@@ -40,6 +40,7 @@ public class OrderService {
     private final ForwardingParcelRepository parcelRepository;
     private final HbrService hbrService;
     private final EmailService emailService;
+    private final AppSettingService appSettingService;
 
     @Transactional
     public OrderDto createOrder(CreateOrderRequest req, Long userId) {
@@ -70,6 +71,17 @@ public class OrderService {
         }
 
         orderRepository.save(order);
+
+        // Notify admin of new proxy order
+        try {
+            String notifyEmail = appSettingService.get("order.notify.email", "rogerxjwu@outlook.com");
+            String customerName = user.getUsername() != null && !user.getUsername().isBlank() ? user.getUsername() : user.getPhone();
+            String customerEmail = user.getEmail() != null ? user.getEmail() : "";
+            emailService.sendProxyOrderNotification(notifyEmail, customerName, user.getPhone(), customerEmail, order);
+        } catch (Exception e) {
+            // Non-fatal — don't fail order creation if email fails
+        }
+
         return OrderDto.from(order);
     }
 

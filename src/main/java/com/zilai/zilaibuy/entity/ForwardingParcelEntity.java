@@ -90,6 +90,6 @@ public class ForwardingParcelEntity {
     private LocalDateTime updatedAt;
 
     public enum ParcelStatus {
-        ANNOUNCED, IN_WAREHOUSE, PACKING, SHIPPED, DELIVERED
+        ANNOUNCED, IN_WAREHOUSE, PACKING, SHIPPED, DELIVERED, DELETED
     }
 }

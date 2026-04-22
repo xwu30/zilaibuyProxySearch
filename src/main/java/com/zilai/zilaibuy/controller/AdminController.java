@@ -1,5 +1,6 @@
 package com.zilai.zilaibuy.controller;
 
+import com.zilai.zilaibuy.dto.VasRequestDto;
 import com.zilai.zilaibuy.dto.admin.*;
 import com.zilai.zilaibuy.dto.order.OrderDetailDto;
 import com.zilai.zilaibuy.dto.order.OrderDto;
@@ -7,10 +8,12 @@ import com.zilai.zilaibuy.dto.parcel.ParcelDto;
 import com.zilai.zilaibuy.entity.HbrCallbackLogEntity;
 import com.zilai.zilaibuy.entity.OrderEntity;
 import com.zilai.zilaibuy.entity.UserEntity;
+import com.zilai.zilaibuy.entity.VasRequestEntity;
 import com.zilai.zilaibuy.exception.AppException;
 import com.zilai.zilaibuy.repository.*;
 import com.zilai.zilaibuy.security.AuthenticatedUser;
 import com.zilai.zilaibuy.service.AuditLogService;
+import com.zilai.zilaibuy.service.EmailService;
 import com.zilai.zilaibuy.service.ForwardingParcelService;
 import com.zilai.zilaibuy.service.OrderService;
 import java.math.BigDecimal;
@@ -47,6 +50,9 @@ public class AdminController {
     private final PasswordResetTokenRepository passwordResetTokenRepository;
     private final EmailConfirmationRepository emailConfirmationRepository;
     private final PendingEmailRegistrationRepository pendingEmailRegistrationRepository;
+    private final VasRequestRepository vasRequestRepository;
+    private final EmailService emailService;
+    private final com.zilai.zilaibuy.service.AppSettingService appSettingService;
 
     @GetMapping("/users")
     public ResponseEntity<Page<AdminUserDto>> listUsers(
@@ -383,6 +389,49 @@ public class AdminController {
         return ResponseEntity.ok(result);
     }
 
+    @GetMapping("/vas-requests")
+    @Transactional(readOnly = true)
+    public ResponseEntity<Page<VasRequestDto>> listVasRequests(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "30") int size) {
+        PageRequest pageable = PageRequest.of(page, size);
+        return ResponseEntity.ok(vasRequestRepository.findAllByOrderByCreatedAtDesc(pageable).map(VasRequestDto::from));
+    }
+
+    record VasStatusUpdate(String status, String adminNotes, String serviceResults) {}
+
+    @PatchMapping("/vas-requests/{id}")
+    @Transactional
+    public ResponseEntity<VasRequestDto> updateVasRequest(
+            @PathVariable Long id,
+            @RequestBody VasStatusUpdate body) {
+        VasRequestEntity req = vasRequestRepository.findById(id)
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "申请不存在"));
+        boolean wasNotDone = req.getStatus() != VasRequestEntity.VasStatus.DONE;
+        if (body.status() != null) req.setStatus(VasRequestEntity.VasStatus.valueOf(body.status()));
+        if (body.adminNotes() != null) req.setAdminNotes(body.adminNotes());
+        if (body.serviceResults() != null) req.setServiceResults(body.serviceResults());
+        vasRequestRepository.save(req);
+
+        // Send email when transitioning to DONE
+        if (wasNotDone && req.getStatus() == VasRequestEntity.VasStatus.DONE) {
+            UserEntity user = req.getUser();
+            String toEmail = user.getEmail();
+            String displayName = user.getUsername() != null && !user.getUsername().isBlank()
+                    ? user.getUsername() : user.getPhone();
+            String serviceLabel = req.getServices() == null ? "" :
+                    String.join("、", java.util.Arrays.stream(req.getServices().split(",")).map(s -> switch (s.trim()) {
+                        case "item_inspect" -> "商品验货费";
+                        case "photo"        -> "商品拍照费";
+                        case "special_pack" -> "特殊商品处理包装费";
+                        default             -> s;
+                    }).toList());
+            emailService.sendVasCompletionEmail(toEmail, displayName, serviceLabel, req.getItemsSummary(), req.getAdminNotes());
+        }
+
+        return ResponseEntity.ok(VasRequestDto.from(req));
+    }
+
     @GetMapping("/audit-logs")
     public ResponseEntity<Page<AuditLogService.AuditLogDto>> listAuditLogs(
             @RequestParam(defaultValue = "0") int page,
@@ -393,6 +442,22 @@ public class AdminController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to) {
         PageRequest pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
         return ResponseEntity.ok(auditLogService.listLogs(action, operatorId, from, to, pageable));
+    }
+
+    // ── App Settings ──────────────────────────────────────────────────────────────
+
+    @GetMapping("/settings")
+    public ResponseEntity<java.util.Map<String, String>> getSettings() {
+        return ResponseEntity.ok(appSettingService.getAll());
+    }
+
+    record UpdateSettingRequest(String key, String value) {}
+
+    @PutMapping("/settings")
+    public ResponseEntity<Void> updateSetting(@RequestBody UpdateSettingRequest req) {
+        if (req.key() == null || req.key().isBlank()) return ResponseEntity.badRequest().build();
+        appSettingService.set(req.key(), req.value() != null ? req.value() : "");
+        return ResponseEntity.ok().build();
     }
 
 }

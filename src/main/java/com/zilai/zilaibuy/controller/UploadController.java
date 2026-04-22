@@ -30,7 +30,8 @@ public class UploadController {
     public ResponseEntity<Map<String, String>> presign(@RequestBody Map<String, String> body) {
         String contentType = body.getOrDefault("contentType", "image/jpeg");
         String ext = contentType.contains("/") ? "." + contentType.split("/")[1].replace("jpeg", "jpg") : ".jpg";
-        String key = "packing-photos/" + UUID.randomUUID() + ext;
+        String folder = body.getOrDefault("folder", "packing-photos");
+        String key = folder + "/" + UUID.randomUUID() + ext;
 
         S3Presigner presigner = S3Presigner.builder()
                 .region(Region.of(region))
