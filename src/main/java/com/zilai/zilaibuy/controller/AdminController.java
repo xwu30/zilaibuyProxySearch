@@ -317,6 +317,19 @@ public class AdminController {
         return ResponseEntity.ok(result);
     }
 
+    @PreAuthorize("hasAnyRole('ADMIN', 'WAREHOUSE', 'SUPPORT')")
+    @PostMapping("/orders/{id}/packing-complete")
+    public ResponseEntity<OrderDetailDto> completePackingAndNotify(
+            @PathVariable Long id,
+            @RequestBody AdminSavePackingInfoRequest req,
+            @AuthenticationPrincipal AuthenticatedUser currentUser,
+            HttpServletRequest httpReq) {
+        OrderDetailDto result = orderService.savePackingInfo(id, req.weightG(), req.lengthCm(), req.widthCm(), req.heightCm(), req.packingPhotoUrl());
+        auditLogService.log(currentUser.id(), "ORDER_PACKING_COMPLETE", "ORDER", String.valueOf(id),
+                "{\"weightG\":" + req.weightG() + "}", httpReq.getRemoteAddr());
+        return ResponseEntity.ok(result);
+    }
+
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPPORT')")
     @PutMapping("/orders/{orderId}/items/{itemId}")
     public ResponseEntity<OrderDto> adminUpdateOrderItem(
