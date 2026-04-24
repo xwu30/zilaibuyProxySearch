@@ -6,7 +6,9 @@ import com.zilai.zilaibuy.entity.ForwardingParcelEntity;
 import com.zilai.zilaibuy.entity.OrderEntity;
 import com.zilai.zilaibuy.entity.UserEntity;
 import com.zilai.zilaibuy.entity.VasRequestEntity;
+import com.zilai.zilaibuy.entity.OrderItemEntity;
 import com.zilai.zilaibuy.repository.ForwardingParcelRepository;
+import com.zilai.zilaibuy.repository.OrderItemRepository;
 import com.zilai.zilaibuy.repository.OrderRepository;
 import com.zilai.zilaibuy.repository.UserRepository;
 import com.zilai.zilaibuy.repository.VasRequestRepository;
@@ -38,6 +40,7 @@ public class ParcelController {
     private final OrderService orderService;
     private final HbrService hbrService;
     private final OrderRepository orderRepository;
+    private final OrderItemRepository orderItemRepository;
     private final UserRepository userRepository;
     private final ForwardingParcelRepository forwardingParcelRepository;
     private final VasRequestRepository vasRequestRepository;
@@ -145,18 +148,23 @@ public class ParcelController {
             orderService.createPackingRequest(req.orderItemIds(), null, currentUser);
         }
 
-        // Call HBR createconsolidatedshipment and store returned order_Id as packingNo
-        if (!parcels.isEmpty() && req.shippingLine() != null && !req.shippingLine().isBlank()) {
-            List<String> trackingNumbers = parcels.stream()
-                    .filter(p -> p.getInboundTrackingNo() != null && !p.getInboundTrackingNo().isBlank())
-                    .map(ForwardingParcelEntity::getInboundTrackingNo)
-                    .toList();
-            if (!trackingNumbers.isEmpty()) {
-                String hbrOrderId = hbrService.createConsolidatedShipment(trackingNumbers, req.shippingLine());
-                if (hbrOrderId != null && !hbrOrderId.isBlank()) {
-                    saved.setPackingNo(hbrOrderId);
-                    orderRepository.save(saved);
-                }
+        // 收集所有快递单号（转运包裹 + 代购单商品单号），调用 HBR 创建集运单
+        List<String> allTrackingNumbers = new java.util.ArrayList<>();
+        parcels.stream()
+                .filter(p -> p.getInboundTrackingNo() != null && !p.getInboundTrackingNo().isBlank())
+                .map(ForwardingParcelEntity::getInboundTrackingNo)
+                .forEach(allTrackingNumbers::add);
+        if (req.orderItemIds() != null && !req.orderItemIds().isEmpty()) {
+            orderItemRepository.findAllById(req.orderItemIds()).stream()
+                    .filter(item -> item.getItemTrackingNo() != null && !item.getItemTrackingNo().isBlank())
+                    .map(OrderItemEntity::getItemTrackingNo)
+                    .forEach(allTrackingNumbers::add);
+        }
+        if (!allTrackingNumbers.isEmpty()) {
+            String hbrOrderId = hbrService.createConsolidatedShipment(allTrackingNumbers, req.shippingLine());
+            if (hbrOrderId != null && !hbrOrderId.isBlank()) {
+                saved.setPackingNo(hbrOrderId);
+                orderRepository.save(saved);
             }
         }
 
