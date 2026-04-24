@@ -113,47 +113,40 @@ public class ParcelController {
     record ShippingRequestResponse(long orderId, String orderNo) {}
 
     @PostMapping("/shipping-request")
+    @org.springframework.transaction.annotation.Transactional
     public ResponseEntity<ShippingRequestResponse> createShippingRequest(
             @RequestBody ShippingRequestBody req,
             @AuthenticationPrincipal AuthenticatedUser currentUser) {
-        UserEntity user = userRepository.findById(currentUser.id())
-                .orElseThrow(() -> new RuntimeException("User not found"));
 
-        OrderEntity order = new OrderEntity();
-        order.setUser(user);
-        String datePart = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
-        String randPart = UUID.randomUUID().toString().replace("-", "").substring(0, 6).toUpperCase();
-        order.setOrderNo("HX" + datePart + "-" + randPart);
-        order.setTotalCny(BigDecimal.valueOf(req.totalCny()));
-        order.setStatus(OrderEntity.OrderStatus.PACKING);
+        // Unified packing: merge proxy orders + forwarding parcels into ONE order via createPackingRequest
+        List<com.zilai.zilaibuy.dto.order.OrderDto> results =
+                orderService.createPackingRequest(req.orderItemIds(), req.parcelIds(), currentUser);
+
+        // Primary order is the first in the result list
+        if (results.isEmpty()) {
+            throw new RuntimeException("打包申请失败");
+        }
+        com.zilai.zilaibuy.dto.order.OrderDto primaryDto = results.get(0);
+        OrderEntity primaryOrder = orderRepository.findById(primaryDto.id())
+                .orElseThrow(() -> new RuntimeException("Order not found"));
+
+        // Update notes with shipping request info
+        int parcelCount = req.parcelIds() != null ? req.parcelIds().size() : 0;
         String notes = String.format("转运申请 | 线路: %s | 验货: %s | 拍照: %s | 包裹数: %d",
-                req.shippingLine(),
+                req.shippingLine() != null ? req.shippingLine() : "",
                 req.addInspection() ? "是" : "否",
                 req.addPhoto() ? "是" : "否",
-                req.parcelIds().size());
-        order.setNotes(notes);
-
-        OrderEntity saved = orderRepository.save(order);
-
-        List<ForwardingParcelEntity> parcels = forwardingParcelRepository.findAllById(req.parcelIds());
-        for (ForwardingParcelEntity parcel : parcels) {
-            if (!parcel.getUser().getId().equals(currentUser.id())) continue;
-            parcel.setLinkedOrder(saved);
-            parcel.setStatus(ForwardingParcelEntity.ParcelStatus.PACKING);
-        }
-        forwardingParcelRepository.saveAll(parcels);
-
-        // Advance any selected proxy order items to PACKING status
-        if (req.orderItemIds() != null && !req.orderItemIds().isEmpty()) {
-            orderService.createPackingRequest(req.orderItemIds(), null, currentUser);
-        }
+                parcelCount);
+        primaryOrder.setNotes(notes);
 
         // 收集所有快递单号（转运包裹 + 代购单商品单号），调用 HBR 创建集运单
         List<String> allTrackingNumbers = new java.util.ArrayList<>();
-        parcels.stream()
-                .filter(p -> p.getInboundTrackingNo() != null && !p.getInboundTrackingNo().isBlank())
-                .map(ForwardingParcelEntity::getInboundTrackingNo)
-                .forEach(allTrackingNumbers::add);
+        if (req.parcelIds() != null && !req.parcelIds().isEmpty()) {
+            forwardingParcelRepository.findAllById(req.parcelIds()).stream()
+                    .filter(p -> p.getInboundTrackingNo() != null && !p.getInboundTrackingNo().isBlank())
+                    .map(ForwardingParcelEntity::getInboundTrackingNo)
+                    .forEach(allTrackingNumbers::add);
+        }
         if (req.orderItemIds() != null && !req.orderItemIds().isEmpty()) {
             orderItemRepository.findAllById(req.orderItemIds()).stream()
                     .filter(item -> item.getItemTrackingNo() != null && !item.getItemTrackingNo().isBlank())
@@ -163,12 +156,12 @@ public class ParcelController {
         if (!allTrackingNumbers.isEmpty()) {
             String hbrOrderId = hbrService.createConsolidatedShipment(allTrackingNumbers, req.shippingLine());
             if (hbrOrderId != null && !hbrOrderId.isBlank()) {
-                saved.setPackingNo(hbrOrderId);
-                orderRepository.save(saved);
+                primaryOrder.setPackingNo(hbrOrderId);
             }
         }
+        orderRepository.save(primaryOrder);
 
-        return ResponseEntity.ok(new ShippingRequestResponse(saved.getId(), saved.getOrderNo()));
+        return ResponseEntity.ok(new ShippingRequestResponse(primaryOrder.getId(), primaryOrder.getOrderNo()));
     }
 
     record VasRequestBody(List<Long> parcelIds, List<Long> orderIds, List<String> services, String contactInfo) {}
