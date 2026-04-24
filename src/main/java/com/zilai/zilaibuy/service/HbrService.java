@@ -15,6 +15,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.List;
 
 @Slf4j
 @Service
@@ -178,6 +179,63 @@ public class HbrService {
         } catch (Exception e) {
             log.error("HBR createconsolidatedorder error for item tracking={}: {}", trackingNo, e.getMessage());
             return "HBR连接失败: " + e.getMessage();
+        }
+    }
+
+    /**
+     * Calls HBR createconsolidatedshipment to create a consolidated shipping order.
+     * @param trackingNumbers list of inbound tracking numbers to include
+     * @param serviceCode     HBR service/line code (e.g. "CA-EMS")
+     * @return the HBR order_Id string on success, or null on failure
+     */
+    public String createConsolidatedShipment(java.util.List<String> trackingNumbers, String serviceCode) {
+        try {
+            java.util.Map<String, Object> params = new java.util.LinkedHashMap<>();
+            params.put("order_tracking_numbers", trackingNumbers);
+            if (serviceCode != null && !serviceCode.isBlank()) {
+                params.put("service_code", serviceCode);
+            }
+            String paramsJson = mapper.writeValueAsString(params);
+
+            String body = "appToken=" + encode(appToken)
+                    + "&appKey=" + encode(appKey)
+                    + "&serviceMethod=createconsolidatedshipment"
+                    + "&paramsJson=" + encode(paramsJson);
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(hbrUrl))
+                    .header("Content-Type", "application/x-www-form-urlencoded")
+                    .timeout(Duration.ofSeconds(15))
+                    .POST(HttpRequest.BodyPublishers.ofString(body))
+                    .build();
+
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            JsonNode root = mapper.readTree(response.body());
+            log.info("HBR createconsolidatedshipment response: {}", response.body());
+
+            if (root.has("success") && root.get("success").asInt() == 1) {
+                JsonNode orderId = root.get("order_Id");
+                if (orderId == null) orderId = root.get("order_id");
+                if (orderId != null && !orderId.isNull()) {
+                    return orderId.asText();
+                }
+                // Try nested data
+                JsonNode data = root.get("data");
+                if (data != null) {
+                    JsonNode nestedId = data.get("order_Id");
+                    if (nestedId == null) nestedId = data.get("order_id");
+                    if (nestedId != null && !nestedId.isNull()) return nestedId.asText();
+                }
+                log.warn("HBR createconsolidatedshipment succeeded but no order_Id in response: {}", response.body());
+                return null;
+            } else {
+                String msg = root.has("cnmessage") ? root.get("cnmessage").asText() : response.body();
+                log.warn("HBR createconsolidatedshipment failed: {}", msg);
+                return null;
+            }
+        } catch (Exception e) {
+            log.error("HBR createconsolidatedshipment error: {}", e.getMessage());
+            return null;
         }
     }
 

@@ -13,6 +13,7 @@ import com.zilai.zilaibuy.repository.VasRequestRepository;
 import com.zilai.zilaibuy.security.AuthenticatedUser;
 import com.zilai.zilaibuy.service.EmailService;
 import com.zilai.zilaibuy.service.ForwardingParcelService;
+import com.zilai.zilaibuy.service.HbrService;
 import com.zilai.zilaibuy.service.OrderService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -35,6 +36,7 @@ public class ParcelController {
 
     private final ForwardingParcelService parcelService;
     private final OrderService orderService;
+    private final HbrService hbrService;
     private final OrderRepository orderRepository;
     private final UserRepository userRepository;
     private final ForwardingParcelRepository forwardingParcelRepository;
@@ -141,6 +143,21 @@ public class ParcelController {
         // Advance any selected proxy order items to PACKING status
         if (req.orderItemIds() != null && !req.orderItemIds().isEmpty()) {
             orderService.createPackingRequest(req.orderItemIds(), null, currentUser);
+        }
+
+        // Call HBR createconsolidatedshipment and store returned order_Id as packingNo
+        if (!parcels.isEmpty() && req.shippingLine() != null && !req.shippingLine().isBlank()) {
+            List<String> trackingNumbers = parcels.stream()
+                    .filter(p -> p.getInboundTrackingNo() != null && !p.getInboundTrackingNo().isBlank())
+                    .map(ForwardingParcelEntity::getInboundTrackingNo)
+                    .toList();
+            if (!trackingNumbers.isEmpty()) {
+                String hbrOrderId = hbrService.createConsolidatedShipment(trackingNumbers, req.shippingLine());
+                if (hbrOrderId != null && !hbrOrderId.isBlank()) {
+                    saved.setPackingNo(hbrOrderId);
+                    orderRepository.save(saved);
+                }
+            }
         }
 
         return ResponseEntity.ok(new ShippingRequestResponse(saved.getId(), saved.getOrderNo()));
