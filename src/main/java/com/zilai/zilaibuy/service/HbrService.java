@@ -201,7 +201,8 @@ public class HbrService {
                         ? user.getDisplayName() : userId);
 
             java.util.Map<String, Object> params = new java.util.LinkedHashMap<>();
-            params.put("order_tracking_numbers", trackingNumbers);
+            // HBR expects singular "order_tracking_number" (comma-separated for multiple)
+            params.put("order_tracking_number", String.join(",", trackingNumbers));
             params.put("user_id", userId);
             params.put("user_code", userCode);
             params.put("user_name", userName);
