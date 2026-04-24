@@ -111,7 +111,8 @@ public class ParcelController {
         return ResponseEntity.ok(Map.of("exists", exists));
     }
 
-    record ShippingRequestBody(List<Long> parcelIds, List<Long> orderItemIds, String shippingLine, double totalCny, boolean addInspection, boolean addPhoto) {}
+    record ReceiverAddress(String fullName, String phone, String street, String city, String province, String postalCode, String country) {}
+    record ShippingRequestBody(List<Long> parcelIds, List<Long> orderItemIds, String shippingLine, double totalCny, boolean addInspection, boolean addPhoto, ReceiverAddress receiverAddress) {}
     record ShippingRequestResponse(long orderId, String orderNo) {}
 
     @PostMapping("/shipping-request")
@@ -156,8 +157,20 @@ public class ParcelController {
                     .forEach(allTrackingNumbers::add);
         }
         if (!allTrackingNumbers.isEmpty()) {
+            java.util.Map<String, String> addrMap = null;
+            if (req.receiverAddress() != null) {
+                addrMap = new java.util.LinkedHashMap<>();
+                ReceiverAddress a = req.receiverAddress();
+                if (a.fullName() != null) addrMap.put("fullName", a.fullName());
+                if (a.phone() != null) addrMap.put("phone", a.phone());
+                if (a.street() != null) addrMap.put("street", a.street());
+                if (a.city() != null) addrMap.put("city", a.city());
+                if (a.province() != null) addrMap.put("province", a.province());
+                if (a.postalCode() != null) addrMap.put("postalCode", a.postalCode());
+                if (a.country() != null) addrMap.put("country", a.country());
+            }
             String hbrOrderId = hbrService.createConsolidatedShipment(
-                    allTrackingNumbers, req.shippingLine(), primaryOrder.getUser());
+                    allTrackingNumbers, req.shippingLine(), primaryOrder.getUser(), addrMap);
             if (hbrOrderId != null && !hbrOrderId.isBlank()) {
                 primaryOrder.setPackingNo(hbrOrderId);
             }

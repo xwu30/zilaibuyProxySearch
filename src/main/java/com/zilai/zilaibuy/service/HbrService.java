@@ -190,7 +190,8 @@ public class HbrService {
      * @return the HBR order_Id string on success, or null on failure
      */
     public String createConsolidatedShipment(java.util.List<String> trackingNumbers, String serviceCode,
-                                              com.zilai.zilaibuy.entity.UserEntity user) {
+                                              com.zilai.zilaibuy.entity.UserEntity user,
+                                              java.util.Map<String, String> addr) {
         try {
             String userId = (user != null && user.getCloudId() != null && !user.getCloudId().isBlank())
                     ? user.getCloudId() : (user != null ? String.valueOf(user.getId()) : hbrUserId);
@@ -208,6 +209,16 @@ public class HbrService {
             params.put("user_name", userName);
             if (serviceCode != null && !serviceCode.isBlank()) {
                 params.put("service_code", serviceCode);
+            }
+            // Receiver / delivery address info
+            if (addr != null) {
+                putIfPresent(params, "receive_name", addr.get("fullName"));
+                putIfPresent(params, "receive_tel", addr.get("phone"));
+                putIfPresent(params, "receive_country", addr.get("country"));
+                putIfPresent(params, "receive_province", addr.get("province"));
+                putIfPresent(params, "receive_city", addr.get("city"));
+                putIfPresent(params, "receive_address", addr.get("street"));
+                putIfPresent(params, "receive_post_code", addr.get("postalCode"));
             }
             String paramsJson = mapper.writeValueAsString(params);
 
@@ -266,6 +277,10 @@ public class HbrService {
         if (lower.contains("yamato") || lower.contains("雅玛多") || lower.contains("黑猫")) return "yamato";
         if (lower.contains("sagawa") || lower.contains("佐川")) return "sagawa";
         return "other";
+    }
+
+    private void putIfPresent(java.util.Map<String, Object> map, String key, String value) {
+        if (value != null && !value.isBlank()) map.put(key, value);
     }
 
     private String encode(String value) {

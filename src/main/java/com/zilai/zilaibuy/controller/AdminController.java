@@ -518,7 +518,7 @@ public class AdminController {
         }
 
         String serviceCode = (req != null && req.shippingLine() != null) ? req.shippingLine() : "";
-        String hbrOrderId = hbrService.createConsolidatedShipment(trackingNumbers, serviceCode, order.getUser());
+        String hbrOrderId = hbrService.createConsolidatedShipment(trackingNumbers, serviceCode, order.getUser(), null);
 
         if (hbrOrderId != null && !hbrOrderId.isBlank()) {
             order.setPackingNo(hbrOrderId);
