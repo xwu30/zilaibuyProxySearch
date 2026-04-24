@@ -156,6 +156,7 @@ public class ParcelController {
                     .map(OrderItemEntity::getItemTrackingNo)
                     .forEach(allTrackingNumbers::add);
         }
+        log.info("createShippingRequest: trackingNumbers={}, receiverAddress={}", allTrackingNumbers, req.receiverAddress());
         if (!allTrackingNumbers.isEmpty()) {
             java.util.Map<String, String> addrMap = null;
             if (req.receiverAddress() != null) {

@@ -221,6 +221,7 @@ public class HbrService {
                 putIfPresent(params, "receive_post_code", addr.get("postalCode"));
             }
             String paramsJson = mapper.writeValueAsString(params);
+            log.info("HBR createconsolidatedshipment request paramsJson: {}", paramsJson);
 
             String body = "appToken=" + encode(appToken)
                     + "&appKey=" + encode(appKey)
