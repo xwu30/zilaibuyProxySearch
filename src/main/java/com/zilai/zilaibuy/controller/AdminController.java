@@ -53,6 +53,8 @@ public class AdminController {
     private final VasRequestRepository vasRequestRepository;
     private final EmailService emailService;
     private final com.zilai.zilaibuy.service.AppSettingService appSettingService;
+    private final com.zilai.zilaibuy.service.HbrService hbrService;
+    private final com.zilai.zilaibuy.repository.ForwardingParcelRepository forwardingParcelRepository;
 
     @GetMapping("/users")
     public ResponseEntity<Page<AdminUserDto>> listUsers(
@@ -472,5 +474,108 @@ public class AdminController {
         appSettingService.set(req.key(), req.value() != null ? req.value() : "");
         return ResponseEntity.ok().build();
     }
+
+    // ── HBR shipment trigger ──────────────────────────────────────────────────────
+
+    record TriggerHbrShipmentRequest(String shippingLine) {}
+
+    /**
+     * Manually triggers HBR createconsolidatedshipment for an existing PACKING order.
+     * Collects all tracking numbers from linked forwarding parcels + order items,
+     * calls HBR, and stores the returned HBT number as packingNo.
+     */
+    @PreAuthorize("hasRole('ADMIN')")
+    @PostMapping("/orders/{id}/trigger-hbr-shipment")
+    @Transactional
+    public ResponseEntity<java.util.Map<String, Object>> triggerHbrShipment(
+            @PathVariable Long id,
+            @RequestBody(required = false) TriggerHbrShipmentRequest req) {
+
+        OrderEntity order = orderRepository.findById(id)
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "订单不存在"));
+
+        // Collect tracking numbers from linked forwarding parcels
+        java.util.List<String> trackingNumbers = new java.util.ArrayList<>();
+        forwardingParcelRepository.findByLinkedOrderId(id).stream()
+                .filter(p -> p.getInboundTrackingNo() != null && !p.getInboundTrackingNo().isBlank())
+                .map(p -> p.getInboundTrackingNo())
+                .forEach(trackingNumbers::add);
+
+        // Also collect from order items (proxy purchases)
+        if (order.getItems() != null) {
+            order.getItems().stream()
+                    .filter(item -> item.getItemTrackingNo() != null && !item.getItemTrackingNo().isBlank())
+                    .map(item -> item.getItemTrackingNo())
+                    .forEach(trackingNumbers::add);
+        }
+
+        if (trackingNumbers.isEmpty()) {
+            return ResponseEntity.ok(java.util.Map.of(
+                    "success", false,
+                    "message", "未找到可用运单号，无法调用HBR",
+                    "trackingNumbers", trackingNumbers
+            ));
+        }
+
+        String serviceCode = (req != null && req.shippingLine() != null) ? req.shippingLine() : "";
+        String hbrOrderId = hbrService.createConsolidatedShipment(trackingNumbers, serviceCode, order.getUser());
+
+        if (hbrOrderId != null && !hbrOrderId.isBlank()) {
+            order.setPackingNo(hbrOrderId);
+            orderRepository.save(order);
+            return ResponseEntity.ok(java.util.Map.of(
+                    "success", true,
+                    "packingNo", hbrOrderId,
+                    "trackingNumbers", trackingNumbers,
+                    "message", "HBR集运单创建成功: " + hbrOrderId
+            ));
+        } else {
+            return ResponseEntity.ok(java.util.Map.of(
+                    "success", false,
+                    "trackingNumbers", trackingNumbers,
+                    "message", "HBR调用失败，请检查运单号是否已在HBR系统中登记"
+            ));
+        }
+    }
+
+    // ── Reset packing ─────────────────────────────────────────────────────────────
+
+    /**
+     * Resets all PACKING orders + their linked forwarding parcels back to IN_WAREHOUSE.
+     * Clears packingNo on those orders.
+     */
+    @PostMapping("/reset-packing")
+    @org.springframework.transaction.annotation.Transactional
+    public ResponseEntity<java.util.Map<String, Object>> resetAllPacking() {
+        // Reset forwarding parcels PACKING → IN_WAREHOUSE
+        com.zilai.zilaibuy.repository.ForwardingParcelRepository parcelRepo =
+                applicationContext.getBean(com.zilai.zilaibuy.repository.ForwardingParcelRepository.class);
+        java.util.List<com.zilai.zilaibuy.entity.ForwardingParcelEntity> packingParcels =
+                parcelRepo.findByStatus(com.zilai.zilaibuy.entity.ForwardingParcelEntity.ParcelStatus.PACKING,
+                        org.springframework.data.domain.Pageable.unpaged()).getContent();
+        for (com.zilai.zilaibuy.entity.ForwardingParcelEntity p : packingParcels) {
+            p.setStatus(com.zilai.zilaibuy.entity.ForwardingParcelEntity.ParcelStatus.IN_WAREHOUSE);
+            p.setLinkedOrder(null);
+        }
+        parcelRepo.saveAll(packingParcels);
+
+        // Reset orders PACKING → IN_WAREHOUSE, clear packingNo
+        java.util.List<OrderEntity> packingOrders =
+                orderRepository.findByStatus(OrderEntity.OrderStatus.PACKING, org.springframework.data.domain.Pageable.unpaged()).getContent();
+        for (OrderEntity o : packingOrders) {
+            o.setStatus(OrderEntity.OrderStatus.IN_WAREHOUSE);
+            o.setPackingNo(null);
+        }
+        orderRepository.saveAll(packingOrders);
+
+        return ResponseEntity.ok(java.util.Map.of(
+                "parcelsReset", packingParcels.size(),
+                "ordersReset", packingOrders.size()
+        ));
+    }
+
+    @org.springframework.context.annotation.Lazy
+    @org.springframework.beans.factory.annotation.Autowired
+    private org.springframework.context.ApplicationContext applicationContext;
 
 }

@@ -19,6 +19,7 @@ import com.zilai.zilaibuy.service.HbrService;
 import com.zilai.zilaibuy.service.OrderService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -31,6 +32,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/parcels")
 @RequiredArgsConstructor
@@ -154,10 +156,14 @@ public class ParcelController {
                     .forEach(allTrackingNumbers::add);
         }
         if (!allTrackingNumbers.isEmpty()) {
-            String hbrOrderId = hbrService.createConsolidatedShipment(allTrackingNumbers, req.shippingLine());
+            String hbrOrderId = hbrService.createConsolidatedShipment(
+                    allTrackingNumbers, req.shippingLine(), primaryOrder.getUser());
             if (hbrOrderId != null && !hbrOrderId.isBlank()) {
                 primaryOrder.setPackingNo(hbrOrderId);
             }
+        } else {
+            log.warn("createShippingRequest: no tracking numbers found for order {}, skipping HBR call",
+                    primaryOrder.getOrderNo());
         }
         orderRepository.save(primaryOrder);
 

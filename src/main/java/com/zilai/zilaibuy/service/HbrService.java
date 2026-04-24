@@ -186,12 +186,25 @@ public class HbrService {
      * Calls HBR createconsolidatedshipment to create a consolidated shipping order.
      * @param trackingNumbers list of inbound tracking numbers to include
      * @param serviceCode     HBR service/line code (e.g. "CA-EMS")
+     * @param user            the customer user entity (for user_id/user_code/user_name params)
      * @return the HBR order_Id string on success, or null on failure
      */
-    public String createConsolidatedShipment(java.util.List<String> trackingNumbers, String serviceCode) {
+    public String createConsolidatedShipment(java.util.List<String> trackingNumbers, String serviceCode,
+                                              com.zilai.zilaibuy.entity.UserEntity user) {
         try {
+            String userId = (user != null && user.getCloudId() != null && !user.getCloudId().isBlank())
+                    ? user.getCloudId() : (user != null ? String.valueOf(user.getId()) : hbrUserId);
+            String userCode = userId;
+            String userName = (user != null && user.getUsername() != null && !user.getUsername().isBlank())
+                    ? user.getUsername()
+                    : (user != null && user.getDisplayName() != null && !user.getDisplayName().isBlank()
+                        ? user.getDisplayName() : userId);
+
             java.util.Map<String, Object> params = new java.util.LinkedHashMap<>();
             params.put("order_tracking_numbers", trackingNumbers);
+            params.put("user_id", userId);
+            params.put("user_code", userCode);
+            params.put("user_name", userName);
             if (serviceCode != null && !serviceCode.isBlank()) {
                 params.put("service_code", serviceCode);
             }
