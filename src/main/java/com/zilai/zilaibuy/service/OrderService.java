@@ -159,6 +159,17 @@ public class OrderService {
                 .map(OrderDto::from);
     }
 
+    /** Returns all consolidated shipping orders (HX/SH/DG/CG prefix) for the current user. */
+    @Transactional(readOnly = true)
+    public List<OrderDto> listMyConsolidatedOrders(AuthenticatedUser currentUser) {
+        org.springframework.data.domain.Pageable pageable =
+                org.springframework.data.domain.PageRequest.of(0, 200,
+                        org.springframework.data.domain.Sort.by("createdAt").descending());
+        return orderRepository.findConsolidatedOrders(currentUser.id(), null, null, pageable)
+                .map(OrderDto::from)
+                .getContent();
+    }
+
     @Transactional(readOnly = true)
     public OrderDetailDto getOrder(Long orderId, AuthenticatedUser currentUser) {
         OrderEntity order = orderRepository.findById(orderId)

@@ -63,6 +63,12 @@ public class OrderController {
         return ResponseEntity.ok(orderService.listOrders(currentUser, userId, status, dateFrom, dateTo, q, pageable));
     }
 
+    @GetMapping("/my-consolidated")
+    public ResponseEntity<List<OrderDto>> listMyConsolidatedOrders(
+            @AuthenticationPrincipal AuthenticatedUser currentUser) {
+        return ResponseEntity.ok(orderService.listMyConsolidatedOrders(currentUser));
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<OrderDetailDto> getOrder(
             @PathVariable Long id,
