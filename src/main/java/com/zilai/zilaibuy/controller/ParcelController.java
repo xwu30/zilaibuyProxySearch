@@ -13,6 +13,7 @@ import com.zilai.zilaibuy.repository.VasRequestRepository;
 import com.zilai.zilaibuy.security.AuthenticatedUser;
 import com.zilai.zilaibuy.service.EmailService;
 import com.zilai.zilaibuy.service.ForwardingParcelService;
+import com.zilai.zilaibuy.service.OrderService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -33,6 +34,7 @@ import java.util.UUID;
 public class ParcelController {
 
     private final ForwardingParcelService parcelService;
+    private final OrderService orderService;
     private final OrderRepository orderRepository;
     private final UserRepository userRepository;
     private final ForwardingParcelRepository forwardingParcelRepository;
@@ -102,7 +104,7 @@ public class ParcelController {
         return ResponseEntity.ok(Map.of("exists", exists));
     }
 
-    record ShippingRequestBody(List<Long> parcelIds, String shippingLine, double totalCny, boolean addInspection, boolean addPhoto) {}
+    record ShippingRequestBody(List<Long> parcelIds, List<Long> orderItemIds, String shippingLine, double totalCny, boolean addInspection, boolean addPhoto) {}
     record ShippingRequestResponse(long orderId, String orderNo) {}
 
     @PostMapping("/shipping-request")
@@ -135,6 +137,11 @@ public class ParcelController {
             parcel.setStatus(ForwardingParcelEntity.ParcelStatus.PACKING);
         }
         forwardingParcelRepository.saveAll(parcels);
+
+        // Advance any selected proxy order items to PACKING status
+        if (req.orderItemIds() != null && !req.orderItemIds().isEmpty()) {
+            orderService.createPackingRequest(req.orderItemIds(), null, currentUser);
+        }
 
         return ResponseEntity.ok(new ShippingRequestResponse(saved.getId(), saved.getOrderNo()));
     }
