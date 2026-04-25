@@ -210,15 +210,39 @@ public class HbrService {
             if (serviceCode != null && !serviceCode.isBlank()) {
                 params.put("service_code", serviceCode);
             }
-            // Receiver / delivery address info
+            // Receiver / delivery address info — try both receive_ and receiver_ prefixes
             if (addr != null) {
-                putIfPresent(params, "receive_name", addr.get("fullName"));
-                putIfPresent(params, "receive_tel", addr.get("phone"));
-                putIfPresent(params, "receive_country", addr.get("country"));
-                putIfPresent(params, "receive_province", addr.get("province"));
-                putIfPresent(params, "receive_city", addr.get("city"));
-                putIfPresent(params, "receive_address", addr.get("street"));
-                putIfPresent(params, "receive_post_code", addr.get("postalCode"));
+                String rName = addr.get("fullName");
+                String rTel  = addr.get("phone");
+                String rCountry  = addr.get("country");
+                String rProvince = addr.get("province");
+                String rCity     = addr.get("city");
+                String rStreet   = addr.get("street");
+                String rZip      = addr.get("postalCode");
+                // receiver_ prefix
+                putIfPresent(params, "receiver_name",     rName);
+                putIfPresent(params, "receiver_tel",      rTel);
+                putIfPresent(params, "receiver_country",  rCountry);
+                putIfPresent(params, "receiver_province", rProvince);
+                putIfPresent(params, "receiver_city",     rCity);
+                putIfPresent(params, "receiver_address",  rStreet);
+                putIfPresent(params, "receiver_zip",      rZip);
+                // receive_ prefix (previous attempt, keep for now)
+                putIfPresent(params, "receive_name",      rName);
+                putIfPresent(params, "receive_tel",       rTel);
+                putIfPresent(params, "receive_country",   rCountry);
+                putIfPresent(params, "receive_province",  rProvince);
+                putIfPresent(params, "receive_city",      rCity);
+                putIfPresent(params, "receive_address",   rStreet);
+                putIfPresent(params, "receive_post_code", rZip);
+                // to_ prefix
+                putIfPresent(params, "to_name",     rName);
+                putIfPresent(params, "to_tel",      rTel);
+                putIfPresent(params, "to_country",  rCountry);
+                putIfPresent(params, "to_province", rProvince);
+                putIfPresent(params, "to_city",     rCity);
+                putIfPresent(params, "to_address",  rStreet);
+                putIfPresent(params, "to_zip",      rZip);
             }
             String paramsJson = mapper.writeValueAsString(params);
             log.info("HBR createconsolidatedshipment request paramsJson: {}", paramsJson);
