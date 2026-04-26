@@ -319,6 +319,21 @@ public class AdminController {
         return ResponseEntity.ok(result);
     }
 
+    record AdminSetPackingNoRequest(String packingNo) {}
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @PatchMapping("/orders/{id}/packing-no")
+    @org.springframework.transaction.annotation.Transactional
+    public ResponseEntity<java.util.Map<String, Object>> setPackingNo(
+            @PathVariable Long id,
+            @RequestBody AdminSetPackingNoRequest req) {
+        OrderEntity order = orderRepository.findById(id)
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "订单不存在"));
+        order.setPackingNo(req.packingNo() != null ? req.packingNo().trim() : null);
+        orderRepository.save(order);
+        return ResponseEntity.ok(java.util.Map.of("packingNo", req.packingNo() != null ? req.packingNo().trim() : ""));
+    }
+
     @PreAuthorize("hasAnyRole('ADMIN', 'WAREHOUSE', 'SUPPORT')")
     @PostMapping("/orders/{id}/packing-complete")
     public ResponseEntity<OrderDetailDto> completePackingAndNotify(
