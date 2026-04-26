@@ -232,17 +232,22 @@ public class HbrService {
             log.info("HBR createconsolidatedshipment response: {}", response.body());
 
             if (root.has("success") && root.get("success").asInt() == 1) {
-                JsonNode orderId = root.get("order_Id");
-                if (orderId == null) orderId = root.get("order_id");
-                if (orderId != null && !orderId.isNull()) {
-                    return orderId.asText();
-                }
-                // Try nested data
+                // Prefer refrence_no (HBT-prefixed) from data object
                 JsonNode data = root.get("data");
                 if (data != null) {
+                    JsonNode refNo = data.get("refrence_no");
+                    if (refNo != null && !refNo.isNull() && !refNo.asText().isBlank()) {
+                        return refNo.asText();
+                    }
                     JsonNode nestedId = data.get("order_Id");
                     if (nestedId == null) nestedId = data.get("order_id");
                     if (nestedId != null && !nestedId.isNull()) return nestedId.asText();
+                }
+                // Fallback to top-level order_id
+                JsonNode orderId = root.get("order_Id");
+                if (orderId == null) orderId = root.get("order_id");
+                if (orderId != null && !orderId.isNull() && orderId.asLong() > 0) {
+                    return orderId.asText();
                 }
                 log.warn("HBR createconsolidatedshipment succeeded but no order_Id in response: {}", response.body());
                 return null;
