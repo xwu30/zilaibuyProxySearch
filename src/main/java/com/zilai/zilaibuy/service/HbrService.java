@@ -190,44 +190,27 @@ public class HbrService {
      * @return the HBR order_Id string on success, or null on failure
      */
     public String createConsolidatedShipment(java.util.List<String> trackingNumbers, String serviceCode,
-                                              com.zilai.zilaibuy.entity.UserEntity user,
+                                              com.zilai.zilaibuy.entity.UserEntity user,  // kept for API compat
                                               java.util.Map<String, String> addr) {
         try {
-            String userId = (user != null && user.getCloudId() != null && !user.getCloudId().isBlank())
-                    ? user.getCloudId() : (user != null ? String.valueOf(user.getId()) : hbrUserId);
-            String userCode = userId;
-            String userName = (user != null && user.getUsername() != null && !user.getUsername().isBlank())
-                    ? user.getUsername()
-                    : (user != null && user.getDisplayName() != null && !user.getDisplayName().isBlank()
-                        ? user.getDisplayName() : userId);
-
             java.util.Map<String, Object> params = new java.util.LinkedHashMap<>();
-            // HBR expects singular key "order_tracking_number" with array value
             params.put("order_tracking_number", trackingNumbers);
-            params.put("user_id", userId);
-            params.put("user_code", userCode);
-            params.put("user_name", userName);
             if (serviceCode != null && !serviceCode.isBlank()) {
-                params.put("service_code", serviceCode);
+                params.put("shipping_method", serviceCode);
             }
-            // Receiver / delivery address info — nested object (HBR .NET model)
+            // Consignee (receiver) info — correct HBR field names confirmed via Postman
             if (addr != null) {
-                java.util.Map<String, Object> receiver = new java.util.LinkedHashMap<>();
-                String rName     = addr.get("fullName");
-                String rTel      = addr.get("phone");
-                String rCountry  = addr.get("country");
-                String rProvince = addr.get("province");
-                String rCity     = addr.get("city");
-                String rStreet   = addr.get("street");
-                String rZip      = addr.get("postalCode");
-                if (rName     != null && !rName.isBlank())     receiver.put("name",      rName);
-                if (rTel      != null && !rTel.isBlank())      receiver.put("tel",       rTel);
-                if (rCountry  != null && !rCountry.isBlank())  receiver.put("country",   rCountry);
-                if (rProvince != null && !rProvince.isBlank()) receiver.put("province",  rProvince);
-                if (rCity     != null && !rCity.isBlank())     receiver.put("city",      rCity);
-                if (rStreet   != null && !rStreet.isBlank())   receiver.put("address",   rStreet);
-                if (rZip      != null && !rZip.isBlank())      receiver.put("post_code", rZip);
-                if (!receiver.isEmpty()) params.put("receiver", receiver);
+                java.util.Map<String, Object> consignee = new java.util.LinkedHashMap<>();
+                consignee.put("consignee_name",        addr.getOrDefault("fullName", ""));
+                consignee.put("consignee_company",     "");
+                consignee.put("consignee_countrycode", addr.getOrDefault("country", ""));
+                consignee.put("consignee_province",    addr.getOrDefault("province", ""));
+                consignee.put("consignee_city",        addr.getOrDefault("city", ""));
+                consignee.put("consignee_street",      addr.getOrDefault("street", ""));
+                consignee.put("consignee_postcode",    addr.getOrDefault("postalCode", ""));
+                consignee.put("consignee_telephone",   addr.getOrDefault("phone", ""));
+                consignee.put("consignee_mobile",      addr.getOrDefault("phone", ""));
+                params.put("consignee", consignee);
             }
             String paramsJson = mapper.writeValueAsString(params);
             log.info("HBR createconsolidatedshipment request paramsJson: {}", paramsJson);
