@@ -142,6 +142,17 @@ public class ParcelController {
                 parcelCount);
         primaryOrder.setNotes(notes);
 
+        // Persist shipping line and receiver address
+        if (req.shippingLine() != null && !req.shippingLine().isBlank()) {
+            primaryOrder.setRequestedShippingLine(req.shippingLine());
+        }
+        if (req.receiverAddress() != null) {
+            try {
+                primaryOrder.setReceiverAddress(new com.fasterxml.jackson.databind.ObjectMapper()
+                        .writeValueAsString(req.receiverAddress()));
+            } catch (Exception ignored) {}
+        }
+
         // 收集所有快递单号（转运包裹 + 代购单商品单号），调用 HBR 创建集运单
         List<String> allTrackingNumbers = new java.util.ArrayList<>();
         if (req.parcelIds() != null && !req.parcelIds().isEmpty()) {

@@ -103,6 +103,14 @@ public class OrderEntity {
     @Column(name = "service_fee_memo", length = 500)
     private String serviceFeeMemo;
 
+    /** JSON string of the receiver address submitted with the shipping request */
+    @Column(name = "receiver_address", columnDefinition = "TEXT")
+    private String receiverAddress;
+
+    /** Shipping line code selected by customer at shipping request time */
+    @Column(name = "requested_shipping_line", length = 100)
+    private String requestedShippingLine;
+
     public enum OrderStatus {
         PENDING_PAYMENT, FEE_QUOTED, PURCHASING, IN_TRANSIT, IN_WAREHOUSE, PACKING, AWAITING_PAYMENT, SHIPPED, DELIVERED, CANCELLED
     }
