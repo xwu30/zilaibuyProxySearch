@@ -309,7 +309,7 @@ public class HbrCallbackController {
     private OrderStatus mapShipmentOrderStatus(String s) {
         if (s == null) return null;
         return switch (s.toUpperCase().trim()) {
-            case "PACKED"    -> OrderStatus.PACKING;         // 运单打包完成
+            case "PACKED"    -> OrderStatus.AWAITING_PAYMENT; // 运单打包完成 → 等待支付运费
             case "SHIPPED"   -> OrderStatus.SHIPPED;         // 运单发货
             case "DELIVERED" -> OrderStatus.DELIVERED;       // 运单签收
             default          -> null;
