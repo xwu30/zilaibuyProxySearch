@@ -135,13 +135,16 @@ public class EmailService {
             SimpleMailMessage msg = new SimpleMailMessage();
             msg.setFrom(fromEmail);
             msg.setTo(toEmail);
-            msg.setSubject("【ZilaiBuy】您的包裹等待付款 " + orderNo);
+            msg.setSubject("【紫来买】您的包裹已打包完成，请尽快支付运费 " + orderNo);
             msg.setText(
                 "您好，" + displayName + "！\n\n" +
-                "您的订单（" + orderNo + "）已完成称重打包，请登录 ZilaiBuy 完成付款。\n\n" +
+                "您的订单（" + orderNo + "）已完成称重打包，运费已确认，请尽快登录紫来买完成付款。\n\n" +
                 (feeDetails != null && !feeDetails.isBlank() ? feeDetails + "\n\n" : "") +
-                "请及时完成付款，以便我们尽快为您安排发货。\n\n" +
-                "— ZilaiBuy 团队"
+                "立即前往支付：https://zilaibuy.com\n" +
+                "（登录后在个人中心 → 待支付包裹 中找到您的订单）\n\n" +
+                "请及时完成付款，以便我们尽快为您安排发货。付款后我们会第一时间将包裹发出。\n\n" +
+                "如有任何问题，欢迎联系我们的客服。\n\n" +
+                "— 紫来买团队"
             );
             mailSender.send(msg);
             log.info("Payment reminder email sent to {} for orderNo={}", toEmail, orderNo);
