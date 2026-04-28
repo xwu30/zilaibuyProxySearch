@@ -112,7 +112,7 @@ public class ParcelController {
     }
 
     record ReceiverAddress(String fullName, String phone, String street, String city, String province, String postalCode, String country) {}
-    record ShippingRequestBody(List<Long> parcelIds, List<Long> orderItemIds, String shippingLine, double totalCny, boolean addInspection, boolean addPhoto, ReceiverAddress receiverAddress) {}
+    record ShippingRequestBody(List<Long> parcelIds, List<Long> orderItemIds, String shippingLine, String shippingLineName, Integer estimatedFeeJpy, double totalCny, boolean addInspection, boolean addPhoto, ReceiverAddress receiverAddress) {}
     record ShippingRequestResponse(long orderId, String orderNo) {}
 
     @PostMapping("/shipping-request")
@@ -142,9 +142,15 @@ public class ParcelController {
                 parcelCount);
         primaryOrder.setNotes(notes);
 
-        // Persist shipping line and receiver address
+        // Persist shipping line, line name, estimated fee and receiver address
         if (req.shippingLine() != null && !req.shippingLine().isBlank()) {
             primaryOrder.setRequestedShippingLine(req.shippingLine());
+        }
+        if (req.shippingLineName() != null && !req.shippingLineName().isBlank()) {
+            primaryOrder.setRequestedShippingLineName(req.shippingLineName());
+        }
+        if (req.estimatedFeeJpy() != null) {
+            primaryOrder.setEstimatedShippingFeeJpy(req.estimatedFeeJpy());
         }
         if (req.receiverAddress() != null) {
             try {

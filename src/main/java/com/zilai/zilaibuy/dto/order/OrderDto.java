@@ -34,7 +34,9 @@ public record OrderDto(
         String quotedRoute,
         Integer quotedFeeJpy,
         String receiverAddress,
-        String requestedShippingLine
+        String requestedShippingLine,
+        String requestedShippingLineName,
+        Integer estimatedShippingFeeJpy
 ) {
     public static OrderDto from(OrderEntity e) {
         List<OrderItemDto> items = e.getItems() != null
@@ -50,6 +52,7 @@ public record OrderDto(
                 e.getPackingPhotoUrl(), e.getShippingFeeCny(), e.getShippingRoute(),
                 e.getServiceFeeJpy(), e.getServiceFeeMemo(), e.getPointsUsed(),
                 e.getQuotedRoute(), e.getQuotedFeeJpy(),
-                e.getReceiverAddress(), e.getRequestedShippingLine());
+                e.getReceiverAddress(), e.getRequestedShippingLine(),
+                e.getRequestedShippingLineName(), e.getEstimatedShippingFeeJpy());
     }
 }

@@ -111,6 +111,14 @@ public class OrderEntity {
     @Column(name = "requested_shipping_line", length = 100)
     private String requestedShippingLine;
 
+    /** Human-readable shipping line name (e.g. "加拿大包税专线") */
+    @Column(name = "requested_shipping_line_name", length = 200)
+    private String requestedShippingLineName;
+
+    /** Estimated shipping fee in JPY from HBR quote at time of request */
+    @Column(name = "estimated_shipping_fee_jpy")
+    private Integer estimatedShippingFeeJpy;
+
     public enum OrderStatus {
         PENDING_PAYMENT, FEE_QUOTED, PURCHASING, IN_TRANSIT, IN_WAREHOUSE, PACKING, AWAITING_PAYMENT, SHIPPED, DELIVERED, CANCELLED
     }
