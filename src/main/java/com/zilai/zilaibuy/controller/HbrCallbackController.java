@@ -83,7 +83,7 @@ public class HbrCallbackController {
         String trackingNo = getString(body, "trackingNo");
         String statusStr  = getString(body, "status");
         String location   = getString(body, "location");
-        Double weightKg   = getDouble(body, "weightKg");
+        Double weightKg   = getDouble(body, "weightKG") != null ? getDouble(body, "weightKG") : getDouble(body, "weightKg");
         String remark     = getString(body, "remark");
 
         if (trackingNo == null || trackingNo.isBlank()) {
@@ -176,7 +176,7 @@ public class HbrCallbackController {
         String carrier            = getString(body, "carrier");
         String statusStr          = getString(body, "status");
         Integer feeJpy            = getInt(body, "feeJpy");
-        Double weightKg           = getDouble(body, "weightKg");
+        Double weightKg           = getDouble(body, "weightKG") != null ? getDouble(body, "weightKG") : getDouble(body, "weightKg");
         String remark             = getString(body, "remark");
 
         if (packingNo == null || packingNo.isBlank()) {
@@ -220,8 +220,8 @@ public class HbrCallbackController {
                     feeJpy, feeCny, order.getOrderNo());
         }
 
-        // Update weight if provided (kg)
-        if (weightKg != null && weightKg > 0 && order.getWeightG() == null) {
+        // Update weight if provided (kg) — always overwrite
+        if (weightKg != null && weightKg > 0) {
             order.setWeightG((int) Math.round(weightKg * 1000));
         }
 
