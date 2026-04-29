@@ -352,10 +352,9 @@ public class PaymentController {
                 if (isShippingPayment) {
                     order.setStatus(OrderEntity.OrderStatus.PACKING);
                     orderRepository.save(order);
-                    long cardCharge = intent.getAmount() != null ? intent.getAmount() : -1L;
-                    processShippingPaymentPoints(order, cardCharge);
+                    processShippingPaymentPoints(order);
                     sendWarehouseShipEmail(order);
-                    log.info("Order {} shipping paid (card {} JPY), status → PACKING", order.getOrderNo(), cardCharge);
+                    log.info("Order {} shipping paid, status → PACKING", order.getOrderNo());
                 } else {
                     order.setStatus(OrderEntity.OrderStatus.PURCHASING);
                     orderRepository.save(order);
@@ -538,10 +537,7 @@ public class PaymentController {
                     // Shipping payment: confirm hasn't run yet
                     order.setStatus(OrderEntity.OrderStatus.PACKING);
                     orderRepository.save(order);
-                    String chargeStr = event.getDataObjectDeserializer().getObject()
-                            .map(obj -> ((com.stripe.model.PaymentIntent) obj).getAmount())
-                            .map(String::valueOf).orElse("-1");
-                    processShippingPaymentPoints(order, Long.parseLong(chargeStr));
+                    processShippingPaymentPoints(order);
                     sendWarehouseShipEmail(order);
                     log.info("Order {} shipping paid (webhook), status → PACKING", order.getOrderNo());
                 } else if (order.getStatus() == OrderEntity.OrderStatus.PENDING_PAYMENT) {
