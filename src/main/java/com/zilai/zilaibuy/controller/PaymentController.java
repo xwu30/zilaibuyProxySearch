@@ -128,7 +128,8 @@ public class PaymentController {
     }
 
     // ── 余额支付 ─────────────────────────────────────────────────────────────────
-    record PayWithBalanceRequest(Long orderId) {}
+    record PayWithBalanceRequest(Long orderId, Integer routeFeeJpy, Integer handlingFeeJpy,
+                                  Integer inspectionFeeJpy, Integer photoFeeJpy) {}
 
     /**
      * Pay order fully with wallet balance (stored in JPY).
@@ -159,9 +160,25 @@ public class PaymentController {
         long requiredJpy;
         int pointsToEarn;
         if (isShipping) {
-            if (order.getShippingFeeCny() == null) return ResponseEntity.badRequest().build();
-            requiredJpy = order.getShippingFeeCny()
-                    .divide(JPY_TO_CNY, 0, java.math.RoundingMode.HALF_UP).longValue();
+            // Use fee breakdown from request if provided, otherwise fall back to stored shippingFeeCny
+            long routeFee      = req.routeFeeJpy()      != null ? req.routeFeeJpy()      : 0;
+            long handlingFee   = req.handlingFeeJpy()   != null ? req.handlingFeeJpy()   : 0;
+            long inspectionFee = req.inspectionFeeJpy() != null ? req.inspectionFeeJpy() : 0;
+            long photoFee      = req.photoFeeJpy()      != null ? req.photoFeeJpy()      : 0;
+
+            if (routeFee > 0 || handlingFee > 0) {
+                // Build memo and store it so totalFeesJpy() can parse it for accurate points
+                requiredJpy = routeFee + handlingFee + inspectionFee + photoFee;
+                String memo = "route:" + routeFee + ",handling:" + handlingFee
+                        + ",inspection:" + inspectionFee + ",photo:" + photoFee;
+                order.setServiceFeeMemo(memo);
+                // Keep shippingFeeCny in sync (convert back from JPY)
+                order.setShippingFeeCny(new java.math.BigDecimal(requiredJpy).multiply(JPY_TO_CNY));
+            } else {
+                if (order.getShippingFeeCny() == null) return ResponseEntity.badRequest().build();
+                requiredJpy = order.getShippingFeeCny()
+                        .divide(JPY_TO_CNY, 0, java.math.RoundingMode.HALF_UP).longValue();
+            }
             pointsToEarn = (int) requiredJpy;  // full shipping fee → points
         } else {
             long itemJpy = order.getTotalCny()
@@ -577,25 +594,37 @@ public class PaymentController {
     }
 
     /**
-     * Called after shipping payment succeeds.
-     * Awards points for the full shipping fee in JPY.
+     * Awards points 1:1 for all paid fees: route + handling + inspection + photo.
+     * Reads from serviceFeeMemo ("route:X,handling:X,inspection:X,photo:X") when available
+     * for maximum accuracy. Falls back to shippingFeeCny → JPY conversion.
      */
     private void processShippingPaymentPoints(OrderEntity order) {
-        processShippingPaymentPoints(order, -1L);
+        userRepository.findById(order.getUser().getId()).ifPresent(user -> {
+            long totalJpy = totalFeesJpy(order);
+            if (totalJpy <= 0) return;
+            user.setPoints(user.getPoints() + (int) totalJpy);
+            userRepository.save(user);
+            log.info("Order {} (shipping): awarded {} points. User {} → {} points",
+                    order.getOrderNo(), totalJpy, user.getId(), user.getPoints());
+        });
     }
 
-    /** @param cardChargeJpy actual amount charged to card (excludes balance). -1 = use full shipping fee. */
-    private void processShippingPaymentPoints(OrderEntity order, long cardChargeJpy) {
-        if (order.getShippingFeeCny() == null) return;
-        userRepository.findById(order.getUser().getId()).ifPresent(user -> {
-            long pointsBase = cardChargeJpy >= 0 ? cardChargeJpy
-                    : order.getShippingFeeCny().divide(JPY_TO_CNY, 0, java.math.RoundingMode.HALF_UP).longValue();
-            int earned = (int) Math.max(0, pointsBase);
-            user.setPoints(user.getPoints() + earned);
-            userRepository.save(user);
-            log.info("Order {} (shipping): awarded {} points (card charge {} JPY). User {} → {} points",
-                    order.getOrderNo(), earned, cardChargeJpy, user.getId(), user.getPoints());
-        });
+    /** Compute total paid fees in JPY from serviceFeeMemo, or fall back to shippingFeeCny. */
+    private long totalFeesJpy(OrderEntity order) {
+        if (order.getServiceFeeMemo() != null && order.getServiceFeeMemo().startsWith("route:")) {
+            long total = 0;
+            for (String part : order.getServiceFeeMemo().split(",")) {
+                String[] kv = part.split(":");
+                if (kv.length == 2) {
+                    try { total += Long.parseLong(kv[1].trim()); } catch (NumberFormatException ignored) {}
+                }
+            }
+            if (total > 0) return total;
+        }
+        if (order.getShippingFeeCny() != null) {
+            return order.getShippingFeeCny().divide(JPY_TO_CNY, 0, java.math.RoundingMode.HALF_UP).longValue();
+        }
+        return 0;
     }
 
     private void sendWarehouseShipEmail(OrderEntity order) {
