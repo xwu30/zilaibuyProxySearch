@@ -54,19 +54,30 @@ public class SchemaMigrationRunner {
                 "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME = 'balance_cny'",
                 Integer.class
             );
-            if (oldExists != null && oldExists > 0) {
-                // Add new column (Hibernate may not have done it yet at this point)
-                jdbcTemplate.execute(
-                    "ALTER TABLE users ADD COLUMN IF NOT EXISTS balance_jpy DECIMAL(12,2) NOT NULL DEFAULT 0.00"
-                );
-                // Copy existing balances
-                jdbcTemplate.execute("UPDATE users SET balance_jpy = balance_cny");
-                // Drop old column
-                jdbcTemplate.execute("ALTER TABLE users DROP COLUMN balance_cny");
-                log.info("Schema migration: users.balance_cny renamed to balance_jpy, data copied.");
+            if (oldExists == null || oldExists == 0) {
+                log.info("Schema migration balance_cny→balance_jpy: already done, skipping.");
+                return;
             }
+            // Check if new column already exists (Hibernate ddl-auto may have created it)
+            Integer newExists = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM information_schema.COLUMNS " +
+                "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME = 'balance_jpy'",
+                Integer.class
+            );
+            if (newExists == null || newExists == 0) {
+                jdbcTemplate.execute(
+                    "ALTER TABLE users ADD COLUMN balance_jpy DECIMAL(12,2) NOT NULL DEFAULT 0.00"
+                );
+                log.info("Schema migration: added balance_jpy column.");
+            }
+            // Copy existing balances from old column
+            int rows = jdbcTemplate.update("UPDATE users SET balance_jpy = balance_cny");
+            log.info("Schema migration: copied balance_cny → balance_jpy for {} users.", rows);
+            // Drop old column
+            jdbcTemplate.execute("ALTER TABLE users DROP COLUMN balance_cny");
+            log.info("Schema migration: dropped balance_cny column. Migration complete.");
         } catch (Exception e) {
-            log.debug("Schema migration balance_cny→balance_jpy: {} (may already be done)", e.getMessage());
+            log.error("Schema migration balance_cny→balance_jpy FAILED: {}", e.getMessage(), e);
         }
     }
 
