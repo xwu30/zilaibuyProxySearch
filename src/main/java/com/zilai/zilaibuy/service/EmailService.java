@@ -314,4 +314,43 @@ public class EmailService {
             log.warn("Failed to send confirmation email to {}: {}", toEmail, e.getMessage());
         }
     }
+
+    public void sendWarehouseDispatchEmail(String toEmail, com.zilai.zilaibuy.entity.OrderEntity order) {
+        if (!StringUtils.hasText(toEmail)) return;
+        if (!StringUtils.hasText(fromEmail)) {
+            log.info("[DEV] Warehouse dispatch email for order {}", order.getOrderNo());
+            return;
+        }
+        try {
+            SimpleMailMessage msg = new SimpleMailMessage();
+            msg.setFrom(fromEmail);
+            msg.setTo(toEmail);
+            msg.setSubject("【紫来买】运费已付款，请安排发货 " + order.getOrderNo());
+
+            StringBuilder sb = new StringBuilder();
+            sb.append("订单号：").append(order.getOrderNo()).append("\n");
+            if (order.getPackingNo() != null) sb.append("转运单号：").append(order.getPackingNo()).append("\n");
+            if (order.getRequestedShippingLineName() != null) sb.append("线路：").append(order.getRequestedShippingLineName()).append("\n");
+            else if (order.getRequestedShippingLine() != null) sb.append("线路：").append(order.getRequestedShippingLine()).append("\n");
+            if (order.getQuotedFeeJpy() != null) sb.append("运费：¥").append(order.getQuotedFeeJpy()).append(" JPY\n");
+            if (order.getWeightG() != null) sb.append("重量：").append(String.format("%.3f kg", order.getWeightG() / 1000.0)).append("\n");
+            if (order.getReceiverAddress() != null) {
+                try {
+                    com.fasterxml.jackson.databind.ObjectMapper om = new com.fasterxml.jackson.databind.ObjectMapper();
+                    java.util.Map<?, ?> addr = om.readValue(order.getReceiverAddress(), java.util.Map.class);
+                    sb.append("\n收件人信息：\n");
+                    if (addr.get("fullName") != null) sb.append("  姓名：").append(addr.get("fullName")).append("\n");
+                    if (addr.get("phone") != null) sb.append("  电话：").append(addr.get("phone")).append("\n");
+                    if (addr.get("street") != null) sb.append("  地址：").append(addr.get("street")).append(", ").append(addr.get("city")).append(", ").append(addr.get("province")).append(" ").append(addr.get("postalCode")).append(", ").append(addr.get("country")).append("\n");
+                } catch (Exception ignored) {}
+            }
+            sb.append("\n客户已完成付款，请尽快安排发货。\n\n— 紫来买系统");
+
+            msg.setText(sb.toString());
+            mailSender.send(msg);
+            log.info("Warehouse dispatch email sent to {} for order {}", toEmail, order.getOrderNo());
+        } catch (Exception e) {
+            log.warn("Failed to send warehouse dispatch email for order {} ({})", order.getOrderNo(), e.getMessage());
+        }
+    }
 }

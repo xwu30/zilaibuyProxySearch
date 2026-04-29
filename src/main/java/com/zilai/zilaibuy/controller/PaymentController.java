@@ -39,6 +39,8 @@ public class PaymentController {
     private final OrderRepository orderRepository;
     private final UserRepository userRepository;
     private final VasRequestRepository vasRequestRepository;
+    private final com.zilai.zilaibuy.service.AppSettingService appSettingService;
+    private final com.zilai.zilaibuy.service.EmailService emailService;
 
     @Value("${stripe.secret-key}")
     private String stripeSecretKey;
@@ -275,16 +277,21 @@ public class PaymentController {
         long chargeJpy = Math.max(50L, shippingJpy - balanceDeductJpy);
 
         try {
+            String description = balanceDeductJpy > 0
+                    ? String.format("运费 %s（余额抵扣 %d JPY，刷卡 %d JPY）", order.getOrderNo(), balanceDeductJpy, chargeJpy)
+                    : "运费 " + order.getOrderNo();
             PaymentIntentCreateParams.Builder paramsBuilder = PaymentIntentCreateParams.builder()
                     .setAmount(chargeJpy)
                     .setCurrency("jpy")
-                    .setDescription("运费 " + order.getOrderNo())
+                    .setDescription(description)
                     .putMetadata("orderId", String.valueOf(order.getId()))
                     .putMetadata("orderNo", order.getOrderNo())
                     .putMetadata("userId", String.valueOf(currentUser.id()))
-                    .putMetadata("type", "shipping");
+                    .putMetadata("type", "shipping")
+                    .putMetadata("totalJpy", String.valueOf(shippingJpy));
             if (balanceDeductJpy > 0) {
                 paramsBuilder.putMetadata("balanceDeductJpy", String.valueOf(balanceDeductJpy));
+                paramsBuilder.putMetadata("chargeJpy", String.valueOf(chargeJpy));
             }
             PaymentIntentCreateParams params = paramsBuilder.build();
 
@@ -345,8 +352,10 @@ public class PaymentController {
                 if (isShippingPayment) {
                     order.setStatus(OrderEntity.OrderStatus.PACKING);
                     orderRepository.save(order);
-                    processShippingPaymentPoints(order);
-                    log.info("Order {} shipping paid, status → PACKING", order.getOrderNo());
+                    long cardCharge = intent.getAmount() != null ? intent.getAmount() : -1L;
+                    processShippingPaymentPoints(order, cardCharge);
+                    sendWarehouseShipEmail(order);
+                    log.info("Order {} shipping paid (card {} JPY), status → PACKING", order.getOrderNo(), cardCharge);
                 } else {
                     order.setStatus(OrderEntity.OrderStatus.PURCHASING);
                     orderRepository.save(order);
@@ -529,7 +538,11 @@ public class PaymentController {
                     // Shipping payment: confirm hasn't run yet
                     order.setStatus(OrderEntity.OrderStatus.PACKING);
                     orderRepository.save(order);
-                    processShippingPaymentPoints(order);
+                    String chargeStr = event.getDataObjectDeserializer().getObject()
+                            .map(obj -> ((com.stripe.model.PaymentIntent) obj).getAmount())
+                            .map(String::valueOf).orElse("-1");
+                    processShippingPaymentPoints(order, Long.parseLong(chargeStr));
+                    sendWarehouseShipEmail(order);
                     log.info("Order {} shipping paid (webhook), status → PACKING", order.getOrderNo());
                 } else if (order.getStatus() == OrderEntity.OrderStatus.PENDING_PAYMENT) {
                     // Proxy payment: confirm hasn't run yet
@@ -572,16 +585,30 @@ public class PaymentController {
      * Awards points for the full shipping fee in JPY.
      */
     private void processShippingPaymentPoints(OrderEntity order) {
+        processShippingPaymentPoints(order, -1L);
+    }
+
+    /** @param cardChargeJpy actual amount charged to card (excludes balance). -1 = use full shipping fee. */
+    private void processShippingPaymentPoints(OrderEntity order, long cardChargeJpy) {
         if (order.getShippingFeeCny() == null) return;
         userRepository.findById(order.getUser().getId()).ifPresent(user -> {
-            long shippingJpy = order.getShippingFeeCny()
-                    .divide(JPY_TO_CNY, 0, java.math.RoundingMode.HALF_UP)
-                    .longValue();
-            int earned = (int) Math.max(0, shippingJpy);
+            long pointsBase = cardChargeJpy >= 0 ? cardChargeJpy
+                    : order.getShippingFeeCny().divide(JPY_TO_CNY, 0, java.math.RoundingMode.HALF_UP).longValue();
+            int earned = (int) Math.max(0, pointsBase);
             user.setPoints(user.getPoints() + earned);
             userRepository.save(user);
-            log.info("Order {} (shipping): awarded {} points for shipping fee. User {} → {} points",
-                    order.getOrderNo(), earned, user.getId(), user.getPoints());
+            log.info("Order {} (shipping): awarded {} points (card charge {} JPY). User {} → {} points",
+                    order.getOrderNo(), earned, cardChargeJpy, user.getId(), user.getPoints());
         });
+    }
+
+    private void sendWarehouseShipEmail(OrderEntity order) {
+        String warehouseEmail = appSettingService.get("warehouse.dispatch.email", null);
+        if (warehouseEmail == null || warehouseEmail.isBlank()) return;
+        try {
+            emailService.sendWarehouseDispatchEmail(warehouseEmail, order);
+        } catch (Exception e) {
+            log.warn("Failed to send warehouse dispatch email for order {}: {}", order.getOrderNo(), e.getMessage());
+        }
     }
 }
