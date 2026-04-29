@@ -53,7 +53,8 @@ public class PaymentController {
     record BalancePaymentResponse(String status, int pointsEarned) {}
     record CreateShippingIntentRequest(Long orderId, String shippingRoute, java.math.BigDecimal shippingFeeCny,
                                        Integer routeFeeJpy, Integer handlingFeeJpy,
-                                       Integer inspectionFeeJpy, Integer photoFeeJpy) {}
+                                       Integer inspectionFeeJpy, Integer photoFeeJpy,
+                                       Integer balanceDeductJpy) {}
 
     @PostMapping("/create-intent")
     public ResponseEntity<CreateIntentResponse> createIntent(
@@ -270,18 +271,22 @@ public class PaymentController {
         long shippingJpy = req.shippingFeeCny()
                 .divide(JPY_TO_CNY, 0, java.math.RoundingMode.HALF_UP)
                 .longValue();
-        long chargeJpy = Math.max(50L, shippingJpy);
+        long balanceDeductJpy = req.balanceDeductJpy() != null ? Math.min(req.balanceDeductJpy(), shippingJpy) : 0L;
+        long chargeJpy = Math.max(50L, shippingJpy - balanceDeductJpy);
 
         try {
-            PaymentIntentCreateParams params = PaymentIntentCreateParams.builder()
+            PaymentIntentCreateParams.Builder paramsBuilder = PaymentIntentCreateParams.builder()
                     .setAmount(chargeJpy)
                     .setCurrency("jpy")
                     .setDescription("运费 " + order.getOrderNo())
                     .putMetadata("orderId", String.valueOf(order.getId()))
                     .putMetadata("orderNo", order.getOrderNo())
                     .putMetadata("userId", String.valueOf(currentUser.id()))
-                    .putMetadata("type", "shipping")
-                    .build();
+                    .putMetadata("type", "shipping");
+            if (balanceDeductJpy > 0) {
+                paramsBuilder.putMetadata("balanceDeductJpy", String.valueOf(balanceDeductJpy));
+            }
+            PaymentIntentCreateParams params = paramsBuilder.build();
 
             PaymentIntent intent = PaymentIntent.create(params);
             order.setStripePaymentIntentId(intent.getId());
@@ -321,6 +326,22 @@ public class PaymentController {
         try {
             PaymentIntent intent = PaymentIntent.retrieve(order.getStripePaymentIntentId());
             if ("succeeded".equals(intent.getStatus())) {
+                // Deduct balance if partial balance was used
+                String balanceDeductStr = intent.getMetadata() != null ? intent.getMetadata().get("balanceDeductJpy") : null;
+                if (balanceDeductStr != null) {
+                    try {
+                        long deductJpy = Long.parseLong(balanceDeductStr);
+                        UserEntity user = userRepository.findById(currentUser.id())
+                                .orElseThrow(() -> new IllegalArgumentException("用户不存在"));
+                        java.math.BigDecimal currentBalance = user.getBalanceCny() != null ? user.getBalanceCny() : java.math.BigDecimal.ZERO;
+                        java.math.BigDecimal deductCny = new java.math.BigDecimal(deductJpy);
+                        user.setBalanceCny(currentBalance.subtract(deductCny).max(java.math.BigDecimal.ZERO));
+                        userRepository.save(user);
+                        log.info("Order {} deducted {} JPY balance on confirm", order.getOrderNo(), deductJpy);
+                    } catch (Exception e) {
+                        log.warn("Failed to deduct balance for order {}: {}", order.getOrderNo(), e.getMessage());
+                    }
+                }
                 if (isShippingPayment) {
                     order.setStatus(OrderEntity.OrderStatus.PACKING);
                     orderRepository.save(order);
