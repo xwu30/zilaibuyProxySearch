@@ -9,6 +9,8 @@ import com.zilai.zilaibuy.entity.OrderEntity.OrderStatus;
 import com.zilai.zilaibuy.repository.ForwardingParcelRepository;
 import com.zilai.zilaibuy.repository.HbrCallbackLogRepository;
 import com.zilai.zilaibuy.repository.OrderRepository;
+import com.zilai.zilaibuy.service.EmailService;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -50,6 +52,7 @@ public class HbrCallbackController {
     private final ForwardingParcelRepository parcelRepository;
     private final OrderRepository orderRepository;
     private final HbrCallbackLogRepository logRepository;
+    private final EmailService emailService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Value("${hbr.app-token}")
@@ -164,6 +167,7 @@ public class HbrCallbackController {
      * feeJpy: stored as shippingFeeCny (JPY → CNY converted) and quotedFeeJpy. Only written
      *         when the order has no fee yet, or the new value differs.
      */
+    @Transactional
     @PostMapping("/shipment")
     public ResponseEntity<Map<String, Object>> shipmentCallback(@RequestBody Map<String, Object> body) {
         if (!validateToken(body)) {
@@ -242,6 +246,24 @@ public class HbrCallbackController {
         String prevStatus = order.getStatus().name();
         if (updated) order.setStatus(newOrderStatus);
         orderRepository.save(order);
+
+        // Send payment reminder email when order reaches AWAITING_PAYMENT
+        if (updated && newOrderStatus == OrderStatus.AWAITING_PAYMENT) {
+            try {
+                String userEmail = order.getUser().getEmail();
+                String displayName = order.getUser().getDisplayName() != null
+                        ? order.getUser().getDisplayName() : order.getUser().getPhone();
+                String feeDetails = null;
+                if (order.getQuotedFeeJpy() != null && order.getQuotedFeeJpy() > 0) {
+                    feeDetails = "  运费：¥" + order.getQuotedFeeJpy() + " JPY"
+                            + (order.getRequestedShippingLineName() != null ? "（" + order.getRequestedShippingLineName() + "）"
+                            : order.getQuotedRoute() != null ? "（" + order.getQuotedRoute() + "）" : "");
+                }
+                emailService.sendPaymentReminderEmail(userEmail, displayName, order.getOrderNo(), feeDetails);
+            } catch (Exception e) {
+                log.warn("Failed to send payment reminder email for order {}: {}", order.getOrderNo(), e.getMessage());
+            }
+        }
 
         // Propagate status to all linked parcels
         if (newParcelStatus != null) {
