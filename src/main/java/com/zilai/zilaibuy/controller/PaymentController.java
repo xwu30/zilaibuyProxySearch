@@ -153,7 +153,7 @@ public class PaymentController {
         UserEntity user = userRepository.findById(currentUser.id())
                 .orElseThrow(() -> new IllegalArgumentException("用户不存在"));
 
-        java.math.BigDecimal balance = user.getBalanceCny() != null ? user.getBalanceCny() : java.math.BigDecimal.ZERO;
+        java.math.BigDecimal balance = user.getBalanceJpy() != null ? user.getBalanceJpy() : java.math.BigDecimal.ZERO;
 
         // Calculate required JPY
         long requiredJpy;
@@ -178,7 +178,7 @@ public class PaymentController {
         }
 
         // Deduct balance
-        user.setBalanceCny(balance.subtract(new java.math.BigDecimal(requiredJpy)));
+        user.setBalanceJpy(balance.subtract(new java.math.BigDecimal(requiredJpy)));
         userRepository.save(user);
 
         // Update order and award points
@@ -340,9 +340,9 @@ public class PaymentController {
                         long deductJpy = Long.parseLong(balanceDeductStr);
                         UserEntity user = userRepository.findById(currentUser.id())
                                 .orElseThrow(() -> new IllegalArgumentException("用户不存在"));
-                        java.math.BigDecimal currentBalance = user.getBalanceCny() != null ? user.getBalanceCny() : java.math.BigDecimal.ZERO;
+                        java.math.BigDecimal currentBalance = user.getBalanceJpy() != null ? user.getBalanceJpy() : java.math.BigDecimal.ZERO;
                         java.math.BigDecimal deductCny = new java.math.BigDecimal(deductJpy);
-                        user.setBalanceCny(currentBalance.subtract(deductCny).max(java.math.BigDecimal.ZERO));
+                        user.setBalanceJpy(currentBalance.subtract(deductCny).max(java.math.BigDecimal.ZERO));
                         userRepository.save(user);
                         log.info("Order {} deducted {} JPY balance on confirm", order.getOrderNo(), deductJpy);
                     } catch (Exception e) {

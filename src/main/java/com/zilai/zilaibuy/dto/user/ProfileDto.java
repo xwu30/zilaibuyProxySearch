@@ -17,5 +17,5 @@ public record ProfileDto(
         String cloudId,
         int points,
         String addressesJson,
-        java.math.BigDecimal balanceCny
+        java.math.BigDecimal balanceJpy
 ) {}

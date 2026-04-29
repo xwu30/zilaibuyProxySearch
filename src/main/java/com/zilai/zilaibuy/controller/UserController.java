@@ -225,7 +225,7 @@ public class UserController {
                 u.getCloudId(),
                 u.getPoints(),
                 addressesJson,
-                u.getBalanceCny() != null ? u.getBalanceCny() : java.math.BigDecimal.ZERO
+                u.getBalanceJpy() != null ? u.getBalanceJpy() : java.math.BigDecimal.ZERO
         );
     }
 }

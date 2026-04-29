@@ -103,9 +103,9 @@ public class WalletController {
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
 
             // balance_cny column repurposed to store JPY balance directly
-            BigDecimal newBalance = (user.getBalanceCny() != null ? user.getBalanceCny() : BigDecimal.ZERO)
+            BigDecimal newBalance = (user.getBalanceJpy() != null ? user.getBalanceJpy() : BigDecimal.ZERO)
                     .add(amountJpyBd);
-            user.setBalanceCny(newBalance);
+            user.setBalanceJpy(newBalance);
             userRepository.save(user);
 
             log.info("Wallet topup confirmed for user {}: +¥{} JPY, new balance ¥{} JPY (intent {})",
@@ -129,7 +129,7 @@ public class WalletController {
             @AuthenticationPrincipal AuthenticatedUser principal) {
         UserEntity user = userRepository.findById(principal.id())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
-        BigDecimal balance = user.getBalanceCny() != null ? user.getBalanceCny() : BigDecimal.ZERO;
-        return ResponseEntity.ok(Map.of("balanceCny", balance));
+        BigDecimal balance = user.getBalanceJpy() != null ? user.getBalanceJpy() : BigDecimal.ZERO;
+        return ResponseEntity.ok(Map.of("balanceJpy", balance));
     }
 }

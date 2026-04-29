@@ -23,6 +23,7 @@ public class SchemaMigrationRunner {
     public void runPatches() {
         patchVasRequestStatusEnum();
         patchParcelStatusEnum();
+        migrateBalanceCnyToJpy();
     }
 
     /**
@@ -38,6 +39,34 @@ public class SchemaMigrationRunner {
             log.info("Schema patch applied: forwarding_parcels.status ENUM updated to include DELETED");
         } catch (Exception e) {
             log.debug("Schema patch forwarding_parcels.status: {} (may already be up to date)", e.getMessage());
+        }
+    }
+
+    /**
+     * Rename balance_cny → balance_jpy in the users table.
+     * Copies data from the old column if it still exists, then drops it.
+     */
+    private void migrateBalanceCnyToJpy() {
+        try {
+            // Check if old column still exists
+            Integer oldExists = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM information_schema.COLUMNS " +
+                "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME = 'balance_cny'",
+                Integer.class
+            );
+            if (oldExists != null && oldExists > 0) {
+                // Add new column (Hibernate may not have done it yet at this point)
+                jdbcTemplate.execute(
+                    "ALTER TABLE users ADD COLUMN IF NOT EXISTS balance_jpy DECIMAL(12,2) NOT NULL DEFAULT 0.00"
+                );
+                // Copy existing balances
+                jdbcTemplate.execute("UPDATE users SET balance_jpy = balance_cny");
+                // Drop old column
+                jdbcTemplate.execute("ALTER TABLE users DROP COLUMN balance_cny");
+                log.info("Schema migration: users.balance_cny renamed to balance_jpy, data copied.");
+            }
+        } catch (Exception e) {
+            log.debug("Schema migration balance_cny→balance_jpy: {} (may already be done)", e.getMessage());
         }
     }
 
