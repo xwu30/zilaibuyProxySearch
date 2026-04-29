@@ -76,6 +76,7 @@ public class HbrCallbackController {
      * Returns: {"success":1} or {"success":0,"message":"..."}.
      * HBR expects HTTP 200 regardless — non-200 triggers retries.
      */
+    @Transactional
     @PostMapping("/inbound")
     public ResponseEntity<Map<String, Object>> inboundCallback(@RequestBody Map<String, Object> body) {
         if (!validateToken(body)) {
@@ -135,6 +136,19 @@ public class HbrCallbackController {
                 parcel.setNotes((existing.isBlank() ? "" : existing + "\n") + "[HBR] " + remark);
             }
             parcelRepository.save(parcel);
+
+            // Send email when parcel arrives at warehouse
+            if (newStatus == ParcelStatus.IN_WAREHOUSE) {
+                try {
+                    String userEmail = parcel.getUser().getEmail();
+                    String displayName = parcel.getUser().getDisplayName() != null
+                            ? parcel.getUser().getDisplayName() : parcel.getUser().getPhone();
+                    emailService.sendParcelCheckinEmail(userEmail, displayName,
+                            trackingNo, parcel.getInboundCode(), parcel.getWarehouseLocation());
+                } catch (Exception e) {
+                    log.warn("Failed to send parcel checkin email for tracking={}: {}", trackingNo, e.getMessage());
+                }
+            }
         } else {
             msg = "已是 " + parcel.getStatus().name() + "，跳过";
             log.info("HBR inbound callback: parcel {} already at {} — skipping status {}", parcel.getId(), parcel.getStatus(), newStatus);

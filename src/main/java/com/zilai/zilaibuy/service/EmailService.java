@@ -77,15 +77,15 @@ public class EmailService {
             SimpleMailMessage msg = new SimpleMailMessage();
             msg.setFrom(fromEmail);
             msg.setTo(toEmail);
-            msg.setSubject("【ZilaiBuy】您的包裹已入库 " + inboundCode);
+            msg.setSubject("【紫来买】您的包裹已到库 " + (inboundCode != null ? inboundCode : trackingNo));
             msg.setText(
                 "您好，" + displayName + "！\n\n" +
-                "您的包裹已成功入库，详情如下：\n\n" +
+                "您的包裹已成功到达紫来买仓库，详情如下：\n\n" +
                 "  快递单号：" + trackingNo + "\n" +
-                "  入库编号：" + inboundCode + "\n" +
-                "  存放位置：" + location + "\n\n" +
-                "您可以登录 ZilaiBuy 查看包裹状态，并提交转运申请。\n\n" +
-                "— ZilaiBuy 团队"
+                (inboundCode != null && !inboundCode.isBlank() ? "  入库编号：" + inboundCode + "\n" : "") +
+                (location != null && !location.isBlank() ? "  存放位置：" + location + "\n" : "") +
+                "\n您可以登录紫来买查看包裹状态，并提交转运申请：https://zilaibuy.com\n\n" +
+                "— 紫来买团队"
             );
             mailSender.send(msg);
             log.info("Parcel checkin email sent to {} for tracking={}", toEmail, trackingNo);
