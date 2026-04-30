@@ -182,14 +182,18 @@ public class HbrService {
         }
     }
 
+    public record HbrResult(String packingNo, String errorMessage) {
+        public boolean success() { return packingNo != null && !packingNo.isBlank(); }
+    }
+
     /**
      * Calls HBR createconsolidatedshipment to create a consolidated shipping order.
      * @param trackingNumbers list of inbound tracking numbers to include
      * @param serviceCode     HBR service/line code (e.g. "CA-EMS")
      * @param user            the customer user entity (for user_id/user_code/user_name params)
-     * @return the HBR order_Id string on success, or null on failure
+     * @return HbrResult with packingNo on success, or errorMessage on failure
      */
-    public String createConsolidatedShipment(java.util.List<String> trackingNumbers, String serviceCode,
+    public HbrResult createConsolidatedShipment(java.util.List<String> trackingNumbers, String serviceCode,
                                               com.zilai.zilaibuy.entity.UserEntity user,  // kept for API compat
                                               java.util.Map<String, String> addr) {
         try {
@@ -237,28 +241,87 @@ public class HbrService {
                 if (data != null) {
                     JsonNode refNo = data.get("refrence_no");
                     if (refNo != null && !refNo.isNull() && !refNo.asText().isBlank()) {
-                        return refNo.asText();
+                        return new HbrResult(refNo.asText(), null);
                     }
                     JsonNode nestedId = data.get("order_Id");
                     if (nestedId == null) nestedId = data.get("order_id");
-                    if (nestedId != null && !nestedId.isNull()) return nestedId.asText();
+                    if (nestedId != null && !nestedId.isNull()) return new HbrResult(nestedId.asText(), null);
                 }
                 // Fallback to top-level order_id
                 JsonNode orderId = root.get("order_Id");
                 if (orderId == null) orderId = root.get("order_id");
                 if (orderId != null && !orderId.isNull() && orderId.asLong() > 0) {
-                    return orderId.asText();
+                    return new HbrResult(orderId.asText(), null);
                 }
                 log.warn("HBR createconsolidatedshipment succeeded but no order_Id in response: {}", response.body());
-                return null;
+                return new HbrResult(null, "HBR 创单成功但未返回单号，请联系客服");
             } else {
                 String msg = root.has("cnmessage") ? root.get("cnmessage").asText() : response.body();
                 log.warn("HBR createconsolidatedshipment failed: {}", msg);
-                return null;
+                return new HbrResult(null, msg);
             }
         } catch (Exception e) {
             log.error("HBR createconsolidatedshipment error: {}", e.getMessage());
-            return null;
+            return new HbrResult(null, "HBR 请求异常：" + e.getMessage());
+        }
+    }
+
+    /**
+     * Pushes payment confirmation to HBR after shipping fee is paid.
+     * serviceMethod: pushorderpayinfo
+     *
+     * @param hawbCode    HBT parcel number (order.packingNo)
+     * @param totalJpy    total amount paid in JPY (all fees combined)
+     * @param payCode     payment reference (Stripe PaymentIntent ID or internal ID)
+     * @param payInfo     additional account info (username/phone)
+     * @param payType     "Stripe" or "Balance"
+     * @param orderNo     order number for remark
+     */
+    public void pushOrderPayInfo(String hawbCode, long totalJpy, String payCode,
+                                  String payInfo, String payType, String orderNo) {
+        if (hawbCode == null || hawbCode.isBlank()) {
+            log.warn("pushOrderPayInfo skipped: no HBT hawbCode for order {}", orderNo);
+            return;
+        }
+        try {
+            String payDate = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
+                    .format(new java.util.Date());
+            String payFee = String.format("%.2f", (double) totalJpy);
+
+            java.util.Map<String, Object> params = new java.util.LinkedHashMap<>();
+            params.put("server_hawbcode", hawbCode);
+            params.put("pay_fee", payFee);
+            params.put("pay_date", payDate);
+            params.put("pay_code", payCode != null ? payCode : orderNo);
+            params.put("pay_info", payInfo != null ? payInfo : "");
+            params.put("pay_type", payType != null ? payType : "Stripe");
+            params.put("pay_currency", "JPY");
+            params.put("remark", orderNo);
+
+            String paramsJson = mapper.writeValueAsString(params);
+
+            String body = "appToken=" + encode(appToken)
+                    + "&appKey=" + encode(appKey)
+                    + "&serviceMethod=pushorderpayinfo"
+                    + "&paramsJson=" + encode(paramsJson);
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(hbrUrl))
+                    .header("Content-Type", "application/x-www-form-urlencoded")
+                    .timeout(Duration.ofSeconds(15))
+                    .POST(HttpRequest.BodyPublishers.ofString(body))
+                    .build();
+
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            JsonNode root = mapper.readTree(response.body());
+            if (root.has("success") && root.get("success").asInt() == 1) {
+                log.info("HBR pushorderpayinfo OK for hawbCode={}, order={}", hawbCode, orderNo);
+            } else {
+                String msg = root.has("cnmessage") ? root.get("cnmessage").asText() : response.body();
+                log.warn("HBR pushorderpayinfo failed for hawbCode={}, order={}: {}", hawbCode, orderNo, msg);
+            }
+        } catch (Exception e) {
+            log.error("HBR pushorderpayinfo error for hawbCode={}, order={}: {}", hawbCode, orderNo, e.getMessage());
         }
     }
 

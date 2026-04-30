@@ -41,6 +41,7 @@ public class PaymentController {
     private final VasRequestRepository vasRequestRepository;
     private final com.zilai.zilaibuy.service.AppSettingService appSettingService;
     private final com.zilai.zilaibuy.service.EmailService emailService;
+    private final com.zilai.zilaibuy.service.HbrService hbrService;
 
     @Value("${stripe.secret-key}")
     private String stripeSecretKey;
@@ -203,6 +204,8 @@ public class PaymentController {
             order.setStatus(OrderEntity.OrderStatus.PACKING);
             orderRepository.save(order);
             processShippingPaymentPoints(order);
+            sendWarehouseShipEmail(order);
+            pushHbrPayInfo(order, "BALANCE-" + order.getOrderNo(), "Balance");
             log.info("Order {} shipping paid with balance ({} JPY), awarded {} points, status → PACKING", order.getOrderNo(), requiredJpy, pointsToEarn);
         } else {
             order.setServiceFeeJpy(200);
@@ -371,6 +374,7 @@ public class PaymentController {
                     orderRepository.save(order);
                     processShippingPaymentPoints(order);
                     sendWarehouseShipEmail(order);
+                    pushHbrPayInfo(order, order.getStripePaymentIntentId(), "Stripe");
                     log.info("Order {} shipping paid, status → PACKING", order.getOrderNo());
                 } else {
                     order.setStatus(OrderEntity.OrderStatus.PURCHASING);
@@ -556,6 +560,7 @@ public class PaymentController {
                     orderRepository.save(order);
                     processShippingPaymentPoints(order);
                     sendWarehouseShipEmail(order);
+                    pushHbrPayInfo(order, piId, "Stripe");
                     log.info("Order {} shipping paid (webhook), status → PACKING", order.getOrderNo());
                 } else if (order.getStatus() == OrderEntity.OrderStatus.PENDING_PAYMENT) {
                     // Proxy payment: confirm hasn't run yet
@@ -634,6 +639,27 @@ public class PaymentController {
             emailService.sendWarehouseDispatchEmail(warehouseEmail, order);
         } catch (Exception e) {
             log.warn("Failed to send warehouse dispatch email for order {}: {}", order.getOrderNo(), e.getMessage());
+        }
+    }
+
+    /**
+     * Push payment confirmation to HBR asynchronously.
+     * @param order     the paid shipping order (must have packingNo set)
+     * @param payCode   Stripe PaymentIntent ID or internal reference
+     * @param payType   "Stripe" or "Balance"
+     */
+    private void pushHbrPayInfo(OrderEntity order, String payCode, String payType) {
+        if (order.getPackingNo() == null || order.getPackingNo().isBlank()) return;
+        try {
+            long totalJpy = totalFeesJpy(order);
+            if (totalJpy <= 0) totalJpy = order.getShippingFeeCny() != null
+                    ? order.getShippingFeeCny().divide(JPY_TO_CNY, 0, java.math.RoundingMode.HALF_UP).longValue() : 0;
+            com.zilai.zilaibuy.entity.UserEntity user = order.getUser();
+            String payInfo = user.getUsername() != null && !user.getUsername().isBlank()
+                    ? user.getUsername() : (user.getPhone() != null ? user.getPhone() : "");
+            hbrService.pushOrderPayInfo(order.getPackingNo(), totalJpy, payCode, payInfo, payType, order.getOrderNo());
+        } catch (Exception e) {
+            log.warn("pushHbrPayInfo failed for order {}: {}", order.getOrderNo(), e.getMessage());
         }
     }
 }
