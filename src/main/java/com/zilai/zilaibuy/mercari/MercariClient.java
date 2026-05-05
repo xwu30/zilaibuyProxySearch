@@ -11,57 +11,86 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
 /**
- * Calls the Mercari scraper via Apify:
- * POST https://api.apify.com/v2/acts/sovereigntaylor~mercari-scraper/run-sync-get-dataset-items?token=xxx
+ * Calls jupri/mercari-jp actor via Apify:
+ * POST https://api.apify.com/v2/acts/mdtMXcvkUXqYZCeQ8/run-sync-get-dataset-items?token=xxx
  *
- * Apify handles geo-blocking and anti-bot — no need for JP IP.
+ * This actor scrapes jp.mercari.com directly with residential proxies.
+ * Input: { "query": ["keyword"], "limit": N, "sort": "score" }
+ * Output: items with price.value (string), thumbnails[], status "ON_SALE", url (jp.mercari.com)
  */
 @Slf4j
 @Component
 public class MercariClient {
 
     private static final String APIFY_ENDPOINT =
-            "https://api.apify.com/v2/acts/sovereigntaylor~mercari-scraper/run-sync-get-dataset-items";
+            "https://api.apify.com/v2/acts/mdtMXcvkUXqYZCeQ8/run-sync-get-dataset-items";
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Value("${apify.token:}")
     private String apifyToken;
 
-    // Raw item shape returned by the Apify actor (fields may vary by actor version)
+    // Price object returned by jupri/mercari-jp
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record ApifyPrice(String currency, String value) {
+        public Integer intValue() {
+            if (value == null) return 0;
+            try { return Integer.parseInt(value); } catch (Exception e) { return 0; }
+        }
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record ApifyBrand(String id, String name) {}
+
+    // Item shape returned by jupri/mercari-jp actor
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record ApifyItem(
             String id,
-            String itemId,
             String name,
-            String title,
-            Integer price,
-            String imageUrl,
-            String thumbnailUrl,
-            String photo,
+            ApifyPrice price,
+            List<String> thumbnails,
+            String status,
             String url,
-            String itemUrl,
-            String itemStatus,
-            String status
+            String itemCondition,
+            ApifyBrand itemBrand
     ) {
-        public String resolvedId()       { return id != null ? id : itemId; }
-        public String resolvedName()     { return name != null ? name : (title != null ? title : ""); }
         public String resolvedImageUrl() {
-            if (imageUrl != null)     return imageUrl;
-            if (thumbnailUrl != null) return thumbnailUrl;
-            if (photo != null)        return photo;
+            if (thumbnails != null && !thumbnails.isEmpty()) return thumbnails.get(0);
             return "";
         }
-        public String resolvedUrl()      { return url != null ? url : (itemUrl != null ? itemUrl : ""); }
         public boolean isOnSale() {
-            String s = itemStatus != null ? itemStatus : (status != null ? status : "");
-            return s.isEmpty() || s.contains("on_sale") || s.contains("ON_SALE") || s.contains("ITEM_STATUS_ON_SALE");
+            return status == null || status.equals("ON_SALE");
+        }
+        public Integer resolvedPrice() {
+            return price != null ? price.intValue() : 0;
+        }
+        public String resolvedDescription() {
+            StringBuilder sb = new StringBuilder();
+            if (itemCondition != null && !itemCondition.isEmpty()) {
+                sb.append("商品成色：").append(conditionLabel(itemCondition));
+            }
+            if (itemBrand != null && itemBrand.name() != null && !itemBrand.name().isEmpty()) {
+                if (sb.length() > 0) sb.append("\n");
+                sb.append("品牌：").append(itemBrand.name());
+            }
+            return sb.toString();
+        }
+        private static String conditionLabel(String c) {
+            return switch (c) {
+                case "NEW" -> "全新";
+                case "LIKE_NEW", "NO_SCRATCH" -> "几乎全新";
+                case "GOOD" -> "良好";
+                case "LITTLE_SCRATCH" -> "有轻微划痕";
+                case "SCRATCH" -> "有划痕";
+                case "BAD" -> "较差";
+                case "JUNK" -> "垃圾品";
+                default -> c;
+            };
         }
     }
 
@@ -78,13 +107,13 @@ public class MercariClient {
 
         try {
             String endpoint = APIFY_ENDPOINT + "?token=" + apifyToken
-                    + "&timeout=120"      // wait up to 120s for scraper
-                    + "&memory=1024";     // MB RAM for the actor
+                    + "&timeout=120"
+                    + "&memory=1024";
 
-            // Build input JSON — try "keyword" field first (most common convention)
             Map<String, Object> input = Map.of(
-                    "keyword", keyword,
-                    "maxItems", finalLimit
+                    "query", List.of(keyword),
+                    "limit", finalLimit,
+                    "sort", "score"
             );
             byte[] inputBytes = objectMapper.writeValueAsBytes(input);
 
@@ -95,7 +124,7 @@ public class MercariClient {
             conn.setRequestMethod("POST");
             conn.setDoOutput(true);
             conn.setConnectTimeout(15_000);
-            conn.setReadTimeout(150_000); // scraping can take a while
+            conn.setReadTimeout(150_000);
             conn.setRequestProperty("Content-Type", "application/json");
             conn.setRequestProperty("Accept", "application/json");
 
@@ -122,7 +151,6 @@ public class MercariClient {
             byte[] body = is.readAllBytes();
             is.close();
 
-            // Apify run-sync-get-dataset-items returns a JSON array directly
             List<ApifyItem> items = objectMapper.readValue(
                     body,
                     objectMapper.getTypeFactory().constructCollectionType(List.class, ApifyItem.class)
@@ -130,16 +158,15 @@ public class MercariClient {
 
             log.info("[MercariClient] Apify returned {} items for '{}'", items.size(), keyword);
 
-            // Convert to our standard MercariSearchResponse
             List<MercariSearchResponse.Item> converted = items.stream()
                     .filter(ApifyItem::isOnSale)
                     .map(i -> {
-                        List<String> thumbs = (i.resolvedImageUrl() != null && !i.resolvedImageUrl().isEmpty())
-                                ? List.of(i.resolvedImageUrl()) : List.of();
-                        String itemSt = i.itemStatus() != null ? i.itemStatus() : "ITEM_STATUS_ON_SALE";
+                        String imgUrl = i.resolvedImageUrl();
+                        List<String> thumbs = imgUrl.isEmpty() ? List.of() : List.of(imgUrl);
                         return new MercariSearchResponse.Item(
-                                i.resolvedId(), i.resolvedName(), i.price(),
-                                thumbs, itemSt, null, null, null, null, null);
+                                i.id(), i.name() != null ? i.name() : "", i.resolvedPrice(),
+                                thumbs, "ITEM_STATUS_ON_SALE", null, null, null, null, null,
+                                i.resolvedDescription());
                     })
                     .toList();
 

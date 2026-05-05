@@ -113,7 +113,7 @@ public class ParcelController {
 
     record ReceiverAddress(String fullName, String phone, String street, String city, String province, String postalCode, String country) {}
     record ShippingRequestBody(List<Long> parcelIds, List<Long> orderItemIds, String shippingLine, String shippingLineName, Integer estimatedFeeJpy, double totalCny, boolean addInspection, boolean addPhoto, ReceiverAddress receiverAddress) {}
-    record ShippingRequestResponse(long orderId, String orderNo) {}
+    record ShippingRequestResponse(long orderId, String orderNo, String hbrWarning) {}
 
     @PostMapping("/shipping-request")
     @org.springframework.transaction.annotation.Transactional
@@ -187,18 +187,21 @@ public class ParcelController {
                 if (a.postalCode() != null) addrMap.put("postalCode", a.postalCode());
                 if (a.country() != null) addrMap.put("country", a.country());
             }
-            String hbrOrderId = hbrService.createConsolidatedShipment(
+            com.zilai.zilaibuy.service.HbrService.HbrResult hbrResult = hbrService.createConsolidatedShipment(
                     allTrackingNumbers, req.shippingLine(), primaryOrder.getUser(), addrMap);
-            if (hbrOrderId != null && !hbrOrderId.isBlank()) {
-                primaryOrder.setPackingNo(hbrOrderId);
+            if (hbrResult.success()) {
+                primaryOrder.setPackingNo(hbrResult.packingNo());
             }
+            orderRepository.save(primaryOrder);
+            String warning = hbrResult.success() ? null : hbrResult.errorMessage();
+            return ResponseEntity.ok(new ShippingRequestResponse(primaryOrder.getId(), primaryOrder.getOrderNo(), warning));
         } else {
             log.warn("createShippingRequest: no tracking numbers found for order {}, skipping HBR call",
                     primaryOrder.getOrderNo());
         }
         orderRepository.save(primaryOrder);
 
-        return ResponseEntity.ok(new ShippingRequestResponse(primaryOrder.getId(), primaryOrder.getOrderNo()));
+        return ResponseEntity.ok(new ShippingRequestResponse(primaryOrder.getId(), primaryOrder.getOrderNo(), null));
     }
 
     record VasRequestBody(List<Long> parcelIds, List<Long> orderIds, List<String> services, String contactInfo) {}

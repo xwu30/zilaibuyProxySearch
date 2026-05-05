@@ -61,4 +61,7 @@ public class OrderItemEntity {
 
     @Column(name = "item_status", length = 20)
     private String itemStatus = "PURCHASING";
+
+    @Column(name = "weight_kg")
+    private Double weightKg;
 }

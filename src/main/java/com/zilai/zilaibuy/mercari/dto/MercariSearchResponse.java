@@ -20,7 +20,8 @@ public record MercariSearchResponse(
             Integer itemConditionId,
             Integer shippingPayerId,
             Long updated,
-            Long created
+            Long created,
+            String description
     ) {}
 
     @JsonIgnoreProperties(ignoreUnknown = true)

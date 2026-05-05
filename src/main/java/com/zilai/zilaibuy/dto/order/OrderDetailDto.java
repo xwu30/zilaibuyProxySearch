@@ -32,7 +32,8 @@ public record OrderDetailDto(
         Integer serviceFeeJpy,
         String serviceFeeMemo,
         String quotedRoute,
-        Integer quotedFeeJpy
+        Integer quotedFeeJpy,
+        String packingNo
 ) {
     public static OrderDetailDto from(OrderEntity e) {
         return from(e, Collections.emptyList());
@@ -48,6 +49,6 @@ public record OrderDetailDto(
                 e.getWeightG(), e.getLengthCm(), e.getWidthCm(), e.getHeightCm(),
                 e.getPackingPhotoUrl(), e.getShippingFeeCny(), e.getShippingRoute(),
                 e.getServiceFeeJpy(), e.getServiceFeeMemo(),
-                e.getQuotedRoute(), e.getQuotedFeeJpy());
+                e.getQuotedRoute(), e.getQuotedFeeJpy(), e.getPackingNo());
     }
 }

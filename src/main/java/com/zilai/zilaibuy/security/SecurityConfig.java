@@ -63,6 +63,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/rakuten/books/search").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/books/search").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/yahoo/shopping/search").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/mercari/search").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/books/sync").hasRole("ADMIN")
                 .requestMatchers("/api/payments/**").authenticated()
                 .requestMatchers("/api/wallet/**").authenticated()

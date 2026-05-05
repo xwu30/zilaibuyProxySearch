@@ -533,22 +533,23 @@ public class AdminController {
         }
 
         String serviceCode = (req != null && req.shippingLine() != null) ? req.shippingLine() : "";
-        String hbrOrderId = hbrService.createConsolidatedShipment(trackingNumbers, serviceCode, order.getUser(), null);
+        com.zilai.zilaibuy.service.HbrService.HbrResult hbrResult =
+                hbrService.createConsolidatedShipment(trackingNumbers, serviceCode, order.getUser(), null);
 
-        if (hbrOrderId != null && !hbrOrderId.isBlank()) {
-            order.setPackingNo(hbrOrderId);
+        if (hbrResult.success()) {
+            order.setPackingNo(hbrResult.packingNo());
             orderRepository.save(order);
             return ResponseEntity.ok(java.util.Map.of(
                     "success", true,
-                    "packingNo", hbrOrderId,
+                    "packingNo", hbrResult.packingNo(),
                     "trackingNumbers", trackingNumbers,
-                    "message", "HBR集运单创建成功: " + hbrOrderId
+                    "message", "HBR集运单创建成功: " + hbrResult.packingNo()
             ));
         } else {
             return ResponseEntity.ok(java.util.Map.of(
                     "success", false,
                     "trackingNumbers", trackingNumbers,
-                    "message", "HBR调用失败，请检查运单号是否已在HBR系统中登记"
+                    "message", hbrResult.errorMessage() != null ? hbrResult.errorMessage() : "HBR调用失败，请检查运单号是否已在HBR系统中登记"
             ));
         }
     }
@@ -592,5 +593,35 @@ public class AdminController {
     @org.springframework.context.annotation.Lazy
     @org.springframework.beans.factory.annotation.Autowired
     private org.springframework.context.ApplicationContext applicationContext;
+
+    // ── Admin hard-delete orders ───────────────────────────────────────────────────
+
+    record DeleteOrdersByNoRequest(java.util.List<String> orderNos) {}
+
+    @DeleteMapping("/orders/by-order-no")
+    @Transactional
+    public ResponseEntity<java.util.Map<String, Object>> deleteOrdersByOrderNo(
+            @RequestBody DeleteOrdersByNoRequest req,
+            @AuthenticationPrincipal AuthenticatedUser currentUser,
+            HttpServletRequest httpReq) {
+        java.util.List<String> deleted = new java.util.ArrayList<>();
+        java.util.List<String> notFound = new java.util.ArrayList<>();
+        for (String orderNo : req.orderNos()) {
+            orderRepository.findByOrderNo(orderNo.trim()).ifPresentOrElse(order -> {
+                // Unlink any forwarding parcels so FK constraint is satisfied
+                com.zilai.zilaibuy.repository.ForwardingParcelRepository parcelRepo =
+                        applicationContext.getBean(com.zilai.zilaibuy.repository.ForwardingParcelRepository.class);
+                parcelRepo.findByLinkedOrderId(order.getId()).forEach(p -> {
+                    p.setLinkedOrder(null);
+                    parcelRepo.save(p);
+                });
+                orderRepository.delete(order);
+                auditLogService.log(currentUser.id(), "ORDER_DELETED", "ORDER",
+                        String.valueOf(order.getId()), "{\"orderNo\":\"" + orderNo + "\"}", httpReq.getRemoteAddr());
+                deleted.add(orderNo);
+            }, () -> notFound.add(orderNo));
+        }
+        return ResponseEntity.ok(java.util.Map.of("deleted", deleted, "notFound", notFound));
+    }
 
 }

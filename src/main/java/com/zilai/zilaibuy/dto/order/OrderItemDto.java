@@ -23,7 +23,8 @@ public record OrderItemDto(
         String itemTrackingNo,
         String itemCarrier,
         List<String> referenceImages,
-        String hbrError
+        String hbrError,
+        Double weightKg
 ) {
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
@@ -37,12 +38,12 @@ public record OrderItemDto(
         return new OrderItemDto(e.getId(), e.getProductTitle(), e.getOriginalUrl(),
                 e.getPriceJpy(), e.getPriceCny(), e.getQuantity(), e.getRemarks(),
                 e.getDomesticShipping(), e.getExchangeRate(), e.getPlatform(), e.getImageUrl(),
-                e.getItemStatus(), e.getItemTrackingNo(), e.getItemCarrier(), refs, null);
+                e.getItemStatus(), e.getItemTrackingNo(), e.getItemCarrier(), refs, null, e.getWeightKg());
     }
 
     public OrderItemDto withHbrError(String error) {
         return new OrderItemDto(id, productTitle, originalUrl, priceJpy, priceCny, quantity, remarks,
                 domesticShipping, exchangeRate, platform, imageUrl, itemStatus, itemTrackingNo, itemCarrier,
-                referenceImages, error);
+                referenceImages, error, weightKg);
     }
 }

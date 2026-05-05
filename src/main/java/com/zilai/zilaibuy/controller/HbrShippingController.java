@@ -4,7 +4,11 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zilai.zilaibuy.entity.ForwardingParcelEntity;
 import com.zilai.zilaibuy.entity.ForwardingParcelEntity.ParcelStatus;
+import com.zilai.zilaibuy.entity.OrderEntity;
+import com.zilai.zilaibuy.entity.OrderItemEntity;
 import com.zilai.zilaibuy.repository.ForwardingParcelRepository;
+import com.zilai.zilaibuy.repository.OrderItemRepository;
+import com.zilai.zilaibuy.repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -21,6 +25,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -48,6 +53,8 @@ public class HbrShippingController {
     private String trackingAppKey;
 
     private final ForwardingParcelRepository parcelRepository;
+    private final OrderRepository orderRepository;
+    private final OrderItemRepository orderItemRepository;
 
     private final ObjectMapper mapper = new ObjectMapper();
     private final HttpClient httpClient = HttpClient.newBuilder()
@@ -217,6 +224,141 @@ public class HbrShippingController {
             log.error("Failed to sync parcel {} from HBR", parcelId, e);
             return ResponseEntity.status(500).body(Map.of("message", "查询失败: " + e.getMessage()));
         }
+    }
+
+    /**
+     * Admin-only: query HBR for the latest status of each item's tracking number in a proxy order,
+     * then update item statuses accordingly.
+     *
+     * POST /api/shipping/sync-order/{orderId}
+     * Response: { updatedCount, items: [{itemId, trackingNo, hbrStatus, oldStatus, newStatus}], rawBody }
+     */
+    @PreAuthorize("hasRole('ADMIN')")
+    @PostMapping("/sync-order/{orderId}")
+    public ResponseEntity<Map<String, Object>> syncOrderStatus(@PathVariable Long orderId) {
+        OrderEntity order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("订单不存在"));
+
+        List<OrderItemEntity> itemsWithTracking = order.getItems().stream()
+                .filter(i -> i.getItemTrackingNo() != null && !i.getItemTrackingNo().isBlank())
+                .toList();
+
+        if (itemsWithTracking.isEmpty()) {
+            return ResponseEntity.ok(Map.of("message", "该订单无商品快递单号", "updatedCount", 0));
+        }
+
+        int updatedCount = 0;
+        List<Map<String, Object>> itemResults = new ArrayList<>();
+        String lastRawBody = null;
+
+        for (OrderItemEntity item : itemsWithTracking) {
+            String trackingNo = item.getItemTrackingNo().trim();
+            try {
+                String paramsJson = String.format("{\"order_tracking_number\":[\"%s\"]}", trackingNo);
+                String body = "appToken=" + encode(trackingAppToken)
+                        + "&appKey=" + encode(trackingAppKey)
+                        + "&serviceMethod=consonlidatedorderstatus"
+                        + "&paramsJson=" + encode(paramsJson);
+
+                HttpRequest request = HttpRequest.newBuilder()
+                        .uri(URI.create(hbrUrl))
+                        .header("Content-Type", "application/x-www-form-urlencoded")
+                        .timeout(Duration.ofSeconds(15))
+                        .POST(HttpRequest.BodyPublishers.ofString(body))
+                        .build();
+
+                HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+                String rawBody = response.body();
+                lastRawBody = rawBody;
+                log.info("HBR sync order {} item {} ({}): {}", orderId, item.getId(), trackingNo, rawBody);
+
+                JsonNode root = mapper.readTree(rawBody);
+                if (!root.has("success") || root.get("success").asInt() != 1) {
+                    String msg = firstNonNull(root, "cnmessage", "enmessage", "msg");
+                    itemResults.add(Map.of("itemId", item.getId(), "trackingNo", trackingNo,
+                            "error", msg != null ? msg : "HBR返回失败"));
+                    continue;
+                }
+
+                JsonNode data = root.path("data");
+                String hbrStatus = null;
+                String orderWeightStr = null;
+                if (data.isArray() && data.size() > 0) {
+                    JsonNode first = data.get(0);
+                    hbrStatus = firstNonNull(first, "status", "Status", "order_status", "OrderStatus", "state", "State");
+                    orderWeightStr = firstNonNull(first, "order_weight", "weight");
+                } else if (data.isObject()) {
+                    hbrStatus = firstNonNull(data, "status", "Status", "order_status", "OrderStatus", "state", "State");
+                    orderWeightStr = firstNonNull(data, "order_weight", "weight");
+                }
+                if (hbrStatus == null) hbrStatus = firstNonNull(root, "status", "Status", "order_status", "OrderStatus");
+
+                String newItemStatus = mapHbrStatusToItemStatus(hbrStatus);
+                String oldItemStatus = item.getItemStatus();
+                boolean changed = newItemStatus != null && !newItemStatus.equals(oldItemStatus);
+                if (changed) {
+                    item.setItemStatus(newItemStatus);
+                    updatedCount++;
+                    log.info("Order {} item {} status {} → {} via HBR", orderId, item.getId(), oldItemStatus, newItemStatus);
+                }
+                // Save weight from HBR (order_weight in kg)
+                if (orderWeightStr != null) {
+                    try {
+                        double wKg = Double.parseDouble(orderWeightStr);
+                        if (wKg > 0) { item.setWeightKg(wKg); changed = true; }
+                    } catch (NumberFormatException ignored) {}
+                }
+                if (changed) orderItemRepository.save(item);
+
+                Map<String, Object> r = new LinkedHashMap<>();
+                r.put("itemId", item.getId());
+                r.put("trackingNo", trackingNo);
+                r.put("hbrStatus", hbrStatus != null ? hbrStatus : "unknown");
+                r.put("oldStatus", oldItemStatus);
+                r.put("newStatus", newItemStatus != null ? newItemStatus : oldItemStatus);
+                r.put("updated", changed);
+                if (item.getWeightKg() != null) r.put("weightKg", item.getWeightKg());
+                itemResults.add(r);
+
+            } catch (Exception e) {
+                log.error("HBR sync order {} item {} error: {}", orderId, item.getId(), e.getMessage());
+                itemResults.add(Map.of("itemId", item.getId(), "trackingNo", trackingNo, "error", e.getMessage()));
+            }
+        }
+
+        // If all items with tracking numbers are now IN_WAREHOUSE, upgrade order status
+        boolean allInWarehouse = order.getItems().stream()
+                .filter(i -> i.getItemTrackingNo() != null && !i.getItemTrackingNo().isBlank())
+                .allMatch(i -> "IN_WAREHOUSE".equals(i.getItemStatus()));
+        if (allInWarehouse && !"IN_WAREHOUSE".equals(order.getStatus().name())
+                && !"PACKING".equals(order.getStatus().name())
+                && !"SHIPPED".equals(order.getStatus().name())) {
+            order.setStatus(com.zilai.zilaibuy.entity.OrderEntity.OrderStatus.IN_WAREHOUSE);
+            orderRepository.save(order);
+            log.info("Order {} status upgraded to IN_WAREHOUSE (all tracked items arrived)", orderId);
+        }
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("updatedCount", updatedCount);
+        result.put("updated", updatedCount > 0);
+        result.put("items", itemResults);
+        if (lastRawBody != null) result.put("rawBody", lastRawBody);
+        return ResponseEntity.ok(result);
+    }
+
+    /** Maps HBR status codes to OrderItemEntity itemStatus strings. */
+    private String mapHbrStatusToItemStatus(String s) {
+        if (s == null) return null;
+        return switch (s.toUpperCase().trim()) {
+            case "P"          -> null;             // 预报 — no change
+            case "V",
+                 "RECEIVED"   -> "IN_WAREHOUSE";
+            case "C",
+                 "SHIPPED"    -> "SHIPPED";
+            case "D",
+                 "DELIVERED"  -> "DELIVERED";
+            default           -> null;
+        };
     }
 
     private ParcelStatus mapHbrStatus(String s) {
