@@ -71,7 +71,8 @@ public class TransactionHistoryController {
         ).getContent();
 
         for (OrderEntity o : orders) {
-            if (o.getStatus() == OrderEntity.OrderStatus.PENDING_PAYMENT) continue;
+            if (o.getStatus() == OrderEntity.OrderStatus.PENDING_PAYMENT
+                    || o.getStatus() == OrderEntity.OrderStatus.CANCELLED) continue;
 
             List<TxItem> txItems = o.getItems().stream()
                     .map(i -> new TxItem(
