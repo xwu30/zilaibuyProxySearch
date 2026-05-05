@@ -92,13 +92,16 @@ public class TransactionHistoryController {
                     .collect(Collectors.joining("、"));
             if (txItems.size() > 2) itemSummary += " 等" + txItems.size() + "件";
 
+            int proxyJpy = txItems.stream()
+                    .mapToInt(i -> i.priceJpy() != null ? i.priceJpy() : 0).sum();
+
             list.add(new TransactionDto(
                     "ORDER-" + o.getId(),
                     "PROXY",
                     o.getOrderNo(),
                     "代购订单：" + itemSummary,
                     o.getTotalCny(),
-                    null,
+                    proxyJpy > 0 ? proxyJpy : null,
                     o.getUpdatedAt(),
                     statusLabel(o.getStatus()),
                     txItems,
@@ -109,6 +112,8 @@ public class TransactionHistoryController {
 
             // Shipping payment
             if (o.getShippingFeeCny() != null && isShippingPaid(o.getStatus())) {
+                int shipJpy = (int) Math.round(
+                        o.getShippingFeeCny().doubleValue() / JPY_TO_CNY.doubleValue());
                 list.add(new TransactionDto(
                         "SHIP-" + o.getId(),
                         "SHIPPING",
@@ -116,7 +121,7 @@ public class TransactionHistoryController {
                         "集运运费：" + (o.getRequestedShippingLineName() != null
                                 ? o.getRequestedShippingLineName() : o.getOrderNo()),
                         o.getShippingFeeCny(),
-                        null,
+                        shipJpy,
                         o.getUpdatedAt(),
                         "已支付",
                         null,
