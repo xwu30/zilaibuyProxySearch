@@ -90,6 +90,11 @@ stripe:
   webhook-secret: ${STRIPE_WEBHOOK_SECRET:}
   publishable-key: ${STRIPE_PUBLISHABLE_KEY:}
 
+paypal:
+  client-id: ${PAYPAL_CLIENT_ID:AawUCT2TO3s7NNwn0H7UbupLfIEK76BL-VZDGmkitLajEgH_SZNElpESVrcPOAG8Ve0ML8zYcPoQjs0R}
+  client-secret: ${PAYPAL_CLIENT_SECRET:EBzBjRMFOboThcajPgJddpH2bscgkuC7PQeK05b4YYnhKqOZKjrZNbEi_0uPf3ZlT3R8ShNge8rDe5cn}
+  mode: ${PAYPAL_MODE:sandbox}
+
 hbr:
   app-token: ${HBR_APP_TOKEN:7167b176259095554243338a1784aa17}
   app-key: ${HBR_APP_KEY:5590bc680843cc3fecde3135bb89cd8e5590bc680843cc3fecde3135bb89cd8e}

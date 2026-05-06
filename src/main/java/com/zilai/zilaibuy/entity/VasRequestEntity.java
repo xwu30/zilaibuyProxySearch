@@ -61,6 +61,9 @@ public class VasRequestEntity {
     @Column(name = "stripe_payment_intent_id", length = 100)
     private String stripePaymentIntentId;
 
+    @Column(name = "paypal_order_id", length = 100)
+    private String paypalOrderId;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

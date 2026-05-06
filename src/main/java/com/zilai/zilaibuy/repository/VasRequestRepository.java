@@ -12,4 +12,6 @@ public interface VasRequestRepository extends JpaRepository<VasRequestEntity, Lo
     Page<VasRequestEntity> findAllByOrderByCreatedAtDesc(Pageable pageable);
     List<VasRequestEntity> findByUserIdOrderByCreatedAtDesc(Long userId);
     Optional<VasRequestEntity> findByStripePaymentIntentId(String stripePaymentIntentId);
+
+    Optional<VasRequestEntity> findByPaypalOrderId(String paypalOrderId);
 }

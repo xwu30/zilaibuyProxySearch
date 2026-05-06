@@ -47,6 +47,9 @@ public class OrderEntity {
     @Column(name = "stripe_payment_intent_id", length = 100)
     private String stripePaymentIntentId;
 
+    @Column(name = "paypal_order_id", length = 100)
+    private String paypalOrderId;
+
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<OrderItemEntity> items = new ArrayList<>();
 

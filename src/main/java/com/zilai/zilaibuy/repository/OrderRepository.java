@@ -128,6 +128,8 @@ public interface OrderRepository extends JpaRepository<OrderEntity, Long> {
 
     Optional<OrderEntity> findByStripePaymentIntentId(String stripePaymentIntentId);
 
+    Optional<OrderEntity> findByPaypalOrderId(String paypalOrderId);
+
     Optional<OrderEntity> findFirstByUserIdAndStatusOrderByCreatedAtDesc(Long userId, OrderEntity.OrderStatus status);
 
     Optional<OrderEntity> findByOrderNo(String orderNo);

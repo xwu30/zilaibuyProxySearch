@@ -2,8 +2,10 @@ package com.zilai.zilaibuy.config;
 
 import com.zilai.zilaibuy.rakuten.RakutenProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.web.client.RestTemplate;
 import org.springframework.web.reactive.function.client.WebClient;
 
 @Configuration
@@ -15,5 +17,10 @@ public class WebClientConfig {
         return WebClient.builder()
                 .baseUrl(props.getBaseUrl())
                 .build();
+    }
+
+    @Bean
+    RestTemplate restTemplate(RestTemplateBuilder builder) {
+        return builder.build();
     }
 }
