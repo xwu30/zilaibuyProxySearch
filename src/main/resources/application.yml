@@ -91,9 +91,9 @@ stripe:
   publishable-key: ${STRIPE_PUBLISHABLE_KEY:}
 
 paypal:
-  client-id: ${PAYPAL_CLIENT_ID:AawUCT2TO3s7NNwn0H7UbupLfIEK76BL-VZDGmkitLajEgH_SZNElpESVrcPOAG8Ve0ML8zYcPoQjs0R}
-  client-secret: ${PAYPAL_CLIENT_SECRET:EBzBjRMFOboThcajPgJddpH2bscgkuC7PQeK05b4YYnhKqOZKjrZNbEi_0uPf3ZlT3R8ShNge8rDe5cn}
-  mode: ${PAYPAL_MODE:sandbox}
+  client-id: ${PAYPAL_CLIENT_ID:Ad2PmLaqphrQttZsZXuXbyMg3IM9qZEWBjqRCm78DK7YR0HbSjOthxXdydYlzJdARrdZt4XMAcvO0_Iq}
+  client-secret: ${PAYPAL_CLIENT_SECRET:EH4bC-HV5PTn9z6pc5MFDOxvYMfSf0Y5OcS6BFb8W7mr1cNIUIvc-RrrUy-kvj5v4pj2Fc3nmXJe-gNG}
+  mode: ${PAYPAL_MODE:live}
 
 hbr:
   app-token: ${HBR_APP_TOKEN:7167b176259095554243338a1784aa17}
