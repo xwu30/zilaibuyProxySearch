@@ -16,79 +16,67 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Calls jupri/mercari-jp actor via Apify:
- * POST https://api.apify.com/v2/acts/mdtMXcvkUXqYZCeQ8/run-sync-get-dataset-items?token=xxx
+ * Calls mercari-listings-scraper actor via Apify:
+ * POST https://api.apify.com/v2/acts/0CUfsatHtZBfUO99R/run-sync-get-dataset-items?token=xxx
  *
- * This actor scrapes jp.mercari.com directly with residential proxies.
- * Input: { "query": ["keyword"], "limit": N, "sort": "score" }
- * Output: items with price.value (string), thumbnails[], status "ON_SALE", url (jp.mercari.com)
+ * Input:  { "keyword": "...", "limit": N }
+ * Output: items with price (string), thumbnails[], status "ITEM_STATUS_ON_SALE", brandName (string)
  */
 @Slf4j
 @Component
 public class MercariClient {
 
     private static final String APIFY_ENDPOINT =
-            "https://api.apify.com/v2/acts/mdtMXcvkUXqYZCeQ8/run-sync-get-dataset-items";
+            "https://api.apify.com/v2/acts/0CUfsatHtZBfUO99R/run-sync-get-dataset-items";
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Value("${apify.token:}")
     private String apifyToken;
 
-    // Price object returned by jupri/mercari-jp
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    public record ApifyPrice(String currency, String value) {
-        public Integer intValue() {
-            if (value == null) return 0;
-            try { return Integer.parseInt(value); } catch (Exception e) { return 0; }
-        }
-    }
-
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    public record ApifyBrand(String id, String name) {}
-
-    // Item shape returned by jupri/mercari-jp actor
+    // Item shape returned by mercari-listings-scraper actor
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record ApifyItem(
             String id,
             String name,
-            ApifyPrice price,
+            String price,           // plain string e.g. "45000"
             List<String> thumbnails,
             String status,
             String url,
-            String itemCondition,
-            ApifyBrand itemBrand
+            String itemConditionId, // numeric string e.g. "1"
+            String brandName        // plain string e.g. "Apple"
     ) {
         public String resolvedImageUrl() {
             if (thumbnails != null && !thumbnails.isEmpty()) return thumbnails.get(0);
             return "";
         }
         public boolean isOnSale() {
-            return status == null || status.equals("ON_SALE");
+            return status == null || status.contains("ON_SALE");
         }
         public Integer resolvedPrice() {
-            return price != null ? price.intValue() : 0;
+            if (price == null) return 0;
+            try { return Integer.parseInt(price.replaceAll("[^0-9]", "")); } catch (Exception e) { return 0; }
         }
         public String resolvedDescription() {
             StringBuilder sb = new StringBuilder();
-            if (itemCondition != null && !itemCondition.isEmpty()) {
-                sb.append("商品成色：").append(conditionLabel(itemCondition));
+            if (itemConditionId != null && !itemConditionId.isEmpty()) {
+                sb.append("商品成色：").append(conditionLabel(itemConditionId));
             }
-            if (itemBrand != null && itemBrand.name() != null && !itemBrand.name().isEmpty()) {
+            if (brandName != null && !brandName.isEmpty()) {
                 if (sb.length() > 0) sb.append("\n");
-                sb.append("品牌：").append(itemBrand.name());
+                sb.append("品牌：").append(brandName);
             }
             return sb.toString();
         }
         private static String conditionLabel(String c) {
             return switch (c) {
-                case "NEW" -> "全新";
-                case "LIKE_NEW", "NO_SCRATCH" -> "几乎全新";
-                case "GOOD" -> "良好";
-                case "LITTLE_SCRATCH" -> "有轻微划痕";
-                case "SCRATCH" -> "有划痕";
-                case "BAD" -> "较差";
-                case "JUNK" -> "垃圾品";
+                case "1" -> "全新";
+                case "2" -> "几乎全新";
+                case "3" -> "良好";
+                case "4" -> "有轻微划痕";
+                case "5" -> "有划痕";
+                case "6" -> "较差";
+                case "7" -> "垃圾品";
                 default -> c;
             };
         }
@@ -111,9 +99,8 @@ public class MercariClient {
                     + "&memory=1024";
 
             Map<String, Object> input = Map.of(
-                    "query", List.of(keyword),
-                    "limit", finalLimit,
-                    "sort", "score"
+                    "keyword", keyword,
+                    "limit", finalLimit
             );
             byte[] inputBytes = objectMapper.writeValueAsBytes(input);
 
