@@ -26,8 +26,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
 @Service
@@ -46,6 +48,25 @@ public class OrderService {
     public OrderDto createOrder(CreateOrderRequest req, Long userId) {
         UserEntity user = userRepository.findById(userId)
                 .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "用户不存在"));
+
+        // Deduplication: if the user has a PENDING_PAYMENT order created within the last 10 minutes
+        // with the same item URLs, return that order instead of creating a duplicate.
+        Optional<OrderEntity> recentPending = orderRepository
+                .findFirstByUserIdAndStatusOrderByCreatedAtDesc(userId, OrderEntity.OrderStatus.PENDING_PAYMENT);
+        if (recentPending.isPresent()) {
+            OrderEntity existing = recentPending.get();
+            if (existing.getCreatedAt().isAfter(LocalDateTime.now().minusMinutes(10))) {
+                Set<String> existingUrls = existing.getItems().stream()
+                        .map(OrderItemEntity::getOriginalUrl)
+                        .collect(java.util.stream.Collectors.toSet());
+                Set<String> newUrls = req.items().stream()
+                        .map(OrderItemRequest::originalUrl)
+                        .collect(java.util.stream.Collectors.toSet());
+                if (existingUrls.equals(newUrls)) {
+                    return OrderDto.from(existing);
+                }
+            }
+        }
 
         OrderEntity order = new OrderEntity();
         order.setUser(user);
