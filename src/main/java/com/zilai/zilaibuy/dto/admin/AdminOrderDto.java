@@ -1,5 +1,7 @@
 package com.zilai.zilaibuy.dto.admin;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zilai.zilaibuy.entity.OrderEntity;
 
 import java.math.BigDecimal;
@@ -29,8 +31,18 @@ public record AdminOrderDto(
         String firstItemTitle,
         String firstItemOriginalUrl
 ) {
+    private static final ObjectMapper MAPPER = new ObjectMapper();
+
     public static AdminOrderDto from(OrderEntity o) {
         var firstItem = (o.getItems() != null && !o.getItems().isEmpty()) ? o.getItems().get(0) : null;
+        // Use imageUrl if available, otherwise fall back to first reference image (S3 URL)
+        String imageUrl = firstItem != null ? firstItem.getImageUrl() : null;
+        if (imageUrl == null && firstItem != null && firstItem.getReferenceImages() != null) {
+            try {
+                List<String> refs = MAPPER.readValue(firstItem.getReferenceImages(), new TypeReference<List<String>>() {});
+                if (refs != null && !refs.isEmpty()) imageUrl = refs.get(0);
+            } catch (Exception ignored) {}
+        }
         return new AdminOrderDto(
                 o.getId(),
                 o.getOrderNo(),
@@ -49,7 +61,7 @@ public record AdminOrderDto(
                 o.getShippingRoute(),
                 o.getTransitTrackingNo(),
                 o.getTransitCarrier(),
-                firstItem != null ? firstItem.getImageUrl() : null,
+                imageUrl,
                 firstItem != null ? firstItem.getPriceJpy() : null,
                 firstItem != null ? firstItem.getProductTitle() : null,
                 firstItem != null ? firstItem.getOriginalUrl() : null
