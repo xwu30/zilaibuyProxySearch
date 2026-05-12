@@ -4,6 +4,7 @@ import com.zilai.zilaibuy.entity.OrderEntity;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 public record AdminOrderDto(
         Long id,
@@ -22,9 +23,12 @@ public record AdminOrderDto(
         String serviceFeeMemo,
         String shippingRoute,
         String transitTrackingNo,
-        String transitCarrier
+        String transitCarrier,
+        String firstItemImageUrl,
+        Integer firstItemPriceJpy
 ) {
     public static AdminOrderDto from(OrderEntity o) {
+        var firstItem = (o.getItems() != null && !o.getItems().isEmpty()) ? o.getItems().get(0) : null;
         return new AdminOrderDto(
                 o.getId(),
                 o.getOrderNo(),
@@ -42,7 +46,9 @@ public record AdminOrderDto(
                 o.getServiceFeeMemo(),
                 o.getShippingRoute(),
                 o.getTransitTrackingNo(),
-                o.getTransitCarrier()
+                o.getTransitCarrier(),
+                firstItem != null ? firstItem.getImageUrl() : null,
+                firstItem != null ? firstItem.getPriceJpy() : null
         );
     }
 }
