@@ -63,7 +63,14 @@ public class PaypalService {
         Map<String, Object> unit = new LinkedHashMap<>();
         unit.put("amount", Map.of("currency_code", "JPY", "value", String.valueOf(amountJpy)));
         unit.put("description", description.length() > 127 ? description.substring(0, 127) : description);
-        if (customId != null) unit.put("custom_id", customId);
+        if (customId != null) {
+            unit.put("custom_id", customId);
+            // invoice_id shows as reference in PayPal activity/reports (max 127 chars)
+            String invoiceId = "ZB-" + customId;
+            unit.put("invoice_id", invoiceId.length() > 127 ? invoiceId.substring(0, 127) : invoiceId);
+        }
+        // soft_descriptor appears on buyer's card statement (max 22 chars, alphanumeric + space/hyphen)
+        unit.put("soft_descriptor", "ZILAIBUY");
 
         Map<String, Object> orderBody = Map.of(
                 "intent", "CAPTURE",
