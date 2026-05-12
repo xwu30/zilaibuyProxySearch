@@ -36,7 +36,8 @@ public record OrderDto(
         String receiverAddress,
         String requestedShippingLine,
         String requestedShippingLineName,
-        Integer estimatedShippingFeeJpy
+        Integer estimatedShippingFeeJpy,
+        String paymentMethod
 ) {
     public static OrderDto from(OrderEntity e) {
         List<OrderItemDto> items = e.getItems() != null
@@ -45,6 +46,11 @@ public record OrderDto(
         List<ParcelDto> parcels = e.getLinkedParcels() != null
                 ? e.getLinkedParcels().stream().map(ParcelDto::from).toList()
                 : List.of();
+        String paymentMethod = null;
+        if (e.getOttPayOrderRef() != null && !e.getOttPayOrderRef().isBlank()) paymentMethod = "wechat";
+        else if (e.getPaypalOrderId() != null && !e.getPaypalOrderId().isBlank()) paymentMethod = "paypal";
+        else if (e.getStripePaymentIntentId() != null && !e.getStripePaymentIntentId().isBlank()) paymentMethod = "stripe";
+        else if (e.getStatus() != OrderEntity.OrderStatus.PENDING_PAYMENT) paymentMethod = "balance";
         return new OrderDto(e.getId(), e.getOrderNo(), e.getPackingNo(), e.getStatus().name(),
                 e.getTotalCny(), e.getNotes(), e.getTransitTrackingNo(), e.getTransitCarrier(),
                 e.getUser().getId(), items, parcels, e.getCreatedAt(), e.getUpdatedAt(),
@@ -53,6 +59,7 @@ public record OrderDto(
                 e.getServiceFeeJpy(), e.getServiceFeeMemo(), e.getPointsUsed(),
                 e.getQuotedRoute(), e.getQuotedFeeJpy(),
                 e.getReceiverAddress(), e.getRequestedShippingLine(),
-                e.getRequestedShippingLineName(), e.getEstimatedShippingFeeJpy());
+                e.getRequestedShippingLineName(), e.getEstimatedShippingFeeJpy(),
+                paymentMethod);
     }
 }
