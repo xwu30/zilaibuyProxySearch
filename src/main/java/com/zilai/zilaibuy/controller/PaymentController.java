@@ -412,9 +412,14 @@ public class PaymentController {
         if (vas.getStatus() != VasRequestEntity.VasStatus.DONE)
             return ResponseEntity.badRequest().build();
 
-        long amountJpy = 0;
-        for (String svc : vas.getServices().split(",")) {
-            amountJpy += VAS_FEE_JPY.getOrDefault(svc.trim(), 0L);
+        long amountJpy;
+        if ("custom".equals(vas.getServices())) {
+            amountJpy = vas.getAdminQuoteJpy() != null ? vas.getAdminQuoteJpy().longValue() : 0L;
+        } else {
+            amountJpy = 0;
+            for (String svc : vas.getServices().split(",")) {
+                amountJpy += VAS_FEE_JPY.getOrDefault(svc.trim(), 0L);
+            }
         }
         if (amountJpy < 50) amountJpy = 50;
 
