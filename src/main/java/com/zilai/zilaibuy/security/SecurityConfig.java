@@ -50,6 +50,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/api/shipping/sync-parcel/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.POST, "/api/payments/webhook").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/payments/paypal/webhook").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/payments/ottPay/callback").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/hbr/callback/inbound").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/hbr/callback/shipment").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/shipping-rates").permitAll()

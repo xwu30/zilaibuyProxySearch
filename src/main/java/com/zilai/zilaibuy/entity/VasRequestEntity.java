@@ -64,6 +64,25 @@ public class VasRequestEntity {
     @Column(name = "paypal_order_id", length = 100)
     private String paypalOrderId;
 
+    @Column(name = "ottpay_order_ref", length = 100)
+    private String ottPayOrderRef;
+
+    /** For custom VAS tasks: user's free-form description */
+    @Column(name = "custom_description", columnDefinition = "TEXT")
+    private String customDescription;
+
+    /** For custom VAS tasks: user's budget in JPY */
+    @Column(name = "custom_budget_jpy")
+    private Integer customBudgetJpy;
+
+    /** For custom VAS tasks: JSON array of user-uploaded image URLs */
+    @Column(name = "custom_image_urls", columnDefinition = "TEXT")
+    private String customImageUrls;
+
+    /** Admin's quoted price in JPY for custom tasks */
+    @Column(name = "admin_quote_jpy")
+    private Integer adminQuoteJpy;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

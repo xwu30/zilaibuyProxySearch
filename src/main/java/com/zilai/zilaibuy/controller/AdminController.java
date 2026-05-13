@@ -428,7 +428,7 @@ public class AdminController {
         return ResponseEntity.ok(vasRequestRepository.findAllByOrderByCreatedAtDesc(pageable).map(VasRequestDto::from));
     }
 
-    record VasStatusUpdate(String status, String adminNotes, String serviceResults) {}
+    record VasStatusUpdate(String status, String adminNotes, String serviceResults, Integer adminQuoteJpy) {}
 
     @PatchMapping("/vas-requests/{id}")
     @Transactional
@@ -441,6 +441,7 @@ public class AdminController {
         if (body.status() != null) req.setStatus(VasRequestEntity.VasStatus.valueOf(body.status()));
         if (body.adminNotes() != null) req.setAdminNotes(body.adminNotes());
         if (body.serviceResults() != null) req.setServiceResults(body.serviceResults());
+        if (body.adminQuoteJpy() != null) req.setAdminQuoteJpy(body.adminQuoteJpy());
         vasRequestRepository.save(req);
 
         // Send email when transitioning to DONE

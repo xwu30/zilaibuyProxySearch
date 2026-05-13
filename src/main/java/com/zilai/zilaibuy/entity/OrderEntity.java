@@ -50,6 +50,9 @@ public class OrderEntity {
     @Column(name = "paypal_order_id", length = 100)
     private String paypalOrderId;
 
+    @Column(name = "ottpay_order_ref", length = 100)
+    private String ottPayOrderRef;
+
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<OrderItemEntity> items = new ArrayList<>();
 

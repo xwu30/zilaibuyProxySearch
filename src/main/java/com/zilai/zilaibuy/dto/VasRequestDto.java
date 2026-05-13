@@ -16,7 +16,11 @@ public record VasRequestDto(
         String status,
         String adminNotes,
         String serviceResults,
-        LocalDateTime createdAt
+        LocalDateTime createdAt,
+        String customDescription,
+        Integer customBudgetJpy,
+        String customImageUrls,
+        Integer adminQuoteJpy
 ) {
     public static VasRequestDto from(VasRequestEntity e) {
         return new VasRequestDto(
@@ -31,7 +35,11 @@ public record VasRequestDto(
                 e.getStatus().name(),
                 e.getAdminNotes(),
                 e.getServiceResults(),
-                e.getCreatedAt()
+                e.getCreatedAt(),
+                e.getCustomDescription(),
+                e.getCustomBudgetJpy(),
+                e.getCustomImageUrls(),
+                e.getAdminQuoteJpy()
         );
     }
 }

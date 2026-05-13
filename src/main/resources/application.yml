@@ -46,6 +46,11 @@ yahoo:
 apify:
   token: ${APIFY_TOKEN:}
 
+ottPay:
+  merchant-id: ${OTTPAY_MERCHANT_ID:ON00011082}
+  sign-key: ${OTTPAY_SIGN_KEY:E3BA1A6E1E18C8C7}
+  operator-id: ${OTTPAY_OPERATOR_ID:0000040308}
+
 rakuten:
   base-url: https://openapi.rakuten.co.jp
   path: /ichibams/api/IchibaItem/Search/20170706

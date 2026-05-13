@@ -16,11 +16,13 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Calls mercari-listings-scraper actor via Apify:
+ * Calls mercari-listings-scraper actor via Apify (free, no rental needed):
  * POST https://api.apify.com/v2/acts/0CUfsatHtZBfUO99R/run-sync-get-dataset-items?token=xxx
  *
  * Input:  { "keyword": "...", "limit": N }
- * Output: items with price (string), thumbnails[], status "ITEM_STATUS_ON_SALE", brandName (string)
+ * Output: items with price (plain string), thumbnails[], status "ITEM_STATUS_ON_SALE",
+ *         itemConditionId (numeric string "1"-"7"), brandName (plain string)
+ * Note:   Filter to id.startsWith("m") to exclude Mercari Shops noise items.
  */
 @Slf4j
 @Component
@@ -147,6 +149,7 @@ public class MercariClient {
 
             List<MercariSearchResponse.Item> converted = items.stream()
                     .filter(ApifyItem::isOnSale)
+                    .filter(i -> i.id() != null && i.id().startsWith("m"))
                     .map(i -> {
                         String imgUrl = i.resolvedImageUrl();
                         List<String> thumbs = imgUrl.isEmpty() ? List.of() : List.of(imgUrl);

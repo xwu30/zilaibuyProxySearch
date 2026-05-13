@@ -292,4 +292,85 @@ public class ParcelController {
 
         return ResponseEntity.ok(Map.of("message", "增值服务申请已提交，仓库将尽快处理"));
     }
+
+    // ── Custom VAS task ───────────────────────────────────────────────────────
+
+    record CustomVasRequest(String description, Integer budgetJpy) {}
+
+    @PostMapping("/custom-vas-request")
+    @org.springframework.transaction.annotation.Transactional
+    public ResponseEntity<com.zilai.zilaibuy.dto.VasRequestDto> createCustomVasRequest(
+            @RequestBody CustomVasRequest req,
+            @AuthenticationPrincipal AuthenticatedUser currentUser) {
+        UserEntity user = userRepository.findById(currentUser.id())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        VasRequestEntity vasReq = new VasRequestEntity();
+        vasReq.setUser(user);
+        vasReq.setServices("custom");
+        vasReq.setCustomDescription(req.description());
+        vasReq.setCustomBudgetJpy(req.budgetJpy());
+        vasReq.setCustomImageUrls("[]");
+        vasRequestRepository.save(vasReq);
+        // Notify admin
+        String notifyEmail = appSettingService.get("vas.notify.email", vasAdminEmail);
+        String customerName = user.getUsername() != null && !user.getUsername().isBlank() ? user.getUsername() : user.getPhone();
+        emailService.sendVasRequestNotification(notifyEmail, customerName,
+                user.getPhone() != null ? user.getPhone() : "",
+                user.getEmail() != null ? user.getEmail() : "",
+                null, req.description() != null ? req.description() : "", "自定义增值任务");
+        return ResponseEntity.ok(com.zilai.zilaibuy.dto.VasRequestDto.from(vasReq));
+    }
+
+    @Value("${app.s3.bucket:zilaibuy-media}")
+    private String s3Bucket;
+
+    @Value("${app.s3.region:us-east-1}")
+    private String s3Region;
+
+    /** Get presigned S3 URL for custom VAS image upload */
+    @GetMapping("/custom-vas/{vasId}/image/presign")
+    public ResponseEntity<Map<String, String>> presignCustomVasImage(
+            @PathVariable Long vasId,
+            @AuthenticationPrincipal AuthenticatedUser currentUser) {
+        String key = "custom-vas/" + currentUser.id() + "/" + vasId + "/" + UUID.randomUUID() + ".jpg";
+        try (software.amazon.awssdk.services.s3.presigner.S3Presigner presigner =
+                     software.amazon.awssdk.services.s3.presigner.S3Presigner.builder()
+                             .region(software.amazon.awssdk.regions.Region.of(s3Region)).build()) {
+            software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequest presigned =
+                    presigner.presignPutObject(
+                            software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest.builder()
+                                    .signatureDuration(java.time.Duration.ofMinutes(15))
+                                    .putObjectRequest(software.amazon.awssdk.services.s3.model.PutObjectRequest.builder()
+                                            .bucket(s3Bucket).key(key).contentType("image/jpeg").build())
+                                    .build());
+            String publicUrl = "https://" + s3Bucket + ".s3." + s3Region + ".amazonaws.com/" + key;
+            return ResponseEntity.ok(Map.of("uploadUrl", presigned.url().toString(), "publicUrl", publicUrl));
+        }
+    }
+
+    /** Save uploaded image URL to custom VAS request */
+    @PostMapping("/custom-vas/{vasId}/image")
+    @org.springframework.transaction.annotation.Transactional
+    public ResponseEntity<Void> saveCustomVasImage(
+            @PathVariable Long vasId,
+            @RequestBody Map<String, String> body,
+            @AuthenticationPrincipal AuthenticatedUser currentUser) {
+        String imageUrl = body.get("imageUrl");
+        if (imageUrl == null || imageUrl.isBlank()) return ResponseEntity.badRequest().build();
+        VasRequestEntity vasReq = vasRequestRepository.findById(vasId)
+                .orElseThrow(() -> new RuntimeException("VAS request not found"));
+        if (!vasReq.getUser().getId().equals(currentUser.id())) return ResponseEntity.status(403).build();
+        try {
+            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            java.util.List<String> urls = vasReq.getCustomImageUrls() != null && !vasReq.getCustomImageUrls().isBlank()
+                    ? mapper.readValue(vasReq.getCustomImageUrls(), new com.fasterxml.jackson.core.type.TypeReference<java.util.List<String>>() {})
+                    : new java.util.ArrayList<>();
+            urls.add(imageUrl);
+            vasReq.setCustomImageUrls(mapper.writeValueAsString(urls));
+            vasRequestRepository.save(vasReq);
+        } catch (Exception e) {
+            log.warn("Failed to save custom VAS image URL", e);
+        }
+        return ResponseEntity.ok().build();
+    }
 }
