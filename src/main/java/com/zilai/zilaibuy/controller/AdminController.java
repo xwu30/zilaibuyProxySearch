@@ -450,14 +450,19 @@ public class AdminController {
             String toEmail = user.getEmail();
             String displayName = user.getUsername() != null && !user.getUsername().isBlank()
                     ? user.getUsername() : user.getPhone();
-            String serviceLabel = req.getServices() == null ? "" :
-                    String.join("、", java.util.Arrays.stream(req.getServices().split(",")).map(s -> switch (s.trim()) {
-                        case "item_inspect" -> "商品验货费";
-                        case "photo"        -> "商品拍照费";
-                        case "special_pack" -> "特殊商品处理包装费";
-                        default             -> s;
-                    }).toList());
-            emailService.sendVasCompletionEmail(toEmail, displayName, serviceLabel, req.getItemsSummary(), req.getAdminNotes());
+            if ("custom".equals(req.getServices())) {
+                emailService.sendCustomVasQuoteEmail(toEmail, displayName,
+                        req.getCustomDescription(), req.getAdminQuoteJpy(), req.getAdminNotes());
+            } else {
+                String serviceLabel = req.getServices() == null ? "" :
+                        String.join("、", java.util.Arrays.stream(req.getServices().split(",")).map(s -> switch (s.trim()) {
+                            case "item_inspect" -> "商品验货费";
+                            case "photo"        -> "商品拍照费";
+                            case "special_pack" -> "特殊商品处理包装费";
+                            default             -> s;
+                        }).toList());
+                emailService.sendVasCompletionEmail(toEmail, displayName, serviceLabel, req.getItemsSummary(), req.getAdminNotes());
+            }
         }
 
         return ResponseEntity.ok(VasRequestDto.from(req));

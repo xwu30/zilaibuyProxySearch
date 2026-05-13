@@ -295,6 +295,34 @@ public class EmailService {
         }
     }
 
+    public void sendCustomVasQuoteEmail(String toEmail, String displayName, String description,
+                                       Integer quoteJpy, String adminNotes) {
+        if (!StringUtils.hasText(toEmail)) return;
+        if (!StringUtils.hasText(fromEmail)) {
+            log.info("[DEV] Custom VAS quote email for {} quote={}", displayName, quoteJpy);
+            return;
+        }
+        try {
+            SimpleMailMessage msg = new SimpleMailMessage();
+            msg.setFrom(fromEmail);
+            msg.setTo(toEmail);
+            msg.setSubject("【紫来买】您的自定义增值任务已收到报价");
+            msg.setText(
+                "您好，" + displayName + "！\n\n" +
+                "您提交的增值任务已收到仓库报价，详情如下：\n\n" +
+                "  任务描述：" + description + "\n" +
+                (quoteJpy != null ? "  报价金额：¥" + quoteJpy + " JPY\n" : "") +
+                (adminNotes != null && !adminNotes.isBlank() ? "  仓库备注：" + adminNotes + "\n" : "") +
+                "\n请登录紫来买个人中心查看并确认。\n\n" +
+                "— 紫来买团队"
+            );
+            mailSender.send(msg);
+            log.info("Custom VAS quote email sent to {}", toEmail);
+        } catch (Exception e) {
+            log.warn("Failed to send custom VAS quote email to {} ({})", toEmail, e.getMessage());
+        }
+    }
+
     public void sendConfirmationEmail(String toEmail, String token) {
         String link = baseUrl + "/api/auth/confirm-email?token=" + token;
         if (!StringUtils.hasText(fromEmail)) {
