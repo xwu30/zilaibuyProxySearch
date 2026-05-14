@@ -444,7 +444,7 @@ public class AdminController {
         if (body.adminQuoteJpy() != null) req.setAdminQuoteJpy(body.adminQuoteJpy());
         vasRequestRepository.save(req);
 
-        // Send email when transitioning to DONE
+        // Send email when transitioning to DONE (quote sent) or COMPLETED (work done)
         if (wasNotDone && req.getStatus() == VasRequestEntity.VasStatus.DONE) {
             UserEntity user = req.getUser();
             String toEmail = user.getEmail();

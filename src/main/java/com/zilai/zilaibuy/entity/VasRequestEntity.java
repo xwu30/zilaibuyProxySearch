@@ -17,7 +17,7 @@ import java.time.LocalDateTime;
 @Setter
 public class VasRequestEntity {
 
-    public enum VasStatus { PENDING, PROCESSING, DONE, PAID, CANCELLED }
+    public enum VasStatus { PENDING, PROCESSING, DONE, PAID, COMPLETED, CANCELLED }
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
