@@ -99,7 +99,7 @@ public class OttPayController {
         long discountJpy = pointsToUse / 10L;
         long chargeJpy   = Math.max(1L, totalJpy + 200L - discountJpy);
 
-        String ottOrderRef = "ZBP" + order.getId();
+        String ottOrderRef = "ZBP" + order.getId() + "T" + System.currentTimeMillis();
         String qrCode = ottPayService.createQrPayOrder(chargeJpy, ottOrderRef, callbackUrl());
 
         order.setOttPayOrderRef(ottOrderRef);
@@ -176,7 +176,7 @@ public class OttPayController {
         long shippingJpy = Math.max(1L, req.shippingFeeCny()
                 .divide(JPY_TO_CNY, 0, RoundingMode.HALF_UP).longValue());
 
-        String ottOrderRef = "ZBS" + order.getId();
+        String ottOrderRef = "ZBS" + order.getId() + "T" + System.currentTimeMillis();
         String qrCode = ottPayService.createQrPayOrder(shippingJpy, ottOrderRef, callbackUrl());
 
         order.setOttPayOrderRef(ottOrderRef);
@@ -241,7 +241,7 @@ public class OttPayController {
             for (String svc : vas.getServices().split(","))
                 amountJpy += VAS_FEE_JPY.getOrDefault(svc.trim(), 0L);
         }
-        String ottOrderRef = "ZBV" + vas.getId();
+        String ottOrderRef = "ZBV" + vas.getId() + "T" + System.currentTimeMillis();
         String qrCode = ottPayService.createQrPayOrder(Math.max(1L, amountJpy), ottOrderRef, callbackUrl());
 
         vas.setOttPayOrderRef(ottOrderRef);
