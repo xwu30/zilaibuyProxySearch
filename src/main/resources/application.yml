@@ -100,6 +100,21 @@ paypal:
   client-secret: ${PAYPAL_CLIENT_SECRET:EH4bC-HV5PTn9z6pc5MFDOxvYMfSf0Y5OcS6BFb8W7mr1cNIUIvc-RrrUy-kvj5v4pj2Fc3nmXJe-gNG}
   mode: ${PAYPAL_MODE:live}
 
+fedex:
+  client-id: ${FEDEX_CLIENT_ID:l77b6d37fc9b9e4c86a75e1f28b156b29a}
+  client-secret: ${FEDEX_CLIENT_SECRET:3ea7217c71404a3c8d075060e7a0a36a}
+  account-number: ${FEDEX_ACCOUNT_NUMBER:740561073}
+  sandbox: ${FEDEX_SANDBOX:true}
+  shipper:
+    name: ${FEDEX_SHIPPER_NAME:ZilaiBuy}
+    phone: ${FEDEX_SHIPPER_PHONE:14375551234}
+    company: ${FEDEX_SHIPPER_COMPANY:ZilaiBuy}
+    street: ${FEDEX_SHIPPER_STREET:123 Main St}
+    city: ${FEDEX_SHIPPER_CITY:Toronto}
+    state: ${FEDEX_SHIPPER_STATE:ON}
+    postal: ${FEDEX_SHIPPER_POSTAL:M5V3A8}
+    country: ${FEDEX_SHIPPER_COUNTRY:CA}
+
 hbr:
   app-token: ${HBR_APP_TOKEN:7167b176259095554243338a1784aa17}
   app-key: ${HBR_APP_KEY:5590bc680843cc3fecde3135bb89cd8e5590bc680843cc3fecde3135bb89cd8e}

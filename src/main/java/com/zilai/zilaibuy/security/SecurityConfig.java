@@ -71,6 +71,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/wallet/**").authenticated()
                 .requestMatchers(HttpMethod.GET, "/api/admin/orders", "/api/admin/orders/**").hasAnyRole("ADMIN", "SUPPORT")
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                .requestMatchers("/api/fedex/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.POST, "/api/items/sync").hasRole("ADMIN")
                 .requestMatchers("/api/warehouse/**").hasAnyRole("WAREHOUSE", "ADMIN")
                 .requestMatchers("/api/support/**").hasAnyRole("SUPPORT", "ADMIN")
