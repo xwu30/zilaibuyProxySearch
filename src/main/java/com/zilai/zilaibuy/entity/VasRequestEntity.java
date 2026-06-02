@@ -83,6 +83,14 @@ public class VasRequestEntity {
     @Column(name = "admin_quote_jpy")
     private Integer adminQuoteJpy;
 
+    /**
+     * Custom tasks only: the customer's latest counter-offer when haggling over the
+     * warehouse quote. Set when the customer rejects a DONE quote and bounces the task
+     * back to PROCESSING for re-quoting. Cleared/overwritten on each new counter-offer.
+     */
+    @Column(name = "customer_counter_note", columnDefinition = "TEXT")
+    private String customerCounterNote;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

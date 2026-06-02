@@ -321,6 +321,49 @@ public class ParcelController {
         return ResponseEntity.ok(com.zilai.zilaibuy.dto.VasRequestDto.from(vasReq));
     }
 
+    record CounterOfferRequest(String message, Integer desiredPriceJpy) {}
+
+    /**
+     * Custom VAS tasks only: customer rejects the warehouse quote and proposes a counter-offer.
+     * Bounces the task from DONE back to PROCESSING so the warehouse can re-quote; the customer
+     * then receives a fresh payment request. Standard fixed-price services cannot be negotiated.
+     */
+    @PostMapping("/custom-vas/{vasId}/counter-offer")
+    @org.springframework.transaction.annotation.Transactional
+    public ResponseEntity<com.zilai.zilaibuy.dto.VasRequestDto> counterCustomVasQuote(
+            @PathVariable Long vasId,
+            @RequestBody CounterOfferRequest body,
+            @AuthenticationPrincipal AuthenticatedUser currentUser) {
+        VasRequestEntity vasReq = vasRequestRepository.findById(vasId)
+                .orElseThrow(() -> new RuntimeException("VAS request not found"));
+        if (!vasReq.getUser().getId().equals(currentUser.id())) return ResponseEntity.status(403).build();
+        // Only custom tasks awaiting payment (a quote was sent) can be negotiated.
+        if (!"custom".equals(vasReq.getServices())
+                || vasReq.getStatus() != VasRequestEntity.VasStatus.DONE) {
+            return ResponseEntity.status(409).build();
+        }
+
+        Integer desired = body.desiredPriceJpy();
+        String message = body.message() != null ? body.message().trim() : "";
+        StringBuilder note = new StringBuilder();
+        if (desired != null) note.append("期望价 ¥").append(desired).append(" JPY");
+        if (!message.isEmpty()) {
+            if (note.length() > 0) note.append(" — ");
+            note.append(message);
+        }
+        vasReq.setCustomerCounterNote(note.length() > 0 ? note.toString() : "客户希望重新报价");
+        vasReq.setStatus(VasRequestEntity.VasStatus.PROCESSING);
+        vasRequestRepository.save(vasReq);
+
+        UserEntity user = vasReq.getUser();
+        String notifyEmail = appSettingService.get("vas.notify.email", vasAdminEmail);
+        String customerName = user.getUsername() != null && !user.getUsername().isBlank() ? user.getUsername() : user.getPhone();
+        emailService.sendCustomVasCounterOfferEmail(notifyEmail, customerName,
+                vasReq.getCustomDescription(), vasReq.getAdminQuoteJpy(), desired, message);
+
+        return ResponseEntity.ok(com.zilai.zilaibuy.dto.VasRequestDto.from(vasReq));
+    }
+
     @Value("${app.s3.bucket:zilaibuy-media}")
     private String s3Bucket;
 

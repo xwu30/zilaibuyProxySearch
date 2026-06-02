@@ -20,7 +20,8 @@ public record VasRequestDto(
         String customDescription,
         Integer customBudgetJpy,
         String customImageUrls,
-        Integer adminQuoteJpy
+        Integer adminQuoteJpy,
+        String customerCounterNote
 ) {
     public static VasRequestDto from(VasRequestEntity e) {
         return new VasRequestDto(
@@ -39,7 +40,8 @@ public record VasRequestDto(
                 e.getCustomDescription(),
                 e.getCustomBudgetJpy(),
                 e.getCustomImageUrls(),
-                e.getAdminQuoteJpy()
+                e.getAdminQuoteJpy(),
+                e.getCustomerCounterNote()
         );
     }
 }

@@ -254,6 +254,20 @@ public class EmailService {
         sendMail(toEmail, "【紫来买】您的自定义增值任务已收到报价", body);
     }
 
+    public void sendCustomVasCounterOfferEmail(String adminEmail, String customerName, String description,
+                                               Integer currentQuoteJpy, Integer desiredPriceJpy, String message) {
+        if (!StringUtils.hasText(adminEmail)) return;
+        String body = "客户对自定义增值任务的报价提出还价，任务已退回「处理中」等待重新报价：\n\n" +
+                "  客户：" + customerName + "\n" +
+                "  任务描述：" + (StringUtils.hasText(description) ? description : "—") + "\n" +
+                (currentQuoteJpy != null ? "  当前报价：¥" + currentQuoteJpy + " JPY\n" : "") +
+                (desiredPriceJpy != null ? "  客户期望价：¥" + desiredPriceJpy + " JPY\n" : "") +
+                (StringUtils.hasText(message) ? "  客户留言：" + message + "\n" : "") +
+                "\n请登录管理后台重新填写报价并通知客户。\n\n" +
+                "— 紫来买系统通知";
+        sendMail(adminEmail, "【紫来买】自定义增值任务收到客户还价 - " + customerName, body);
+    }
+
     public void sendConfirmationEmail(String toEmail, String token) {
         String link = baseUrl + "/api/auth/confirm-email?token=" + token;
         sendMail(toEmail, "【ZilaiBuy】请确认您的邮箱",
