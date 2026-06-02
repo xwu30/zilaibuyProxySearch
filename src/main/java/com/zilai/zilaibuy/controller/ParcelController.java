@@ -358,7 +358,8 @@ public class ParcelController {
         UserEntity user = vasReq.getUser();
         String notifyEmail = appSettingService.get("vas.notify.email", vasAdminEmail);
         String customerName = user.getUsername() != null && !user.getUsername().isBlank() ? user.getUsername() : user.getPhone();
-        emailService.sendCustomVasCounterOfferEmail(notifyEmail, customerName,
+        String requestNo = String.format("VAS-%05d", vasReq.getId());
+        emailService.sendCustomVasCounterOfferEmail(notifyEmail, requestNo, customerName,
                 vasReq.getCustomDescription(), vasReq.getAdminQuoteJpy(), desired, message);
 
         return ResponseEntity.ok(com.zilai.zilaibuy.dto.VasRequestDto.from(vasReq));
