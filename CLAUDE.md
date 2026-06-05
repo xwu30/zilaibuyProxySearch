@@ -69,6 +69,17 @@ Books DB endpoint: `GET /api/books/search` — the frontend searches DB first, f
 
 JWT secret, DB credentials, Rakuten keys, and all other secrets are injected via EB environment variables (never hardcoded).
 
+### 增值服务 / Add-on Services (VAS)
+
+`VasRequestEntity` (table `vas_requests`) drives per-parcel/order add-on services. Status flow: `PENDING → PROCESSING → DONE → PAID → COMPLETED` (+ `CANCELLED`). On the frontend "DONE" displays as "Awaiting Payment".
+
+Two kinds of VAS requests, distinguished by the `services` column:
+
+- **Standard fixed services** — `services` is a comma list of codes (`item_inspect`/`photo`/`special_pack`). Per-parcel inspection/photo/packaging. **Charged 200 / 300 / 300 JPY** respectively. Customer applies (entry: "Apply for Add-on Service" or a parcel's "Add-ons" button), warehouse fills per-service photos/notes and marks DONE, customer pays standalone, then results un-blur. These same fees can alternatively be bundled into the freight bill at order time (ShippingPaymentModal, path X) — both paths use the same 200/300.
+- **Custom / negotiate-price tasks** — `services == "custom"`. Customer describes a task + budget; admin quotes `adminQuoteJpy`; customer may counter (`POST /api/parcels/custom-vas/{id}/counter-offer` → bounces DONE→PROCESSING, stores `customerCounterNote`, emails warehouse, shows in admin "Negotiating" tab); final charge = `adminQuoteJpy`.
+
+**Critical — the fee map is duplicated in FOUR places and must stay in sync** (200/300/300): `PaymentController`, `PaypalPaymentController`, `OttPayController` (all `create-vas`/`create-intent`), and `TransactionHistoryController`. Each branches `"custom".equals(services)` → use `adminQuoteJpy`, else sum the fee map. (The values were once 4300/6400 — a stale CNY→JPY leftover that overcharged ~21×; fixed June 2026.) Frontend mirrors 200/300 in `VasPaymentModal`, `OrderList`, `VasApplyModal`, and the receipt generator (`downloadVasReceipt`).
+
 ### Key environment variables
 
 ```
