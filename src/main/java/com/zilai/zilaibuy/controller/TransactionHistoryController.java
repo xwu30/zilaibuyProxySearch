@@ -27,9 +27,9 @@ public class TransactionHistoryController {
     private final VasRequestRepository vasRequestRepository;
 
     private static final Map<String, Long> VAS_FEE_JPY = Map.of(
-            "item_inspect", 4300L,
-            "photo",        6400L,
-            "special_pack", 6400L
+            "item_inspect", 200L,
+            "photo",        300L,
+            "special_pack", 300L
     );
     private static final BigDecimal JPY_TO_CNY = new BigDecimal("0.0467");
 
@@ -138,14 +138,18 @@ public class TransactionHistoryController {
                 .filter(v -> v.getStatus() == VasRequestEntity.VasStatus.PAID
                           || v.getStatus() == VasRequestEntity.VasStatus.DONE)
                 .forEach(v -> {
-                    long totalJpy = Arrays.stream(v.getServices().split(","))
-                            .mapToLong(s -> VAS_FEE_JPY.getOrDefault(s.trim(), 0L))
-                            .sum();
+                    boolean isCustom = "custom".equals(v.getServices());
+                    long totalJpy = isCustom
+                            ? (v.getAdminQuoteJpy() != null ? v.getAdminQuoteJpy().longValue() : 0L)
+                            : Arrays.stream(v.getServices().split(","))
+                                    .mapToLong(s -> VAS_FEE_JPY.getOrDefault(s.trim(), 0L))
+                                    .sum();
                     BigDecimal amtCny = BigDecimal.valueOf(totalJpy).multiply(JPY_TO_CNY)
                             .setScale(2, java.math.RoundingMode.HALF_UP);
-                    String svcLabel = Arrays.stream(v.getServices().split(","))
-                            .map(String::trim).map(TransactionHistoryController::vasLabel)
-                            .collect(Collectors.joining("、"));
+                    String svcLabel = isCustom ? "自定义增值任务"
+                            : Arrays.stream(v.getServices().split(","))
+                                    .map(String::trim).map(TransactionHistoryController::vasLabel)
+                                    .collect(Collectors.joining("、"));
                     String summary = v.getItemsSummary() != null
                             ? v.getItemsSummary().substring(0, Math.min(40, v.getItemsSummary().length()))
                             : "";

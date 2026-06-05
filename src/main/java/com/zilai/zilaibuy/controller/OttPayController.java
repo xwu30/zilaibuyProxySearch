@@ -42,9 +42,9 @@ public class OttPayController {
     private static final BigDecimal JPY_TO_CNY     = new BigDecimal("0.0467");
     private static final BigDecimal CNY_TO_FEN     = new BigDecimal("100");
     private static final Map<String, Long> VAS_FEE_JPY = Map.of(
-            "item_inspect", 4300L,
-            "photo",        6400L,
-            "special_pack", 6400L
+            "item_inspect", 200L,
+            "photo",        300L,
+            "special_pack", 300L
     );
 
     private final OrderRepository       orderRepository;

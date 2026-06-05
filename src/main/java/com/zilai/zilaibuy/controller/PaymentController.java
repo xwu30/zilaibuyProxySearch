@@ -393,9 +393,9 @@ public class PaymentController {
     // ── VAS Payment ─────────────────────────────────────────────────────────────
 
     private static final java.util.Map<String, Long> VAS_FEE_JPY = java.util.Map.of(
-            "item_inspect", 4300L,   // ≈ ¥200 CNY
-            "photo",        6400L,   // ≈ ¥300 CNY
-            "special_pack", 6400L
+            "item_inspect", 200L,
+            "photo",        300L,
+            "special_pack", 300L
     );
 
     record CreateVasIntentRequest(Long vasRequestId) {}
