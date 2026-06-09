@@ -101,9 +101,12 @@ paypal:
   mode: ${PAYPAL_MODE:live}
 
 fedex:
-  client-id: ${FEDEX_CLIENT_ID:l77b6d37fc9b9e4c86a75e1f28b156b29a}
-  client-secret: ${FEDEX_CLIENT_SECRET:3ea7217c71404a3c8d075060e7a0a36a}
-  account-number: ${FEDEX_ACCOUNT_NUMBER:740561073}
+  # 生产凭证通过 Elastic Beanstalk 环境变量注入（后端密钥，切勿放进前端 / Amplify）：
+  #   FEDEX_CLIENT_ID / FEDEX_CLIENT_SECRET / FEDEX_ACCOUNT_NUMBER
+  # 生产环境务必同时设置 FEDEX_SANDBOX=false（默认 true=走 sandbox）
+  client-id: ${FEDEX_CLIENT_ID:}
+  client-secret: ${FEDEX_CLIENT_SECRET:}
+  account-number: ${FEDEX_ACCOUNT_NUMBER:}
   sandbox: ${FEDEX_SANDBOX:true}
   shipper:
     name: ${FEDEX_SHIPPER_NAME:ZilaiBuy}
