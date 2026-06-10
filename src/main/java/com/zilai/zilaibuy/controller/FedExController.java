@@ -37,4 +37,11 @@ public class FedExController {
                 shipmentRepository.findAllByOrderByCreatedAtDesc(PageRequest.of(page, size))
         );
     }
+
+    /** Void / cancel an unused FedEx label. */
+    @PostMapping("/shipments/{id}/cancel")
+    public ResponseEntity<Void> cancelShipment(@PathVariable Long id) {
+        fedExService.cancelShipment(id);
+        return ResponseEntity.ok().build();
+    }
 }

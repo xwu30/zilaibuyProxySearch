@@ -293,4 +293,49 @@ public class FedExService {
             throw new RuntimeException("FedEx 打单失败: " + e.getMessage(), e);
         }
     }
+
+    /** Void / cancel an unused FedEx label via the Ship API and mark the record CANCELLED. */
+    public void cancelShipment(Long id) {
+        FedExShipmentEntity entity = repository.findById(id)
+                .orElseThrow(() -> new RuntimeException("运单不存在: " + id));
+        if ("CANCELLED".equals(entity.getStatus())) return; // idempotent
+        if (entity.getTrackingNo() == null || entity.getTrackingNo().isBlank()) {
+            throw new RuntimeException("该运单没有运单号，无法作废");
+        }
+
+        String token = getToken();
+        Map<String, Object> body = Map.of(
+                "accountNumber", Map.of("value", accountNumber),
+                "trackingNumber", entity.getTrackingNo(),
+                "deletionControl", "DELETE_ALL_PACKAGES"
+        );
+
+        try {
+            String response = webClient.put()
+                    .uri("/ship/v1/shipments/cancel")
+                    .header("Authorization", "Bearer " + token)
+                    .header("X-locale", "en_US")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .bodyValue(body)
+                    .exchangeToMono(resp -> resp.bodyToMono(String.class)
+                            .defaultIfEmpty("")
+                            .flatMap(b -> resp.statusCode().isError()
+                                    ? reactor.core.publisher.Mono.error(
+                                            new RuntimeException("FedEx API " + resp.statusCode().value() + ": " + b))
+                                    : reactor.core.publisher.Mono.just(b)))
+                    .block();
+
+            JsonNode root = objectMapper.readTree(response);
+            boolean cancelled = root.path("output").path("cancelledShipment").asBoolean(false);
+            if (!cancelled) {
+                log.warn("FedEx cancel did not confirm for tracking {}: {}", entity.getTrackingNo(), response);
+                throw new RuntimeException("FedEx 未确认作废，可能该运单已被揽收或已作废");
+            }
+            entity.setStatus("CANCELLED");
+            repository.save(entity);
+        } catch (Exception e) {
+            log.error("FedEx cancel API error", e);
+            throw new RuntimeException("FedEx 作废失败: " + e.getMessage(), e);
+        }
+    }
 }
