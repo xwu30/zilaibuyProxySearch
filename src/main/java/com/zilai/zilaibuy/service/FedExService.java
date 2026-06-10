@@ -242,10 +242,18 @@ public class FedExService {
 
             String trackingNo = responseShipment.path("masterTrackingNumber").asText(null);
 
-            String labelBase64 = responseShipment
-                    .path("pieceResponses").get(0)
-                    .path("packageDocuments").get(0)
-                    .path("content").asText(null);
+            // FedEx REST Ship API returns the label under `encodedLabel` (base64);
+            // some shapes use `content`. Use path(index) (not get) to avoid NPE on empty arrays.
+            JsonNode pkgDoc = responseShipment.path("pieceResponses").path(0)
+                    .path("packageDocuments").path(0);
+            String labelBase64 = pkgDoc.path("encodedLabel").asText(null);
+            if (labelBase64 == null || labelBase64.isBlank()) {
+                labelBase64 = pkgDoc.path("content").asText(null);
+            }
+            if (labelBase64 == null || labelBase64.isBlank()) {
+                log.warn("FedEx ship OK (tracking {}) but no label found in response. packageDocuments={}",
+                        trackingNo, pkgDoc.toString());
+            }
 
             BigDecimal netCharge = null;
             String currency = "CAD";
