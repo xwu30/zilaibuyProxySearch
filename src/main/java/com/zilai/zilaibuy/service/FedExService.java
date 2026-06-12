@@ -118,6 +118,7 @@ public class FedExService {
             String recipientName,
             String recipientPhone,
             String recipientAddress,
+            String recipientAddress2,
             String recipientCity,
             String recipientState,
             String recipientPostal,
@@ -163,13 +164,16 @@ public class FedExService {
                         "countryCode", or(req.shipperCountry(), shipperCountry)
                 )
         ));
+        List<String> recipientLines = (req.recipientAddress2() != null && !req.recipientAddress2().isBlank())
+                ? List.of(req.recipientAddress(), req.recipientAddress2())
+                : List.of(req.recipientAddress());
         shipment.put("recipients", List.of(Map.of(
                 "contact", Map.of(
                         "personName", req.recipientName(),
                         "phoneNumber", req.recipientPhone()
                 ),
                 "address", Map.of(
-                        "streetLines", List.of(req.recipientAddress()),
+                        "streetLines", recipientLines,
                         "city", req.recipientCity(),
                         "stateOrProvinceCode", req.recipientState(),
                         "postalCode", req.recipientPostal(),
@@ -271,7 +275,10 @@ public class FedExService {
             entity.setTrackingNo(trackingNo);
             entity.setRecipientName(req.recipientName());
             entity.setRecipientPhone(req.recipientPhone());
-            entity.setRecipientAddress(req.recipientAddress());
+            entity.setRecipientAddress(
+                    req.recipientAddress2() != null && !req.recipientAddress2().isBlank()
+                            ? req.recipientAddress() + " " + req.recipientAddress2()
+                            : req.recipientAddress());
             entity.setRecipientCity(req.recipientCity());
             entity.setRecipientState(req.recipientState());
             entity.setRecipientPostal(req.recipientPostal());
