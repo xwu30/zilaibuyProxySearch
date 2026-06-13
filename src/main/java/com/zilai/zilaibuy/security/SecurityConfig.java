@@ -55,6 +55,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/api/hbr/callback/shipment").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/shipping-rates").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/announcements").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/guide-video").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/banners").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/leads").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/chat").permitAll()
