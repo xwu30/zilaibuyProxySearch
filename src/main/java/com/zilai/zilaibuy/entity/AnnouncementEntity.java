@@ -21,6 +21,9 @@ public class AnnouncementEntity {
     @Column(nullable = false, length = 300)
     private String title;
 
+    @Column(name = "title_en", length = 300)
+    private String titleEn;
+
     @Column(length = 50)
     private String tag;
 
