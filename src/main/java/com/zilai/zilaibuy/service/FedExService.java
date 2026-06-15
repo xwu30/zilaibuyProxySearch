@@ -179,6 +179,7 @@ public class FedExService {
                         "countryCode", req.recipientCountry()
                 )
         ));
+        requestedShipment.put("rateRequestType", List.of("LIST", "ACCOUNT"));
         requestedShipment.put("pickupType", "DROPOFF_AT_FEDEX_LOCATION");
         if (req.serviceType() != null && !req.serviceType().isBlank()) {
             requestedShipment.put("serviceType", req.serviceType());
