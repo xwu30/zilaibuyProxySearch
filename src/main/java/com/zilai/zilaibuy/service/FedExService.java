@@ -344,6 +344,7 @@ public class FedExService {
 
             JsonNode root = objectMapper.readTree(response);
             JsonNode responseShipment = root.path("output").path("transactionShipments").get(0);
+            log.info("FedEx ship rating block: {}", responseShipment.path("completedShipmentDetail").path("shipmentRating"));
 
             String trackingNo = responseShipment.path("masterTrackingNumber").asText(null);
 
@@ -367,9 +368,15 @@ public class FedExService {
                     .path("shipmentRating")
                     .path("shipmentRateDetails");
             if (rateDetails.isArray() && rateDetails.size() > 0) {
-                JsonNode charge = rateDetails.get(0).path("totalNetCharge");
-                netCharge = new BigDecimal(charge.path("amount").asText("0"));
-                currency = charge.path("currency").asText("CAD");
+                // Prefer the ACCOUNT rate (what's actually billed); fall back to first element.
+                JsonNode chosen = rateDetails.get(0);
+                for (JsonNode rd : rateDetails) {
+                    if ("ACCOUNT".equals(rd.path("rateType").asText())) { chosen = rd; break; }
+                }
+                // totalNetCharge is a flat number; currency lives under shipmentRateDetail.
+                netCharge = new BigDecimal(chosen.path("totalNetCharge").asText("0"));
+                currency = chosen.path("shipmentRateDetail").path("currency").asText(
+                        chosen.path("currency").asText("CAD"));
             }
 
             FedExShipmentEntity entity = new FedExShipmentEntity();
