@@ -160,12 +160,15 @@ public class FedExService {
                 ? List.of(req.recipientAddress(), req.recipientAddress2())
                 : List.of(req.recipientAddress());
 
+        String sState = or(req.shipperState(), shipperState);
+        if (sState.length() > 2) sState = sState.substring(0, 2).toUpperCase();
+
         Map<String, Object> requestedShipment = new HashMap<>();
         requestedShipment.put("shipper", Map.of(
                 "address", Map.of(
                         "streetLines", List.of(or(req.shipperStreet(), shipperStreet)),
                         "city", or(req.shipperCity(), shipperCity),
-                        "stateOrProvinceCode", or(req.shipperState(), shipperState),
+                        "stateOrProvinceCode", sState,
                         "postalCode", or(req.shipperPostal(), shipperPostal),
                         "countryCode", or(req.shipperCountry(), shipperCountry)
                 )
