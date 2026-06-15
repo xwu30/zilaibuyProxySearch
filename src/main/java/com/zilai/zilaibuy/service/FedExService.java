@@ -228,9 +228,9 @@ public class FedExService {
                     JsonNode ratedShipmentDetails = detail.path("ratedShipmentDetails");
                     if (ratedShipmentDetails.isArray() && ratedShipmentDetails.size() > 0) {
                         JsonNode shipmentRateDetail = ratedShipmentDetails.get(0).path("shipmentRateDetail");
-                        BigDecimal netCharge = new BigDecimal(shipmentRateDetail.path("totalNetCharge").path("amount").asText("0"));
-                        BigDecimal totalNet = new BigDecimal(shipmentRateDetail.path("totalNetFedExCharge").path("amount").asText("0"));
-                        String currency = shipmentRateDetail.path("totalNetCharge").path("currency").asText("CAD");
+                        BigDecimal netCharge = new BigDecimal(shipmentRateDetail.path("totalNetCharge").asText("0"));
+                        BigDecimal totalNet = new BigDecimal(shipmentRateDetail.path("totalNetFedExCharge").asText("0"));
+                        String currency = shipmentRateDetail.path("currency").asText("CAD");
                         results.add(new RateResult(svcType, netCharge, totalNet, currency));
                     }
                 }
