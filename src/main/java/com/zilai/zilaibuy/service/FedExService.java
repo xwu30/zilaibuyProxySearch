@@ -219,6 +219,7 @@ public class FedExService {
                                     : reactor.core.publisher.Mono.just(b)))
                     .block();
 
+            log.info("FedEx rate raw response: {}", response);
             JsonNode root = objectMapper.readTree(response);
             JsonNode rateReplyDetails = root.path("output").path("rateReplyDetails");
             List<RateResult> results = new java.util.ArrayList<>();
@@ -227,10 +228,14 @@ public class FedExService {
                     String svcType = detail.path("serviceType").asText("");
                     JsonNode ratedShipmentDetails = detail.path("ratedShipmentDetails");
                     if (ratedShipmentDetails.isArray() && ratedShipmentDetails.size() > 0) {
-                        JsonNode shipmentRateDetail = ratedShipmentDetails.get(0).path("shipmentRateDetail");
-                        BigDecimal netCharge = new BigDecimal(shipmentRateDetail.path("totalNetCharge").asText("0"));
-                        BigDecimal totalNet = new BigDecimal(shipmentRateDetail.path("totalNetFedExCharge").asText("0"));
-                        String currency = shipmentRateDetail.path("currency").asText("CAD");
+                        // totalNetCharge / totalNetFedExCharge live on the ratedShipmentDetails
+                        // element itself; currency is nested under shipmentRateDetail.
+                        JsonNode rsd = ratedShipmentDetails.get(0);
+                        JsonNode shipmentRateDetail = rsd.path("shipmentRateDetail");
+                        BigDecimal netCharge = new BigDecimal(rsd.path("totalNetCharge").asText("0"));
+                        BigDecimal totalNet = new BigDecimal(rsd.path("totalNetFedExCharge").asText("0"));
+                        String currency = shipmentRateDetail.path("currency").asText(
+                                rsd.path("currency").asText("CAD"));
                         results.add(new RateResult(svcType, netCharge, totalNet, currency));
                     }
                 }
