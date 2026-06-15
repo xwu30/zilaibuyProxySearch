@@ -170,7 +170,7 @@ public class FedExService {
                         "countryCode", or(req.shipperCountry(), shipperCountry)
                 )
         ));
-        requestedShipment.put("recipients", List.of(Map.of(
+        requestedShipment.put("recipient", Map.of(
                 "address", Map.of(
                         "streetLines", recipientLines,
                         "city", req.recipientCity(),
@@ -178,7 +178,7 @@ public class FedExService {
                         "postalCode", req.recipientPostal(),
                         "countryCode", req.recipientCountry()
                 )
-        )));
+        ));
         requestedShipment.put("pickupType", "DROPOFF_AT_FEDEX_LOCATION");
         if (req.serviceType() != null && !req.serviceType().isBlank()) {
             requestedShipment.put("serviceType", req.serviceType());
