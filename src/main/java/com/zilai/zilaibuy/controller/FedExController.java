@@ -38,6 +38,13 @@ public class FedExController {
         );
     }
 
+    /** Get rate quotes without creating a shipment. */
+    @PostMapping("/rate")
+    public ResponseEntity<java.util.List<FedExService.RateResult>> getRate(
+            @RequestBody FedExService.ShipRequest req) {
+        return ResponseEntity.ok(fedExService.getRates(req));
+    }
+
     /** Void / cancel an unused FedEx label. */
     @PostMapping("/shipments/{id}/cancel")
     public ResponseEntity<Void> cancelShipment(@PathVariable Long id) {

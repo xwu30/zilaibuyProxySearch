@@ -144,7 +144,99 @@ public class FedExService {
             String currency
     ) {}
 
+    public record RateResult(
+            String serviceType,
+            BigDecimal netCharge,
+            BigDecimal totalNetFedExCharge,
+            String currency
+    ) {}
+
     private String or(String a, String b) { return (a != null && !a.isBlank()) ? a : b; }
+
+    public List<RateResult> getRates(ShipRequest req) {
+        String token = getToken();
+
+        List<String> recipientLines = (req.recipientAddress2() != null && !req.recipientAddress2().isBlank())
+                ? List.of(req.recipientAddress(), req.recipientAddress2())
+                : List.of(req.recipientAddress());
+
+        Map<String, Object> requestedShipment = new HashMap<>();
+        requestedShipment.put("shipper", Map.of(
+                "address", Map.of(
+                        "streetLines", List.of(or(req.shipperStreet(), shipperStreet)),
+                        "city", or(req.shipperCity(), shipperCity),
+                        "stateOrProvinceCode", or(req.shipperState(), shipperState),
+                        "postalCode", or(req.shipperPostal(), shipperPostal),
+                        "countryCode", or(req.shipperCountry(), shipperCountry)
+                )
+        ));
+        requestedShipment.put("recipients", List.of(Map.of(
+                "address", Map.of(
+                        "streetLines", recipientLines,
+                        "city", req.recipientCity(),
+                        "stateOrProvinceCode", req.recipientState(),
+                        "postalCode", req.recipientPostal(),
+                        "countryCode", req.recipientCountry()
+                )
+        )));
+        requestedShipment.put("pickupType", "DROPOFF_AT_FEDEX_LOCATION");
+        if (req.serviceType() != null && !req.serviceType().isBlank()) {
+            requestedShipment.put("serviceType", req.serviceType());
+        }
+        requestedShipment.put("packagingType", "YOUR_PACKAGING");
+        requestedShipment.put("shippingChargesPayment", Map.of(
+                "paymentType", "SENDER",
+                "payor", Map.of("responsibleParty", Map.of("accountNumber", Map.of("value", accountNumber)))
+        ));
+        requestedShipment.put("requestedPackageLineItems", List.of(Map.of(
+                "weight", Map.of("units", "LB", "value", String.valueOf(req.weightLbs())),
+                "dimensions", Map.of(
+                        "length", req.lengthIn(), "width", req.widthIn(),
+                        "height", req.heightIn(), "units", "IN")
+        )));
+
+        Map<String, Object> body = Map.of(
+                "accountNumber", Map.of("value", accountNumber),
+                "requestedShipment", requestedShipment
+        );
+
+        try {
+            String response = webClient.post()
+                    .uri("/rate/v1/rates/quotes")
+                    .header("Authorization", "Bearer " + token)
+                    .header("X-locale", "en_US")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .bodyValue(body)
+                    .exchangeToMono(resp -> resp.bodyToMono(String.class)
+                            .defaultIfEmpty("")
+                            .flatMap(b -> resp.statusCode().isError()
+                                    ? reactor.core.publisher.Mono.error(
+                                            new RuntimeException("FedEx Rate API " + resp.statusCode().value() + ": " + b))
+                                    : reactor.core.publisher.Mono.just(b)))
+                    .block();
+
+            JsonNode root = objectMapper.readTree(response);
+            JsonNode rateReplyDetails = root.path("output").path("rateReplyDetails");
+            List<RateResult> results = new java.util.ArrayList<>();
+            if (rateReplyDetails.isArray()) {
+                for (JsonNode detail : rateReplyDetails) {
+                    String svcType = detail.path("serviceType").asText("");
+                    JsonNode ratedShipmentDetails = detail.path("ratedShipmentDetails");
+                    if (ratedShipmentDetails.isArray() && ratedShipmentDetails.size() > 0) {
+                        JsonNode shipmentRateDetail = ratedShipmentDetails.get(0).path("shipmentRateDetail");
+                        BigDecimal netCharge = new BigDecimal(shipmentRateDetail.path("totalNetCharge").path("amount").asText("0"));
+                        BigDecimal totalNet = new BigDecimal(shipmentRateDetail.path("totalNetFedExCharge").path("amount").asText("0"));
+                        String currency = shipmentRateDetail.path("totalNetCharge").path("currency").asText("CAD");
+                        results.add(new RateResult(svcType, netCharge, totalNet, currency));
+                    }
+                }
+            }
+            return results;
+        } catch (Exception e) {
+            log.error("FedEx rate API error", e);
+            throw new RuntimeException("FedEx 报价失败: " + e.getMessage(), e);
+        }
+    }
 
     public ShipResult createShipment(ShipRequest req, Long createdById) {
         String token = getToken();
