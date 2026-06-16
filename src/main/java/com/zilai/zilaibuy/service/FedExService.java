@@ -399,6 +399,7 @@ public class FedExService {
             entity.setNetCharge(netCharge);
             entity.setCurrency(currency);
             entity.setNotes(req.notes());
+            entity.setLabelBase64(labelBase64);
             entity.setCreatedBy(createdById);
             repository.save(entity);
 
@@ -409,10 +410,17 @@ public class FedExService {
         }
     }
 
-    /** Void / cancel an unused FedEx label via the Ship API and mark the record CANCELLED. */
-    public void cancelShipment(Long id) {
+    /**
+     * Void / cancel an unused FedEx label via the Ship API and mark the record CANCELLED.
+     * Only the admin who created the label may void it (legacy records with no creator
+     * stay cancellable by any admin).
+     */
+    public void cancelShipment(Long id, Long currentUserId) {
         FedExShipmentEntity entity = repository.findById(id)
                 .orElseThrow(() -> new RuntimeException("运单不存在: " + id));
+        if (entity.getCreatedBy() != null && !entity.getCreatedBy().equals(currentUserId)) {
+            throw new RuntimeException("只能由打单人本人作废该运单");
+        }
         if ("CANCELLED".equals(entity.getStatus())) return; // idempotent
         if (entity.getTrackingNo() == null || entity.getTrackingNo().isBlank()) {
             throw new RuntimeException("该运单没有运单号，无法作废");

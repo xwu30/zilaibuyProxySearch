@@ -84,10 +84,25 @@ public class FedExController {
         return ResponseEntity.ok(fedExService.getRates(req));
     }
 
-    /** Void / cancel an unused FedEx label. */
+    /** Re-download the stored PDF label (any admin). */
+    @GetMapping("/shipments/{id}/label")
+    public ResponseEntity<Map<String, String>> getLabel(@PathVariable Long id) {
+        FedExShipmentEntity e = shipmentRepository.findById(id).orElse(null);
+        if (e == null || e.getLabelBase64() == null || e.getLabelBase64().isBlank()) {
+            return ResponseEntity.notFound().build();
+        }
+        Map<String, String> body = new HashMap<>();
+        body.put("trackingNo", e.getTrackingNo());
+        body.put("labelBase64", e.getLabelBase64());
+        return ResponseEntity.ok(body);
+    }
+
+    /** Void / cancel an unused FedEx label (creator only). */
     @PostMapping("/shipments/{id}/cancel")
-    public ResponseEntity<Void> cancelShipment(@PathVariable Long id) {
-        fedExService.cancelShipment(id);
+    public ResponseEntity<Void> cancelShipment(
+            @PathVariable Long id,
+            @AuthenticationPrincipal AuthenticatedUser currentUser) {
+        fedExService.cancelShipment(id, currentUser.id());
         return ResponseEntity.ok().build();
     }
 }

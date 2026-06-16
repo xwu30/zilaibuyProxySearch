@@ -69,6 +69,10 @@ public class FedExShipmentEntity {
     @Column(length = 500)
     private String notes;
 
+    @Lob
+    @Column(name = "label_base64", columnDefinition = "MEDIUMTEXT")
+    private String labelBase64;
+
     @Column(name = "created_by")
     private Long createdBy;
 
