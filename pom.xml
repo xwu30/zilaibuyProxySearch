@@ -126,6 +126,13 @@
             <artifactId>stripe-java</artifactId>
             <version>26.3.0</version>
         </dependency>
+
+        <!-- PDFBox: merge per-package FedEx labels into one PDF for multi-piece shipments -->
+        <dependency>
+            <groupId>org.apache.pdfbox</groupId>
+            <artifactId>pdfbox</artifactId>
+            <version>2.0.31</version>
+        </dependency>
     </dependencies>
 
     <build>

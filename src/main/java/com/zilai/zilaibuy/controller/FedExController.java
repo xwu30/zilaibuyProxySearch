@@ -32,8 +32,8 @@ public class FedExController {
 
     public record ShipmentDto(
             Long id, String trackingNo, String recipientName, String recipientCity,
-            String recipientCountry, Double weightLbs, String serviceType,
-            BigDecimal netCharge, String currency, String status,
+            String recipientCountry, Double weightLbs, Double weightKg, Integer packageCount,
+            String serviceType, BigDecimal netCharge, String currency, String status,
             LocalDateTime createdAt, Long createdBy, String createdByName) {}
 
     private static String displayName(UserEntity u) {
@@ -70,8 +70,8 @@ public class FedExController {
 
         return ResponseEntity.ok(pageData.map(e -> new ShipmentDto(
                 e.getId(), e.getTrackingNo(), e.getRecipientName(), e.getRecipientCity(),
-                e.getRecipientCountry(), e.getWeightLbs(), e.getServiceType(),
-                e.getNetCharge(), e.getCurrency(), e.getStatus(),
+                e.getRecipientCountry(), e.getWeightLbs(), e.getWeightKg(), e.getPackageCount(),
+                e.getServiceType(), e.getNetCharge(), e.getCurrency(), e.getStatus(),
                 e.getCreatedAt(), e.getCreatedBy(),
                 e.getCreatedBy() != null ? nameById.getOrDefault(e.getCreatedBy(), "#" + e.getCreatedBy()) : "—"
         )));

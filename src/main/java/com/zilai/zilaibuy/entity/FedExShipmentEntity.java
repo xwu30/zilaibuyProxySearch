@@ -48,6 +48,14 @@ public class FedExShipmentEntity {
     @Column(name = "weight_lbs")
     private Double weightLbs;
 
+    // Total weight in KG across all packages (what the user entered / sees).
+    @Column(name = "weight_kg")
+    private Double weightKg;
+
+    // Number of packages in this (possibly multi-piece) shipment.
+    @Column(name = "package_count")
+    private Integer packageCount;
+
     @Column(name = "length_in")
     private Integer lengthIn;
 

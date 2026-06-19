@@ -104,6 +104,14 @@ public class FedExService {
         }
     }
 
+    /** One package (piece) in a possibly multi-piece shipment. */
+    public record PackageItem(
+            double weightKg,
+            int lengthIn,
+            int widthIn,
+            int heightIn
+    ) {}
+
     public record ShipRequest(
             // shipper (overrides application.yml defaults when provided)
             String shipperName,
@@ -123,10 +131,8 @@ public class FedExService {
             String recipientState,
             String recipientPostal,
             String recipientCountry,
-            double weightKg,
-            int lengthIn,
-            int widthIn,
-            int heightIn,
+            // one or more packages (multi-piece shipment)
+            List<PackageItem> packages,
             String serviceType,
             // customs
             String customsDescription,
@@ -152,6 +158,65 @@ public class FedExService {
     ) {}
 
     private String or(String a, String b) { return (a != null && !a.isBlank()) ? a : b; }
+
+    private static final double KG_TO_LB = 2.20462;
+
+    /** Result of turning the request's package list into FedEx line items + shipment totals. */
+    private record PackageBuild(List<Map<String, Object>> lineItems,
+                                double totalLbs, double totalKg, int count) {}
+
+    /**
+     * Build the {@code requestedPackageLineItems} array (converting each package's KG to LB)
+     * along with the shipment totals needed for a multi-piece shipment (MPS).
+     */
+    private PackageBuild buildPackages(ShipRequest req) {
+        List<PackageItem> pkgs = (req.packages() != null && !req.packages().isEmpty())
+                ? req.packages() : List.of();
+        if (pkgs.isEmpty()) {
+            throw new RuntimeException("至少需要一个包裹");
+        }
+        List<Map<String, Object>> lineItems = new java.util.ArrayList<>();
+        double totalLbs = 0, totalKg = 0;
+        int seq = 1;
+        for (PackageItem p : pkgs) {
+            double lbs = p.weightKg() * KG_TO_LB;
+            totalLbs += lbs;
+            totalKg += p.weightKg();
+            lineItems.add(Map.of(
+                    "sequenceNumber", seq++,
+                    "groupPackageCount", 1,
+                    "weight", Map.of("units", "LB", "value", String.valueOf(lbs)),
+                    "dimensions", Map.of(
+                            "length", p.lengthIn(), "width", p.widthIn(),
+                            "height", p.heightIn(), "units", "IN")
+            ));
+        }
+        return new PackageBuild(lineItems, totalLbs, totalKg, pkgs.size());
+    }
+
+    /**
+     * Merge per-package label PDFs (one per piece in a multi-piece shipment) into a single
+     * base64-encoded PDF so the existing single-file download flow keeps working.
+     * Returns the lone label unchanged for single-package shipments.
+     */
+    private String mergeLabels(List<String> base64Labels) {
+        if (base64Labels.isEmpty()) return null;
+        if (base64Labels.size() == 1) return base64Labels.get(0);
+        try {
+            org.apache.pdfbox.multipdf.PDFMergerUtility merger = new org.apache.pdfbox.multipdf.PDFMergerUtility();
+            java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+            merger.setDestinationStream(out);
+            for (String b64 : base64Labels) {
+                byte[] bytes = java.util.Base64.getMimeDecoder().decode(b64);
+                merger.addSource(new java.io.ByteArrayInputStream(bytes));
+            }
+            merger.mergeDocuments(org.apache.pdfbox.io.MemoryUsageSetting.setupMainMemoryOnly());
+            return java.util.Base64.getEncoder().encodeToString(out.toByteArray());
+        } catch (Exception e) {
+            log.warn("Failed to merge {} FedEx labels, falling back to first label", base64Labels.size(), e);
+            return base64Labels.get(0);
+        }
+    }
 
     public List<RateResult> getRates(ShipRequest req) {
         String token = getToken();
@@ -192,13 +257,10 @@ public class FedExService {
                 "paymentType", "SENDER",
                 "payor", Map.of("responsibleParty", Map.of("accountNumber", Map.of("value", accountNumber)))
         ));
-        double weightLbs = req.weightKg() * 2.20462;
-        requestedShipment.put("requestedPackageLineItems", List.of(Map.of(
-                "weight", Map.of("units", "LB", "value", String.valueOf(weightLbs)),
-                "dimensions", Map.of(
-                        "length", req.lengthIn(), "width", req.widthIn(),
-                        "height", req.heightIn(), "units", "IN")
-        )));
+        PackageBuild pkg = buildPackages(req);
+        requestedShipment.put("totalPackageCount", pkg.count());
+        requestedShipment.put("totalWeight", Map.of("units", "LB", "value", String.valueOf(pkg.totalLbs())));
+        requestedShipment.put("requestedPackageLineItems", pkg.lineItems());
 
         Map<String, Object> body = Map.of(
                 "accountNumber", Map.of("value", accountNumber),
@@ -294,13 +356,10 @@ public class FedExService {
                 "imageType", "PDF",
                 "labelStockType", "PAPER_85X11_TOP_HALF_LABEL"
         ));
-        double weightLbs = req.weightKg() * 2.20462;
-        shipment.put("requestedPackageLineItems", List.of(Map.of(
-                "weight", Map.of("units", "LB", "value", String.valueOf(weightLbs)),
-                "dimensions", Map.of(
-                        "length", req.lengthIn(), "width", req.widthIn(),
-                        "height", req.heightIn(), "units", "IN")
-        )));
+        PackageBuild pkg = buildPackages(req);
+        shipment.put("totalPackageCount", pkg.count());
+        shipment.put("totalWeight", Map.of("units", "LB", "value", String.valueOf(pkg.totalLbs())));
+        shipment.put("requestedPackageLineItems", pkg.lineItems());
 
         if (req.customsValueAmount() != null && req.customsValueAmount() > 0) {
             String currency = or(req.customsValueCurrency(), "USD");
@@ -317,7 +376,7 @@ public class FedExService {
                             "quantityUnits", "PCS",
                             "unitPrice", Map.of("amount", req.customsValueAmount(), "currency", currency),
                             "customsValue", Map.of("amount", req.customsValueAmount(), "currency", currency),
-                            "weight", Map.of("units", "LB", "value", String.valueOf(weightLbs)),
+                            "weight", Map.of("units", "LB", "value", String.valueOf(pkg.totalLbs())),
                             "countryOfManufacture", mfg
                     ))
             ));
@@ -350,17 +409,23 @@ public class FedExService {
 
             String trackingNo = responseShipment.path("masterTrackingNumber").asText(null);
 
-            // FedEx REST Ship API returns the label under `encodedLabel` (base64);
-            // some shapes use `content`. Use path(index) (not get) to avoid NPE on empty arrays.
-            JsonNode pkgDoc = responseShipment.path("pieceResponses").path(0)
-                    .path("packageDocuments").path(0);
-            String labelBase64 = pkgDoc.path("encodedLabel").asText(null);
-            if (labelBase64 == null || labelBase64.isBlank()) {
-                labelBase64 = pkgDoc.path("content").asText(null);
+            // Multi-piece shipments return one label per package under pieceResponses[].
+            // FedEx REST Ship API returns each label under `encodedLabel` (base64); some
+            // shapes use `content`. Collect every piece's label and merge into one PDF.
+            JsonNode pieceResponses = responseShipment.path("pieceResponses");
+            List<String> pieceLabels = new java.util.ArrayList<>();
+            if (pieceResponses.isArray()) {
+                for (JsonNode pr : pieceResponses) {
+                    JsonNode pkgDoc = pr.path("packageDocuments").path(0);
+                    String lbl = pkgDoc.path("encodedLabel").asText(null);
+                    if (lbl == null || lbl.isBlank()) lbl = pkgDoc.path("content").asText(null);
+                    if (lbl != null && !lbl.isBlank()) pieceLabels.add(lbl);
+                }
             }
+            String labelBase64 = mergeLabels(pieceLabels);
             if (labelBase64 == null || labelBase64.isBlank()) {
-                log.warn("FedEx ship OK (tracking {}) but no label found in response. packageDocuments={}",
-                        trackingNo, pkgDoc.toString());
+                log.warn("FedEx ship OK (tracking {}) but no label found in response. pieceResponses={}",
+                        trackingNo, pieceResponses.toString());
             }
 
             BigDecimal netCharge = null;
@@ -393,10 +458,14 @@ public class FedExService {
             entity.setRecipientState(req.recipientState());
             entity.setRecipientPostal(req.recipientPostal());
             entity.setRecipientCountry(req.recipientCountry());
-            entity.setWeightLbs(weightLbs);
-            entity.setLengthIn(req.lengthIn());
-            entity.setWidthIn(req.widthIn());
-            entity.setHeightIn(req.heightIn());
+            entity.setWeightLbs(pkg.totalLbs());
+            entity.setWeightKg(pkg.totalKg());
+            entity.setPackageCount(pkg.count());
+            // Store first package's dimensions for at-a-glance reference in history.
+            PackageItem first = req.packages().get(0);
+            entity.setLengthIn(first.lengthIn());
+            entity.setWidthIn(first.widthIn());
+            entity.setHeightIn(first.heightIn());
             entity.setServiceType(req.serviceType());
             entity.setNetCharge(netCharge);
             entity.setCurrency(currency);
