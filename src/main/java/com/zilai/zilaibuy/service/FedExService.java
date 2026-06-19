@@ -123,7 +123,7 @@ public class FedExService {
             String recipientState,
             String recipientPostal,
             String recipientCountry,
-            double weightLbs,
+            double weightKg,
             int lengthIn,
             int widthIn,
             int heightIn,
@@ -192,8 +192,9 @@ public class FedExService {
                 "paymentType", "SENDER",
                 "payor", Map.of("responsibleParty", Map.of("accountNumber", Map.of("value", accountNumber)))
         ));
+        double weightLbs = req.weightKg() * 2.20462;
         requestedShipment.put("requestedPackageLineItems", List.of(Map.of(
-                "weight", Map.of("units", "LB", "value", String.valueOf(req.weightLbs())),
+                "weight", Map.of("units", "LB", "value", String.valueOf(weightLbs)),
                 "dimensions", Map.of(
                         "length", req.lengthIn(), "width", req.widthIn(),
                         "height", req.heightIn(), "units", "IN")
@@ -293,15 +294,16 @@ public class FedExService {
                 "imageType", "PDF",
                 "labelStockType", "PAPER_85X11_TOP_HALF_LABEL"
         ));
+        double weightLbs = req.weightKg() * 2.20462;
         shipment.put("requestedPackageLineItems", List.of(Map.of(
-                "weight", Map.of("units", "LB", "value", String.valueOf(req.weightLbs())),
+                "weight", Map.of("units", "LB", "value", String.valueOf(weightLbs)),
                 "dimensions", Map.of(
                         "length", req.lengthIn(), "width", req.widthIn(),
                         "height", req.heightIn(), "units", "IN")
         )));
 
         if (req.customsValueAmount() != null && req.customsValueAmount() > 0) {
-            String currency = or(req.customsValueCurrency(), "CAD");
+            String currency = or(req.customsValueCurrency(), "USD");
             String mfg = or(req.countryOfManufacture(), "JP");
             shipment.put("customsClearanceDetail", Map.of(
                     "dutiesPayment", Map.of(
@@ -315,7 +317,7 @@ public class FedExService {
                             "quantityUnits", "PCS",
                             "unitPrice", Map.of("amount", req.customsValueAmount(), "currency", currency),
                             "customsValue", Map.of("amount", req.customsValueAmount(), "currency", currency),
-                            "weight", Map.of("units", "LB", "value", String.valueOf(req.weightLbs())),
+                            "weight", Map.of("units", "LB", "value", String.valueOf(weightLbs)),
                             "countryOfManufacture", mfg
                     ))
             ));
@@ -391,7 +393,7 @@ public class FedExService {
             entity.setRecipientState(req.recipientState());
             entity.setRecipientPostal(req.recipientPostal());
             entity.setRecipientCountry(req.recipientCountry());
-            entity.setWeightLbs(req.weightLbs());
+            entity.setWeightLbs(weightLbs);
             entity.setLengthIn(req.lengthIn());
             entity.setWidthIn(req.widthIn());
             entity.setHeightIn(req.heightIn());
