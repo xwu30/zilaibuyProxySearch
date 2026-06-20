@@ -139,6 +139,8 @@ public class FedExService {
             Double customsValueAmount,
             String customsValueCurrency,
             String countryOfManufacture,
+            // who pays duties & taxes: SENDER (our account) / RECIPIENT / THIRD_PARTY
+            String dutiesPaymentType,
             String notes
     ) {}
 
@@ -364,11 +366,17 @@ public class FedExService {
         if (req.customsValueAmount() != null && req.customsValueAmount() > 0) {
             String currency = or(req.customsValueCurrency(), "USD");
             String mfg = or(req.countryOfManufacture(), "JP");
+            // Who pays duties & taxes. SENDER/THIRD_PARTY bill our FedEx account (payor);
+            // RECIPIENT means the receiver pays on delivery, so no payor is sent.
+            String dutiesType = or(req.dutiesPaymentType(), "SENDER");
+            Map<String, Object> dutiesPayment = new HashMap<>();
+            dutiesPayment.put("paymentType", dutiesType);
+            if (!"RECIPIENT".equals(dutiesType)) {
+                dutiesPayment.put("payor",
+                        Map.of("responsibleParty", Map.of("accountNumber", Map.of("value", accountNumber))));
+            }
             shipment.put("customsClearanceDetail", Map.of(
-                    "dutiesPayment", Map.of(
-                            "paymentType", "SENDER",
-                            "payor", Map.of("responsibleParty", Map.of("accountNumber", Map.of("value", accountNumber)))
-                    ),
+                    "dutiesPayment", dutiesPayment,
                     "totalCustomsValue", Map.of("amount", req.customsValueAmount(), "currency", currency),
                     "commodities", List.of(Map.of(
                             "description", or(req.customsDescription(), "Personal goods"),
