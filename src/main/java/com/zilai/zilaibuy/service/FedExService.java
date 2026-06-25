@@ -104,12 +104,12 @@ public class FedExService {
         }
     }
 
-    /** One package (piece) in a possibly multi-piece shipment. */
+    /** One package (piece) in a possibly multi-piece shipment. Dimensions in CM. */
     public record PackageItem(
             double weightKg,
-            int lengthIn,
-            int widthIn,
-            int heightIn
+            int lengthCm,
+            int widthCm,
+            int heightCm
     ) {}
 
     public record ShipRequest(
@@ -152,8 +152,14 @@ public class FedExService {
             String currency
     ) {}
 
+    public record Surcharge(String name, BigDecimal amount) {}
+
     public record RateResult(
             String serviceType,
+            BigDecimal baseCharge,
+            java.util.List<Surcharge> surcharges,
+            BigDecimal totalSurcharge,
+            BigDecimal totalDiscount,
             BigDecimal netCharge,
             BigDecimal totalNetFedExCharge,
             String currency
@@ -184,13 +190,17 @@ public class FedExService {
             double lbs = p.weightKg() * KG_TO_LB;
             totalLbs += lbs;
             totalKg += p.weightKg();
+            // User enters CM (metric, matching KG weight); FedEx expects inches here.
+            int lin = (int) Math.round(p.lengthCm() / 2.54);
+            int win = (int) Math.round(p.widthCm() / 2.54);
+            int hin = (int) Math.round(p.heightCm() / 2.54);
             lineItems.add(Map.of(
                     "sequenceNumber", seq++,
                     "groupPackageCount", 1,
                     "weight", Map.of("units", "LB", "value", String.valueOf(lbs)),
                     "dimensions", Map.of(
-                            "length", p.lengthIn(), "width", p.widthIn(),
-                            "height", p.heightIn(), "units", "IN")
+                            "length", Math.max(lin, 1), "width", Math.max(win, 1),
+                            "height", Math.max(hin, 1), "units", "IN")
             ));
         }
         return new PackageBuild(lineItems, totalLbs, totalKg, pkgs.size());
@@ -296,12 +306,34 @@ public class FedExService {
                         // totalNetCharge / totalNetFedExCharge live on the ratedShipmentDetails
                         // element itself; currency is nested under shipmentRateDetail.
                         JsonNode rsd = ratedShipmentDetails.get(0);
-                        JsonNode shipmentRateDetail = rsd.path("shipmentRateDetail");
+                        JsonNode srd = rsd.path("shipmentRateDetail");
                         BigDecimal netCharge = new BigDecimal(rsd.path("totalNetCharge").asText("0"));
                         BigDecimal totalNet = new BigDecimal(rsd.path("totalNetFedExCharge").asText("0"));
-                        String currency = shipmentRateDetail.path("currency").asText(
-                                rsd.path("currency").asText("CAD"));
-                        results.add(new RateResult(svcType, netCharge, totalNet, currency));
+                        String currency = srd.path("currency").asText(rsd.path("currency").asText("CAD"));
+
+                        BigDecimal baseCharge = new BigDecimal(rsd.path("totalBaseCharge").asText(
+                                srd.path("totalBaseCharge").asText("0")));
+                        // Itemized surcharges (fuel, processing fees, etc.)
+                        java.util.List<Surcharge> surcharges = new java.util.ArrayList<>();
+                        JsonNode surNode = srd.path("surCharges");
+                        if (surNode.isArray()) {
+                            for (JsonNode s : surNode) {
+                                String name = s.path("description").asText(s.path("type").asText("Surcharge"));
+                                BigDecimal amt = new BigDecimal(s.path("amount").asText("0"));
+                                surcharges.add(new Surcharge(name, amt));
+                            }
+                        }
+                        BigDecimal totalSurcharge = new BigDecimal(rsd.path("totalSurcharges").asText(
+                                srd.path("totalSurcharges").asText("0")));
+                        // Discounts: prefer explicit field, else derive base + surcharge - net.
+                        BigDecimal totalDiscount = new BigDecimal(rsd.path("totalFreightDiscount").asText(
+                                srd.path("totalFreightDiscounts").asText("0")));
+                        if (totalDiscount.signum() == 0) {
+                            BigDecimal derived = baseCharge.add(totalSurcharge).subtract(netCharge);
+                            if (derived.signum() > 0) totalDiscount = derived;
+                        }
+                        results.add(new RateResult(svcType, baseCharge, surcharges, totalSurcharge,
+                                totalDiscount, netCharge, totalNet, currency));
                     }
                 }
             }
@@ -471,9 +503,9 @@ public class FedExService {
             entity.setPackageCount(pkg.count());
             // Store first package's dimensions for at-a-glance reference in history.
             PackageItem first = req.packages().get(0);
-            entity.setLengthIn(first.lengthIn());
-            entity.setWidthIn(first.widthIn());
-            entity.setHeightIn(first.heightIn());
+            entity.setLengthIn((int) Math.round(first.lengthCm() / 2.54));
+            entity.setWidthIn((int) Math.round(first.widthCm() / 2.54));
+            entity.setHeightIn((int) Math.round(first.heightCm() / 2.54));
             entity.setServiceType(req.serviceType());
             entity.setNetCharge(netCharge);
             entity.setCurrency(currency);
