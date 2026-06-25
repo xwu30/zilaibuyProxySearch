@@ -305,7 +305,12 @@ public class FedExService {
                     if (ratedShipmentDetails.isArray() && ratedShipmentDetails.size() > 0) {
                         // totalNetCharge / totalNetFedExCharge live on the ratedShipmentDetails
                         // element itself; currency is nested under shipmentRateDetail.
+                        // Prefer the ACCOUNT (negotiated) rate so contract discounts show;
+                        // the LIST rate carries no account discount (base+surcharge == net).
                         JsonNode rsd = ratedShipmentDetails.get(0);
+                        for (JsonNode cand : ratedShipmentDetails) {
+                            if (cand.path("rateType").asText("").contains("ACCOUNT")) { rsd = cand; break; }
+                        }
                         JsonNode srd = rsd.path("shipmentRateDetail");
                         BigDecimal netCharge = new BigDecimal(rsd.path("totalNetCharge").asText("0"));
                         BigDecimal totalNet = new BigDecimal(rsd.path("totalNetFedExCharge").asText("0"));
