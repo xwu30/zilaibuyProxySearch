@@ -259,9 +259,9 @@ public class FedExService {
                 "paymentType", "SENDER",
                 "payor", Map.of("responsibleParty", Map.of("accountNumber", Map.of("value", accountNumber)))
         ));
+        // Rate API rejects totalWeight/totalPackageCount (INVALID.INPUT.EXCEPTION) — it
+        // sums the per-package line items itself. (Ship API still needs them for MPS.)
         PackageBuild pkg = buildPackages(req);
-        requestedShipment.put("totalPackageCount", pkg.count());
-        requestedShipment.put("totalWeight", Map.of("units", "LB", "value", String.valueOf(pkg.totalLbs())));
         requestedShipment.put("requestedPackageLineItems", pkg.lineItems());
 
         Map<String, Object> body = Map.of(
