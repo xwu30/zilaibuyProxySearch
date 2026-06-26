@@ -439,6 +439,7 @@ public class FedExService {
                     "totalCustomsValue", Map.of("amount", req.customsValueAmount(), "currency", currency),
                     "commodities", List.of(Map.of(
                             "description", or(req.customsDescription(), "Personal goods"),
+                            "numberOfPieces", 1,
                             "quantity", 1,
                             "quantityUnits", "PCS",
                             "unitPrice", Map.of("amount", req.customsValueAmount(), "currency", currency),
