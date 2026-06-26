@@ -168,6 +168,42 @@ public class FedExService {
 
     private String or(String a, String b) { return (a != null && !a.isBlank()) ? a : b; }
 
+    // FedEx accepts a stateOrProvinceCode only for these countries; for others
+    // (e.g. JP "Shiga") it must be omitted, otherwise the Ship API rejects the
+    // whole request with 422 INVALID.INPUT.EXCEPTION.
+    private static final java.util.Set<String> STATE_CODE_COUNTRIES =
+            java.util.Set.of("US", "CA", "MX", "PR");
+
+    /** Return a valid 2-letter state code, or null when the country doesn't use one. */
+    private static String normalizeState(String state, String country) {
+        if (state == null || state.isBlank()) return null;
+        if (country != null && STATE_CODE_COUNTRIES.contains(country.trim().toUpperCase())) {
+            String s = state.trim().toUpperCase();
+            return s.length() > 2 ? s.substring(0, 2) : s;
+        }
+        return null;
+    }
+
+    /** FedEx phoneNumber must be digits only (no +, spaces, or hyphens). */
+    private static String normalizePhone(String phone) {
+        if (phone == null) return null;
+        String digits = phone.replaceAll("\\D", "");
+        return digits.isEmpty() ? null : digits;
+    }
+
+    /** Build a FedEx address node, including stateOrProvinceCode only when valid. */
+    private Map<String, Object> buildAddress(List<String> streetLines, String city,
+                                             String state, String postal, String country) {
+        Map<String, Object> addr = new HashMap<>();
+        addr.put("streetLines", streetLines);
+        addr.put("city", city);
+        addr.put("postalCode", postal);
+        addr.put("countryCode", country);
+        String st = normalizeState(state, country);
+        if (st != null) addr.put("stateOrProvinceCode", st);
+        return addr;
+    }
+
     private static final double KG_TO_LB = 2.20462;
 
     /** Result of turning the request's package list into FedEx line items + shipment totals. */
@@ -238,28 +274,16 @@ public class FedExService {
                 ? List.of(req.recipientAddress(), req.recipientAddress2())
                 : List.of(req.recipientAddress());
 
-        String sState = or(req.shipperState(), shipperState);
-        if (sState.length() > 2) sState = sState.substring(0, 2).toUpperCase();
-
         Map<String, Object> requestedShipment = new HashMap<>();
-        requestedShipment.put("shipper", Map.of(
-                "address", Map.of(
-                        "streetLines", List.of(or(req.shipperStreet(), shipperStreet)),
-                        "city", or(req.shipperCity(), shipperCity),
-                        "stateOrProvinceCode", sState,
-                        "postalCode", or(req.shipperPostal(), shipperPostal),
-                        "countryCode", or(req.shipperCountry(), shipperCountry)
-                )
-        ));
-        requestedShipment.put("recipient", Map.of(
-                "address", Map.of(
-                        "streetLines", recipientLines,
-                        "city", req.recipientCity(),
-                        "stateOrProvinceCode", req.recipientState(),
-                        "postalCode", req.recipientPostal(),
-                        "countryCode", req.recipientCountry()
-                )
-        ));
+        requestedShipment.put("shipper", Map.of("address", buildAddress(
+                List.of(or(req.shipperStreet(), shipperStreet)),
+                or(req.shipperCity(), shipperCity),
+                or(req.shipperState(), shipperState),
+                or(req.shipperPostal(), shipperPostal),
+                or(req.shipperCountry(), shipperCountry))));
+        requestedShipment.put("recipient", Map.of("address", buildAddress(
+                recipientLines, req.recipientCity(), req.recipientState(),
+                req.recipientPostal(), req.recipientCountry())));
         requestedShipment.put("rateRequestType", List.of("LIST", "ACCOUNT"));
         requestedShipment.put("pickupType", "DROPOFF_AT_FEDEX_LOCATION");
         // Omit serviceType so FedEx returns every available service with its rate and
@@ -360,16 +384,15 @@ public class FedExService {
         shipment.put("shipper", Map.of(
                 "contact", Map.of(
                         "personName", or(req.shipperName(), shipperName),
-                        "phoneNumber", or(req.shipperPhone(), shipperPhone),
+                        "phoneNumber", normalizePhone(or(req.shipperPhone(), shipperPhone)),
                         "companyName", or(req.shipperCompany(), shipperCompany)
                 ),
-                "address", Map.of(
-                        "streetLines", List.of(or(req.shipperStreet(), shipperStreet)),
-                        "city", or(req.shipperCity(), shipperCity),
-                        "stateOrProvinceCode", or(req.shipperState(), shipperState),
-                        "postalCode", or(req.shipperPostal(), shipperPostal),
-                        "countryCode", or(req.shipperCountry(), shipperCountry)
-                )
+                "address", buildAddress(
+                        List.of(or(req.shipperStreet(), shipperStreet)),
+                        or(req.shipperCity(), shipperCity),
+                        or(req.shipperState(), shipperState),
+                        or(req.shipperPostal(), shipperPostal),
+                        or(req.shipperCountry(), shipperCountry))
         ));
         List<String> recipientLines = (req.recipientAddress2() != null && !req.recipientAddress2().isBlank())
                 ? List.of(req.recipientAddress(), req.recipientAddress2())
@@ -377,15 +400,10 @@ public class FedExService {
         shipment.put("recipients", List.of(Map.of(
                 "contact", Map.of(
                         "personName", req.recipientName(),
-                        "phoneNumber", req.recipientPhone()
+                        "phoneNumber", normalizePhone(req.recipientPhone())
                 ),
-                "address", Map.of(
-                        "streetLines", recipientLines,
-                        "city", req.recipientCity(),
-                        "stateOrProvinceCode", req.recipientState(),
-                        "postalCode", req.recipientPostal(),
-                        "countryCode", req.recipientCountry()
-                )
+                "address", buildAddress(recipientLines, req.recipientCity(),
+                        req.recipientState(), req.recipientPostal(), req.recipientCountry())
         )));
         shipment.put("pickupType", "DROPOFF_AT_FEDEX_LOCATION");
         shipment.put("serviceType", req.serviceType());
