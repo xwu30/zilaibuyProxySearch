@@ -456,6 +456,7 @@ public class FedExService {
         );
 
         try {
+            log.info("FedEx ship request body: {}", objectMapper.writeValueAsString(body));
             String response = webClient.post()
                     .uri("/ship/v1/shipments")
                     .header("Authorization", "Bearer " + token)
