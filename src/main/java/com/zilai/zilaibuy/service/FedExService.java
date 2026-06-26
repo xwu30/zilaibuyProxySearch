@@ -156,6 +156,7 @@ public class FedExService {
 
     public record RateResult(
             String serviceType,
+            String deliveryDate,
             BigDecimal baseCharge,
             java.util.List<Surcharge> surcharges,
             BigDecimal totalSurcharge,
@@ -261,9 +262,8 @@ public class FedExService {
         ));
         requestedShipment.put("rateRequestType", List.of("LIST", "ACCOUNT"));
         requestedShipment.put("pickupType", "DROPOFF_AT_FEDEX_LOCATION");
-        if (req.serviceType() != null && !req.serviceType().isBlank()) {
-            requestedShipment.put("serviceType", req.serviceType());
-        }
+        // Omit serviceType so FedEx returns every available service with its rate and
+        // delivery date; the UI filters down to Priority / Economy and lets the user pick.
         requestedShipment.put("packagingType", "YOUR_PACKAGING");
         requestedShipment.put("shippingChargesPayment", Map.of(
                 "paymentType", "SENDER",
@@ -301,6 +301,10 @@ public class FedExService {
             if (rateReplyDetails.isArray()) {
                 for (JsonNode detail : rateReplyDetails) {
                     String svcType = detail.path("serviceType").asText("");
+                    // Delivery date for "delivered by ..." display (formats vary by lane).
+                    String deliveryDate = detail.path("commit").path("dateDetail").path("dayFormat").asText(
+                            detail.path("operationalDetail").path("deliveryDate").asText(
+                                    detail.path("commit").path("label").asText("")));
                     JsonNode ratedShipmentDetails = detail.path("ratedShipmentDetails");
                     if (ratedShipmentDetails.isArray() && ratedShipmentDetails.size() > 0) {
                         // totalNetCharge / totalNetFedExCharge live on the ratedShipmentDetails
@@ -337,7 +341,7 @@ public class FedExService {
                             BigDecimal derived = baseCharge.add(totalSurcharge).subtract(netCharge);
                             if (derived.signum() > 0) totalDiscount = derived;
                         }
-                        results.add(new RateResult(svcType, baseCharge, surcharges, totalSurcharge,
+                        results.add(new RateResult(svcType, deliveryDate, baseCharge, surcharges, totalSurcharge,
                                 totalDiscount, netCharge, totalNet, currency));
                     }
                 }
