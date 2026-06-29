@@ -80,6 +80,32 @@ Two kinds of VAS requests, distinguished by the `services` column:
 
 **Critical — the fee map is duplicated in FOUR places and must stay in sync** (200/300/300): `PaymentController`, `PaypalPaymentController`, `OttPayController` (all `create-vas`/`create-intent`), and `TransactionHistoryController`. Each branches `"custom".equals(services)` → use `adminQuoteJpy`, else sum the fee map. (The values were once 4300/6400 — a stale CNY→JPY leftover that overcharged ~21×; fixed June 2026.) Frontend mirrors 200/300 in `VasPaymentModal`, `OrderList`, `VasApplyModal`, and the receipt generator (`downloadVasReceipt`).
 
+### FedEx 打单 / Ship label (`FedExService` + `FedExController`, admin-only `/api/fedex/**`)
+
+Quote → Ship → (re)download label → void. Default shipper is the Japan warehouse
+**HBT TRADING CO LTD**, so most labels are international (JP→CA etc.). Creds come from
+EB env vars `FEDEX_CLIENT_ID/SECRET/ACCOUNT_NUMBER`; prod runs `FEDEX_SANDBOX=false`
+(**real, billable labels** — base URL `apis.fedex.com`). `getRates` omits `serviceType`
+so FedEx returns all services; the UI lets the user pick. **Customer/dimensions in CM
+(converted to IN), weight in KG (converted to LB); duties payer = SENDER/RECIPIENT/THIRD_PARTY.**
+
+**Hard-won gotchas (FedEx returns a useless generic `INVALID.INPUT.EXCEPTION: Invalid field
+value` with NO field name in prod — diagnose by replaying the exact request body, see below):**
+- **Never send `totalWeight`** on the Ship request — it alone triggers the generic 422 (string OR
+  number). FedEx derives the total from per-package weights. `totalPackageCount` is fine. This was
+  *the* bug that blocked all 出单.
+- **`stateOrProvinceCode` only for US/CA/MX/PR** — a JP shipper state like "Shiga" (or any >2-char /
+  non-state-code country) is rejected. `normalizeState()` omits it elsewhere.
+- **Phone numbers must be digits only** (`normalizePhone()` strips `+`/spaces/hyphens) and a real
+  length — a 6-digit junk phone is rejected.
+- **Customs commodity needs `numberOfPieces`**; **`harmonizedCode` is optional**.
+- **Customs `description` must be specific** — "test"/"gift"/vague text → `CUSTOMS.DESCRIPTION.INCOMPLETE`
+  (this is operator data, not a code bug). Use e.g. "Plastic phone case".
+- Account is **not authorized for FEDEX_GROUND** — use international/express services only.
+- `getRates` (no contact/customs/`totalWeight`) succeeding while `createShipment` 422s is the tell
+  that the bad field is ship-only. Reproduce by reading the request body the service logs and POSTing
+  variants straight to `apis.fedex.com/ship/v1/shipments` with an OAuth token (error bodies are gzipped).
+
 ### Key environment variables
 
 ```
