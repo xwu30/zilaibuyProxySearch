@@ -419,7 +419,10 @@ public class FedExService {
         ));
         PackageBuild pkg = buildPackages(req);
         shipment.put("totalPackageCount", pkg.count());
-        shipment.put("totalWeight", Map.of("units", "LB", "value", String.valueOf(pkg.totalLbs())));
+        // Do NOT send totalWeight: FedEx Ship API rejects it with a generic
+        // "INVALID.INPUT.EXCEPTION: Invalid field value" (verified by replaying the
+        // exact request — removing it lets the label generate). FedEx derives the
+        // total from the per-package weights itself.
         shipment.put("requestedPackageLineItems", pkg.lineItems());
 
         if (req.customsValueAmount() != null && req.customsValueAmount() > 0) {
@@ -457,7 +460,6 @@ public class FedExService {
         );
 
         try {
-            log.info("FedEx ship request body: {}", objectMapper.writeValueAsString(body));
             String response = webClient.post()
                     .uri("/ship/v1/shipments")
                     .header("Authorization", "Bearer " + token)
