@@ -141,6 +141,14 @@ public class FedExService {
             String countryOfManufacture,
             // who pays duties & taxes: SENDER (our account) / RECIPIENT / THIRD_PARTY
             String dutiesPaymentType,
+            // shipment purpose → commercial invoice purpose enum
+            // (SOLD / PERSONAL_EFFECTS / GIFT / SAMPLE / NOT_SOLD / REPAIR_AND_RETURN)
+            String shipmentPurpose,
+            String harmonizedCode,
+            // attach an electronic commercial invoice (ETD); defaults ON when null
+            Boolean etd,
+            // recipient email for FedEx shipment/delivery notifications (optional)
+            String notifyEmail,
             String notes
     ) {}
 
@@ -437,18 +445,53 @@ public class FedExService {
                 dutiesPayment.put("payor",
                         Map.of("responsibleParty", Map.of("accountNumber", Map.of("value", accountNumber))));
             }
-            shipment.put("customsClearanceDetail", Map.of(
-                    "dutiesPayment", dutiesPayment,
-                    "totalCustomsValue", Map.of("amount", req.customsValueAmount(), "currency", currency),
-                    "commodities", List.of(Map.of(
-                            "description", or(req.customsDescription(), "Personal goods"),
-                            "numberOfPieces", 1,
-                            "quantity", 1,
-                            "quantityUnits", "PCS",
-                            "unitPrice", Map.of("amount", req.customsValueAmount(), "currency", currency),
-                            "customsValue", Map.of("amount", req.customsValueAmount(), "currency", currency),
-                            "weight", Map.of("units", "LB", "value", String.valueOf(pkg.totalLbs())),
-                            "countryOfManufacture", mfg
+            Map<String, Object> commodity = new HashMap<>();
+            commodity.put("description", or(req.customsDescription(), "Personal goods"));
+            commodity.put("numberOfPieces", 1);
+            commodity.put("quantity", 1);
+            commodity.put("quantityUnits", "PCS");
+            commodity.put("unitPrice", Map.of("amount", req.customsValueAmount(), "currency", currency));
+            commodity.put("customsValue", Map.of("amount", req.customsValueAmount(), "currency", currency));
+            commodity.put("weight", Map.of("units", "LB", "value", String.valueOf(pkg.totalLbs())));
+            commodity.put("countryOfManufacture", mfg);
+            if (req.harmonizedCode() != null && !req.harmonizedCode().isBlank()) {
+                commodity.put("harmonizedCode", req.harmonizedCode().trim());
+            }
+
+            Map<String, Object> customs = new HashMap<>();
+            customs.put("dutiesPayment", dutiesPayment);
+            customs.put("totalCustomsValue", Map.of("amount", req.customsValueAmount(), "currency", currency));
+            customs.put("commodities", List.of(commodity));
+            // Commercial invoice purpose = Commercial/Personal/Gift/Sample from the form.
+            customs.put("commercialInvoice", Map.of("purpose", or(req.shipmentPurpose(), "SOLD")));
+            shipment.put("customsClearanceDetail", customs);
+
+            // Electronic Trade Documents: FedEx auto-generates & transmits the commercial
+            // invoice electronically (no paper invoice to attach). Defaults ON.
+            if (req.etd() == null || req.etd()) {
+                shipment.put("shipmentSpecialServices", Map.of(
+                        "specialServiceTypes", List.of("ELECTRONIC_TRADE_DOCUMENTS"),
+                        "etdDetail", Map.of("requestedDocumentTypes", List.of("COMMERCIAL_INVOICE"))
+                ));
+                shipment.put("shippingDocumentSpecification", Map.of(
+                        "shippingDocumentTypes", List.of("COMMERCIAL_INVOICE"),
+                        "commercialInvoiceDetail", Map.of(
+                                "documentFormat", Map.of("docType", "PDF", "stockType", "PAPER_LETTER"))
+                ));
+            }
+        }
+
+        // FedEx shipment/delivery email notification to the recipient (optional).
+        if (req.notifyEmail() != null && !req.notifyEmail().isBlank()) {
+            shipment.put("emailNotificationDetail", Map.of(
+                    "aggregationType", "PER_SHIPMENT",
+                    "emailNotificationRecipients", List.of(Map.of(
+                            "emailAddress", req.notifyEmail().trim(),
+                            "emailNotificationRecipientType", "RECIPIENT",
+                            "notificationFormatType", "HTML",
+                            "notificationType", "EMAIL",
+                            "locale", "en_US",
+                            "notificationEventType", List.of("ON_SHIPMENT", "ON_DELIVERY", "ON_EXCEPTION")
                     ))
             ));
         }
