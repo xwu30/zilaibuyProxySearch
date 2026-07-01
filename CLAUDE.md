@@ -88,6 +88,12 @@ EB env vars `FEDEX_CLIENT_ID/SECRET/ACCOUNT_NUMBER`; prod runs `FEDEX_SANDBOX=fa
 (**real, billable labels** — base URL `apis.fedex.com`). `getRates` omits `serviceType`
 so FedEx returns all services; the UI lets the user pick. **Customer/dimensions in CM
 (converted to IN), weight in KG (converted to LB); duties payer = SENDER/RECIPIENT/THIRD_PARTY.**
+Also supported (mirrors the FedEx Ship Manager site flow): **shipment purpose**
+(`commercialInvoice.purpose` = SOLD/PERSONAL_EFFECTS/GIFT/SAMPLE/NOT_SOLD), per-commodity
+**HS code** (`harmonizedCode`), **ETD** (`ELECTRONIC_TRADE_DOCUMENTS` + `shippingDocumentSpecification`
+→ FedEx auto-generates & transmits the commercial invoice; default ON, request field `etd`), and
+recipient **email notifications** (`emailNotificationDetail`, request field `notifyEmail`). Not yet
+done: courier **pickup scheduling** (预约取件/提货号) — that's the separate FedEx Pickup API.
 
 **Hard-won gotchas (FedEx returns a useless generic `INVALID.INPUT.EXCEPTION: Invalid field
 value` with NO field name in prod — diagnose by replaying the exact request body, see below):**
